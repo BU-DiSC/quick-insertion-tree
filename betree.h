@@ -545,7 +545,7 @@ public:
      *  returns: new node id
      *  Function: splits leaf into two
      */
-    int splitLeaf(key_type &split_key, BeTraits &traits, uint &new_id)
+    int splitLeaf(key_type &split_key, BeTraits &traits, uint &new_id, float split_frac = 0.5)
     {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
@@ -575,7 +575,7 @@ public:
         traits.num_blocks++;
 
         // start moving data pairs
-        int start_index = data->size / 2;
+        int start_index = (data->size) * split_frac;
 #ifdef SPLIT70
         start_index = 0.7 * (data->size);
 #elif SPLIT80
@@ -601,7 +601,11 @@ public:
 #if defined(SPLIT70) || defined(SPLIT80) || defined(SPLIT90) || defined(SPLIT60) || defined(BULKLOAD)
         assert(data->size >= new_sibling.data->size);
 #else
-        assert(data->size <= new_sibling.data->size);
+        if (split_frac <= 0.5) {
+            assert(data->size <= new_sibling.data->size);
+        } else {
+            assert(data->size >= new_sibling.data->size);
+        }
 #endif
 
         // change current node's next node to new_node
@@ -626,7 +630,7 @@ public:
      *  Function: splits internal node into two. Distributes
      *              buffer and pivots as required
      */
-    int splitInternal(key_type &split_key, BeTraits &traits, uint &new_id)
+    int splitInternal(key_type &split_key, BeTraits &traits, uint &new_id, float split_frac = 0.5)
     {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
@@ -652,7 +656,7 @@ public:
         BeNode temp_mover(manager, new_id);
 
         // move half the pivots to the new node
-        int start_index = (getPivotsCtr()) / 2;
+        int start_index = (getPivotsCtr()) * split_frac;
 
 #ifdef SPLIT70
         start_index = 0.7 * (getPivotsCtr());
@@ -1826,8 +1830,10 @@ public:
     _Key min_key;
     _Key max_key;
 
+    float split_frac;
+
 public:
-    BeTree(std::string _name, std::string _rootDir, unsigned long long _size_of_each_block, uint _blocks_in_memory) : tail_leaf(nullptr), head_leaf(nullptr)
+    BeTree(std::string _name, std::string _rootDir, unsigned long long _size_of_each_block, uint _blocks_in_memory, float split_frac = 0.5) : tail_leaf(nullptr), head_leaf(nullptr), split_frac(split_frac)
     {
         manager = new BlockManager(_name, _rootDir, _size_of_each_block, _blocks_in_memory);
 
@@ -1926,7 +1932,7 @@ public:
             if (flag)
             {
                 key_type split_key_new;
-                root->splitLeaf(split_key_new, traits, new_id);
+                root->splitLeaf(split_key_new, traits, new_id, split_frac);
                 BeNode<key_type, value_type, knobs, compare> new_leaf(manager, new_id);
                 traits.leaf_splits++;
 
@@ -2038,7 +2044,7 @@ public:
 
                     if (child_parent.isRoot())
                     {
-                        child_parent.splitInternal(split_key, traits, new_node_id);
+                        child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                         BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_node_id);
                         manager->addDirtyNode(new_node_id);
                         traits.internal_splits++;
@@ -2081,7 +2087,7 @@ public:
                     // we need to split this internal node
 
                     // we set new_node to the newly split node
-                    child_parent.splitInternal(split_key, traits, new_node_id);
+                    child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                     manager->addDirtyNode(child_parent.getId());
                     new_node.setToId(new_node_id);
                     manager->addDirtyNode(new_node_id);
@@ -2483,7 +2489,7 @@ public:
                     if (child_parent.isRoot())
                     {
                         // split root
-                        child_parent.splitInternal(split_key, traits, new_node_id);
+                        child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                         BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_node_id);
                         manager->addDirtyNode(new_node_id);
                         traits.internal_splits++;
@@ -2512,7 +2518,7 @@ public:
                     // if flag returned true but child parent is not root
                     // split internal node and check for propagating splits upwards
 
-                    child_parent.splitInternal(split_key, traits, new_node_id);
+                    child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                     traits.internal_splits++;
                     manager->addDirtyNode(child_parent.getId());
                     new_node.setToId(new_node_id);
