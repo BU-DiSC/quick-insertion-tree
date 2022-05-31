@@ -5,7 +5,7 @@
 using namespace std; 
 
 int mixed_workload_test(string input_file, string output_file, int num_queries, int perc_load, int n){
-    dual_tree<int,int> tree = dual_tree<int,int>();
+    dual_tree<int,int> tree = dual_tree<int,int>("tree_1", "tree_2");
     long int size = 0;
     int *data;
 
@@ -173,33 +173,6 @@ int mixed_workload_test(string input_file, string output_file, int num_queries, 
     return 1;
 }
 
-void dual_tree_test(const std::vector<int>& data_set)
-{
-    auto start = std::chrono::high_resolution_clock::now();
-    dual_tree<int, int> dt;
-    int idx = 0;
-    int cnt = 0;
-    for(int i: data_set){
-        if(idx == i) {
-            cnt += 1;
-        }
-        idx += 1;
-    }
-    std::cout << "Number of keys in sorted position: " << cnt << std::endl;
-    idx = 0;
-    for(int i: data_set)
-    {
-        dt.insert(i, idx++); 
-    }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-
-    std::cout << "Data Load time For dual tree(us):" << duration.count() << std::endl;
-    std::cout << "Sorted tree size: " << dt.sorted_tree_size() << std::endl;
-    std::cout << "Unsorted tree size: " << dt.unsorted_tree_size() << std::endl;
-    dt.fanout();
-
-}
 
 void b_plus_tree_test(const std::vector<int>& data_set)
 {
@@ -248,7 +221,7 @@ int main(int argc, char **argv)
 
     dual_tree<int, int>::show_tree_knobs();
 
-    dual_tree_test(data);
+    // dual_tree_test(data);
     std::this_thread::sleep_for(std::chrono::seconds(2));
     b_plus_tree_test(data);
     return 0;
