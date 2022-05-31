@@ -7,7 +7,7 @@ using namespace std;
 void dual_tree_test(const std::vector<int>& data_set)
 {
     auto start = std::chrono::high_resolution_clock::now();
-    dual_tree<int, int> dt;
+    dual_tree<int, int> dt("tree_1", "tree_2");
     int idx = 0;
     int cnt = 0;
     for(int i: data_set){
@@ -28,7 +28,7 @@ void dual_tree_test(const std::vector<int>& data_set)
     std::cout << "Data Load time For dual tree(us):" << duration.count() << std::endl;
     std::cout << "Sorted tree size: " << dt.sorted_tree_size() << std::endl;
     std::cout << "Unsorted tree size: " << dt.unsorted_tree_size() << std::endl;
-    dt.fanout();
+    dt.display_stats();
 
 }
 
