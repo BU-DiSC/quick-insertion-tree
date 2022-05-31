@@ -33,11 +33,11 @@ class dual_tree
 public:
 
     // Default constructor, disable the buffer.
-    dual_tree()
+    dual_tree(std::string tree_path_1, std::string tree_path_2)
     {   
-        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", "./tree_dat", 
+        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_1, 
     _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY);
-        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", "./tree_dat", 
+        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_2, 
     _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY);
         sorted_size = 0;
         unsorted_size = 0;
@@ -95,7 +95,7 @@ public:
 
     
 
-    void fanout()
+    void display_stats()
     {
         sorted_tree->fanout();
         std::cout << "Sorted Tree: number of splitting leaves = " << sorted_tree->traits.leaf_splits
