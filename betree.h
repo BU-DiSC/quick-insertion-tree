@@ -921,7 +921,7 @@ public:
      *  Function: flushes element of internal node buffer to its child leaf.
      *              If exceeding capacity of leaf, it splits
      */
-    bool flushLeaf(BeNode<key_type, value_type, knobs, compare> &child, std::pair<key_type, value_type> *elements_to_flush, int &num_to_flush, key_type &split_key, uint &new_node_id, BeTraits &traits)
+    bool flushLeaf(BeNode<key_type, value_type, knobs, compare> &child, std::pair<key_type, value_type> *elements_to_flush, int &num_to_flush, key_type &split_key, uint &new_node_id, BeTraits &traits, float split_frac = 0.5)
     {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
@@ -945,7 +945,7 @@ public:
         if (child.insertInLeaf(elements_to_flush, num_to_flush))
         {
             // require a split operation
-            new_node_id = child.splitLeaf(split_key, traits, new_node_id);
+            new_node_id = child.splitLeaf(split_key, traits, new_node_id, split_frac);
 
             assert(data->size <= knobs::NUM_DATA_PAIRS);
 
@@ -970,7 +970,7 @@ public:
      *  Function: flushes elements of buffer from internal node to its
      *              child internal node.
      */
-    bool flushInternal(BeNode<key_type, value_type, knobs, compare> &child, std::pair<key_type, value_type> *elements_to_flush, int &num_to_flush)
+    bool flushInternal(BeNode<key_type, value_type, knobs, compare> &child, std::pair<key_type, value_type> *elements_to_flush, int &num_to_flush, float split_frac = 0.5)
     {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
@@ -1038,7 +1038,7 @@ public:
      *  Function: flushes a level of a tree from a node. If the internal node flush
      *  resulted in exceeding capacity, flushes a level again from that internal node
      */
-    Result flushLevel(key_type &split_key, uint &new_node_id, BeTraits &traits)
+    Result flushLevel(key_type &split_key, uint &new_node_id, BeTraits &traits, float split_frac = 0.5)
     {
         // #ifdef PROFILE
         //         auto start = std::chrono::high_resolution_clock::now();
@@ -1071,7 +1071,7 @@ public:
         if (child.isLeaf())
         {
 
-            Result flag = flushLeaf(child, elements_to_flush, num_to_flush, split_key, new_node_id, traits) ? SPLIT : NOSPLIT;
+            Result flag = flushLeaf(child, elements_to_flush, num_to_flush, split_key, new_node_id, traits, split_frac) ? SPLIT : NOSPLIT;
 
 #ifdef BPLUS
             // since we have flushed, let's confirm if that flush worked correctly
@@ -1094,14 +1094,14 @@ public:
         }
 
         traits.internal_flushes++;
-        if (flushInternal(child, elements_to_flush, num_to_flush))
+        if (flushInternal(child, elements_to_flush, num_to_flush, split_frac))
         {
 
 #ifdef BPLUS
             // since we have flushed from this node, let's confirm if that flush worked correctly
             assert(buffer->size == 0);
 #endif
-            res = child.flushLevel(split_key, new_node_id, traits);
+            res = child.flushLevel(split_key, new_node_id, traits, split_frac);
 
 #ifdef BPLUS
             // we initiated a flushLevel for the child. When this returns, child's buffer should be empty
@@ -2007,7 +2007,7 @@ public:
 #ifdef PROFILE
             auto start_flush = std::chrono::high_resolution_clock::now();
 #endif
-            Result result = root->flushLevel(split_key, new_node_id, traits);
+            Result result = root->flushLevel(split_key, new_node_id, traits, split_frac);
 #ifdef PROFILE
             auto stop_flush = std::chrono::high_resolution_clock::now();
             auto duration_flush = std::chrono::duration_cast<std::chrono::microseconds>(stop_flush - start_flush);
