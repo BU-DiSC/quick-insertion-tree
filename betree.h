@@ -1939,7 +1939,7 @@ public:
         }
         key_type split_key_leaf = tail_leaf->getDataPairKey(tail_leaf->getDataSize() - 1);
         uint new_leaf_id = manager->allocate();
-        tail_leaf->splitLeaf(split_key_leaf, this->traits, new_leaf_id);
+        tail_leaf->splitLeaf(split_key_leaf, this->traits, new_leaf_id, split_frac);
         traits.leaf_splits++;
         BeNode<key_type, value_type, knobs, compare> *new_leaf = 
             new BeNode<key_type, value_type, knobs, compare>(manager, new_leaf_id);
@@ -2009,7 +2009,7 @@ public:
                     //ends. 
                     // Here the splitInternal() will change the value @new_node_id to the 
                     //id of the node that is newly splitted.
-                    child_parent.splitInternal(split_key, traits, new_node_id);
+                    child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                     BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_node_id);
                     manager->addDirtyNode(new_node_id);
                     traits.internal_splits++;
@@ -2036,7 +2036,7 @@ public:
 
                 // The parent node is not root, we just split it, and to see whether another 
                 //split is needed.
-                child_parent.splitInternal(split_key, traits, new_node_id);
+                child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                 traits.internal_splits++;
                 manager->addDirtyNode(child_parent.getId());
                 new_node.setToId(new_node_id);
