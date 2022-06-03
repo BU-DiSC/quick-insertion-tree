@@ -32,6 +32,30 @@ void dual_tree_test(const std::vector<int>& data_set)
 
 }
 
+void split_test()
+{
+    dual_tree<int, int> dt("tree_1", "tree_2");
+
+    int n = 100000;
+    std::vector<int> data;
+
+    for (int i = 0; i < n; i++) {
+        data.push_back(i + 1);
+    }
+
+    std::random_shuffle(data.begin(), data.end());
+
+    int idx = 0;
+    for (auto value : data) {
+        dt.insert(value, idx++);
+    }
+
+    dt.show_tree_knobs();
+    std::cout << "Sorted tree size: " << dt.sorted_tree_size() << std::endl;
+    std::cout << "Unsorted tree size: " << dt.unsorted_tree_size() << std::endl;
+    dt.display_stats();
+}
+
 void b_plus_tree_test(const std::vector<int>& data_set)
 {
     // init a tree that takes integers for both key and value
@@ -59,28 +83,29 @@ void b_plus_tree_test(const std::vector<int>& data_set)
 }
 int main(int argc, char **argv)
 {
-    if(argc < 2)
-    {
-        std::cout<< "Usage: ./main <input_file>" << std::endl;
-    }
+    // if(argc < 2)
+    // {
+    //     std::cout<< "Usage: ./main <input_file>" << std::endl;
+    // }
 
-    // Read the input file
-    std::string input_file = argv[1];
-    std::ifstream ifs;
-    std::vector<int> data;
+    // // Read the input file
+    // std::string input_file = argv[1];
+    // std::ifstream ifs;
+    // std::vector<int> data;
 
-    ifs.open(input_file);
-    ifs.seekg(0, std::ios::end);
-    size_t filesize = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
+    // ifs.open(input_file);
+    // ifs.seekg(0, std::ios::end);
+    // size_t filesize = ifs.tellg();
+    // ifs.seekg(0, std::ios::beg);
 
-    data.resize(filesize / sizeof(int));
-    ifs.read((char*)data.data(), filesize);
+    // data.resize(filesize / sizeof(int));
+    // ifs.read((char*)data.data(), filesize);
 
-    dual_tree<int, int>::show_tree_knobs();
+    // dual_tree<int, int>::show_tree_knobs();
 
-    dual_tree_test(data);
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    b_plus_tree_test(data);
+    // dual_tree_test(data);
+    // std::this_thread::sleep_for(std::chrono::seconds(2));
+    // b_plus_tree_test(data);
+    split_test();
     return 0;
 }
