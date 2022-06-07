@@ -2,3 +2,8 @@
 *.o
 test_set*
 tree_dat/
+*.dat
+bptree_basic_analysis
+bptree_mixed_analysis
+dual_basic_analysis
+dual_mixed_analysis
