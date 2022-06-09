@@ -15,6 +15,8 @@ dual_basic_analysis: betree.h dual_basic_analysis.cpp
 dual_mixed_analysis: betree.h dual_mixed_analysis.cpp
 	g++ -g -std=c++11 betree.h dual_tree.h dual_mixed_analysis.cpp -o dual_mixed_analysis -DTIMER -DBPLUS
 
+analysis: betree.h basic_analysis.cpp
+	g++ -g -std=c++11 betree.h dual_tree.h basic_analysis.cpp -o analysis.o -DTIMER -DBPLUS
 
 clean: 
 	$(RM) *.o

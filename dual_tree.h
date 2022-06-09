@@ -9,10 +9,10 @@ class DUAL_TREE_KNOBS
 public:
     // Sorted tree split fraction, it will affect the space utilization of the tree. It means how
     // many elements will stay in the original node.
-    static constexpr float SORTED_TREE_SPLIT_FRAC = 0.99;
+    static constexpr float SORTED_TREE_SPLIT_FRAC = 1.0F;
 
     // Unsorted tree splitting fraction.
-    static constexpr float UNSORTED_TREE_SPLIT_FRAC = 0.5;
+    static constexpr float UNSORTED_TREE_SPLIT_FRAC = 0.5F;
 
 };
 
@@ -30,15 +30,19 @@ class dual_tree
 
     uint unsorted_size;
 
+    // Root directory for storing data.
+    static const std::string TREE_DATA_ROOT_DIR;
+
 public:
 
     // Default constructor, disable the buffer.
     dual_tree(std::string tree_path_1, std::string tree_path_2)
     {   
-        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_1, 
-    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY);
-        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_2, 
-    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY);
+        const std::string TREE_DATA_ROOT_DIR = "./tree_dat";
+        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_1, TREE_DATA_ROOT_DIR, 
+    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC);
+        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_2, TREE_DATA_ROOT_DIR, 
+    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC);
         sorted_size = 0;
         unsorted_size = 0;
 
@@ -109,6 +113,13 @@ public:
         std::cout << "Sorted Tree: Maximum value = " << sorted_tree->getMaximumKey() << std::endl;
         std::cout << "Sorted Tree: Minimum value = " << sorted_tree->getMinimumKey() << std::endl;
 
+        std::vector<int> sorted_tree_occs = sorted_tree->get_leaves_occupancy();
+        std::cout << "Sorted Tree Leaf Occupancy: ";
+        for (auto i : sorted_tree_occs) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+
         unsorted_tree->fanout();
         std::cout << "Unsorted Tree: number of splitting leaves = " << unsorted_tree->traits.leaf_splits
             << std::endl;
@@ -120,6 +131,14 @@ public:
             unsorted_tree->traits.num_internal_nodes << std::endl;
         std::cout << "Unsorted Tree: Maximum value = " << unsorted_tree->getMaximumKey() << std::endl;
         std::cout << "Unsorted Tree: Minimum value = " << unsorted_tree->getMinimumKey() << std::endl;
+
+        std::vector<int> unsorted_tree_occs = unsorted_tree->get_leaves_occupancy();
+        std::cout << "Unsorted Tree Leaf Occupancy: ";
+        for (auto i : unsorted_tree_occs) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+
         
     }
 
