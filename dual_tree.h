@@ -1,5 +1,5 @@
 #ifndef DUALTREE_H
-#define DUEALTREE_H
+#define DUALTREE_H
 #include "betree.h"
 #include <stdlib.h>
 
@@ -187,7 +187,7 @@ private:
         }
     }
     
-    };
+};
 
 
     
