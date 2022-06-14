@@ -1892,6 +1892,18 @@ public:
         return max_key;
     }
 
+    key_type getTailMinimum(bool& is_empty) {
+        // TODO: getDataSize may have issues when node.data is not initialized 
+        if (tail_leaf == nullptr || tail_leaf->getDataSize() == 0) {
+            // tail node is empty when tree is empty or after splitting with split_factor = 1
+            is_empty = true;
+            return max_key;
+        } else {
+            is_empty = false;
+            return tail_leaf->getDataPairKey(0);
+        }
+    }
+
     key_type get_minimum_key_of_tail_leaf() {
         if(tail_leaf == nullptr) {
             return min_key;
