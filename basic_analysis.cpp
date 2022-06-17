@@ -54,6 +54,14 @@ void split_test()
     std::cout << "Sorted tree size: " << dt.sorted_tree_size() << std::endl;
     std::cout << "Unsorted tree size: " << dt.unsorted_tree_size() << std::endl;
     dt.display_stats();
+
+    int count = 0;
+
+    for (auto value : data) {
+        count += dt.query(value);
+    }
+
+    std::cout << "Number of keys found: " << count << std::endl;
 }
 
 void b_plus_tree_test(const std::vector<int>& data_set)
