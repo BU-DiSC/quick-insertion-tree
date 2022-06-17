@@ -68,7 +68,7 @@ public:
         }
         key_type dist = key - previous_key;
         dist = dist > 0 ? dist : 0;
-        if (avg_distance == INIT_AVG_DIST) {
+        if (avg_dist == INIT_AVG_DIST) {
             // sorted tree is empty, counter = 1
             avg_dist = dist;
         }
@@ -78,6 +78,9 @@ public:
                 return true;
             }
             avg_dist = ((double)(avg_dist * (counter - 1) + dist)) / counter;
+            if (expected_avg_dist > 1) {
+                update_tolerance_factor();
+            }
         }
         // update last inserted key and counter
         previous_key = key > previous_key ? key : previous_key;
@@ -85,4 +88,4 @@ public:
 
         return false;
     }
-}
+};
