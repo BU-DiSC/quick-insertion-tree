@@ -30,14 +30,18 @@ class dual_tree
 
     uint unsorted_size;
 
+    // Root directory for storing data.
+    static const std::string TREE_DATA_ROOT_DIR;
+
 public:
 
     // Default constructor, disable the buffer.
     dual_tree(std::string tree_path_1, std::string tree_path_2)
     {   
-        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_1, 
+        const std::string TREE_DATA_ROOT_DIR = "./tree_dat";
+        unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_1, TREE_DATA_ROOT_DIR, 
     _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC);
-        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>("manager", tree_path_2, 
+        sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_2, TREE_DATA_ROOT_DIR, 
     _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC);
         sorted_size = 0;
         unsorted_size = 0;
