@@ -172,9 +172,15 @@ public:
 private:
 
     _key _get_required_minimum_inserted_key(bool& no_lower_bound) {
+        // std::cout << (sorted_tree->more_than_one_leaf() && !sorted_tree->is_tail_leaf_empty()) << std::endl;
         if(sorted_tree->more_than_one_leaf()){
             no_lower_bound = false;
-            return sorted_tree->get_minimum_key_of_tail_leaf();
+
+            if (sorted_tree->is_tail_leaf_empty()) {
+                return sorted_tree->get_prev_tail_maximum_key();
+            } else {
+                return sorted_tree->get_minimum_key_of_tail_leaf();
+            }
         } else {
             // Since there is only 1 leaf in the sorted tree, no lower bound for insertion range.
             no_lower_bound = true;

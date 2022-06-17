@@ -1822,6 +1822,8 @@ public:
 
     BeNode<key_type, value_type, knobs, compare> *tail_leaf;
 
+    BeNode<key_type, value_type, knobs, compare> *prev_tail;
+
     BeNode<key_type, value_type, knobs, compare> *head_leaf;
 
     uint head_leaf_id;
@@ -1972,6 +1974,7 @@ public:
 
             root = new_root;
 
+            prev_tail = tail_leaf;
             tail_leaf = new_leaf;
             tail_leaf_id = new_leaf->getId(); 
         }  
@@ -1987,6 +1990,7 @@ public:
             manager->addDirtyNode(new_leaf->getId());
             manager->addDirtyNode(tail_leaf->getId());
 
+            prev_tail = tail_leaf;
             tail_leaf = new_leaf;
             tail_leaf_id = new_leaf->getId();
 
@@ -2722,6 +2726,17 @@ public:
 public:
     bool more_than_one_leaf() {
         return head_leaf != nullptr && tail_leaf != nullptr && head_leaf != tail_leaf;
+    }
+
+    bool is_tail_leaf_empty() {
+        BeNode<key_type, value_type, knobs, compare> *leaf = new BeNode<key_type, value_type, knobs, compare>(manager, tail_leaf_id);
+        int tail_size = leaf->get_leaf_occupancy();
+        return tail_size == 0;
+    }
+
+    key_type get_prev_tail_maximum_key() {
+        assert(prev_tail != nullptr);
+        return prev_tail->getLastDataPair().first;
     }
 
     double findMedian(int *a, int n)
