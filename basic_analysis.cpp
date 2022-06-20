@@ -91,29 +91,28 @@ void b_plus_tree_test(const std::vector<int>& data_set)
 }
 int main(int argc, char **argv)
 {
-    // if(argc < 2)
-    // {
-    //     std::cout<< "Usage: ./main <input_file>" << std::endl;
-    // }
+    if(argc < 2)
+    {
+        std::cout<< "Usage: ./main <input_file>" << std::endl;
+    }
 
-    // // Read the input file
-    // std::string input_file = argv[1];
-    // std::ifstream ifs;
-    // std::vector<int> data;
+    // Read the input file
+    std::string input_file = argv[1];
+    std::ifstream ifs;
+    std::vector<int> data;
 
-    // ifs.open(input_file);
-    // ifs.seekg(0, std::ios::end);
-    // size_t filesize = ifs.tellg();
-    // ifs.seekg(0, std::ios::beg);
+    ifs.open(input_file);
+    ifs.seekg(0, std::ios::end);
+    size_t filesize = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
 
-    // data.resize(filesize / sizeof(int));
-    // ifs.read((char*)data.data(), filesize);
+    data.resize(filesize / sizeof(int));
+    ifs.read((char*)data.data(), filesize);
 
-    // dual_tree<int, int>::show_tree_knobs();
+    dual_tree<int, int>::show_tree_knobs();
 
-    // dual_tree_test(data);
-    // std::this_thread::sleep_for(std::chrono::seconds(2));
-    // b_plus_tree_test(data);
-    split_test();
+    dual_tree_test(data);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    b_plus_tree_test(data);
     return 0;
 }

@@ -541,6 +541,44 @@ public:
         return data->size >= knobs::NUM_DATA_PAIRS;
     }
 
+
+    /**
+     * Swap the first key that is greater than the @key. This function can only be called by the BeTree::swap_in_tail_leaf
+     * currently. It is used by the "lazy move" strategy of dual tree system, thus there must be a key that is greater than
+     * @key
+     * 
+     * @param key: The key that will be inserted into the node.
+     * @param val: The corresponding value of the key.
+     * @param is_max: An indicator, set to true when the swapped key is the maximum key of the node.
+     * @param is_min: An indicator, play a same role as @is_max.
+     * 
+     * @return The swapped key and its value.
+    */
+    std::pair<key_type, value_type> swap_in_leaf(key_type key, value_type val, bool &is_max, bool &is_min) {
+        // When using this method, no need to consider splitting of leaf node.
+        open();
+
+        assert(*is_leaf);
+
+        manager->addDirtyNode(id);
+        // Search the first key that is greater than the inserted key.
+        for(int i = 0; i < data->size; i++) {
+            if(data->data[i].first > key) {
+                if(i == data->size - 1) {
+                    is_max = true;
+                } else if(i == 0) {
+                    is_min = true;
+                }
+                auto ret = data->data[i];
+                data->data[i] = std::pair<key_type, value_type>(key, val); 
+                return ret;
+
+            }
+        } 
+        // Didn't find, should not arrive here, this could happen when a new leaf is created and the split fraction 
+        //of the sorted tree is 1. Then no swap happens, and directly return the @key and @val
+        return std::pair<key_type, value_type>(key, val);
+    }
     /**
      *  returns: new node id
      *  Function: splits leaf into two
@@ -1850,22 +1888,22 @@ public:
         head_leaf_id = root_id;
         tail_leaf_id = root_id;
 
-        std::cout << "B Epsilon Tree" << std::endl;
+        /*std::cout << "B Epsilon Tree" << std::endl;
         std::cout << "Number of Upserts = " << knobs::NUM_UPSERTS << std::endl;
         std::cout << "Number of Pivots = " << knobs::NUM_PIVOTS << std::endl;
         std::cout << "Number of Children = " << knobs::NUM_CHILDREN << std::endl;
-        std::cout << "Number of Data pairs = " << knobs::NUM_DATA_PAIRS << std::endl;
+        std::cout << "Number of Data pairs = " << knobs::NUM_DATA_PAIRS << std::endl;*/
 
 #ifdef UNITTEST
 
 #else
-        std::cout << "Block Size = " << knobs::BLOCK_SIZE << std::endl;
+        /*std::cout << "Block Size = " << knobs::BLOCK_SIZE << std::endl;
         std::cout << "Data Size = " << knobs::DATA_SIZE << std::endl;
         std::cout << "Block Size = " << knobs::BLOCK_SIZE << std::endl;
         std::cout << "Metadata Size = " << knobs::METADATA_SIZE << std::endl;
         std::cout << "Unit Size = " << knobs::UNIT_SIZE << std::endl;
         std::cout << "Pivots Size = " << knobs::PIVOT_SIZE << std::endl;
-        std::cout << "Buffer Size = " << knobs::BUFFER_SIZE << std::endl;
+        std::cout << "Buffer Size = " << knobs::BUFFER_SIZE << std::endl;*/
 #endif
     }
 
@@ -1913,6 +1951,21 @@ public:
         return tail_leaf->getDataPairKey(0);
     }
 public:
+    std::pair<key_type, value_type> swap_in_tail_leaf(key_type key, value_type val) {
+        // When using this method, no need to consider splitting of leaf node.
+        assert(tail_leaf != nullptr);
+        bool is_max = false;
+        bool is_min = false;
+        
+        auto ret = tail_leaf->swap_in_leaf(key, val, is_max, is_min);
+        if(is_max) {
+            max_key = key;
+        } else if(is_min && root->isLeaf()) {
+            min_key = key;
+        }
+        return ret;
+    }
+
     bool insert_to_tail_leaf(key_type key, value_type val, bool append)
     {   
         bool need_split;

@@ -1,28 +1,37 @@
 
-MKDIR_P = mkdir -p
-all: bptree_basic_analysis bptree_mixed_analysis dual_basic_analysis dual_mixed_analysis
-	$(MKDIR_P) tree_dat
+CXX=g++
+CFLAGS=-g -std=c++11
+DFLAGS=-DTIME -DBPLUS
+SOURCES=betree.h dual_tree.h
+MKDIR_P=mkdir -p
+MKDATA_DIR = $(MKDIR_P) tree_dat
+
+all: bptree_basic_analysis bptree_mixed_analysis dual_basic_analysis dual_mixed_analysis	
 	
-bptree_basic_analysis: betree.h bptree_basic_analysis.cpp
-	g++ -g -std=c++11 betree.h dual_tree.h bptree_basic_analysis.cpp -o bptree_basic_analysis -DTIMER -DBPLUS
+bptree_basic_analysis: $(SOURCES) bptree_basic_analysis.cpp
+	$(CXX) $(CFLAGS) $^ -o $@ $(DFLAGS)
+	$(MKDATA_DIR)	
 
-bptree_mixed_analysis: betree.h bptree_mixed_analysis.cpp
-	g++ -g -std=c++11 betree.h dual_tree.h bptree_mixed_analysis.cpp -o bptree_mixed_analysis -DTIMER -DBPLUS
+bptree_mixed_analysis: $(SOURCES) bptree_mixed_analysis.cpp
+	$(CXX) $(CFLAGS) $^ -o $@ $(DFLAGS)
+	$(MKDATA_DIR)
 
-dual_basic_analysis: betree.h dual_basic_analysis.cpp
-	g++ -g -std=c++11 betree.h dual_tree.h dual_basic_analysis.cpp -o dual_basic_analysis -DTIMER -DBPLUS
+dual_basic_analysis: $(SOURCES) dual_basic_analysis.cpp
+	$(CXX) $(CFLAGS) $^ -o $@ $(DFLAGS)
+	$(MKDATA_DIR)
 
-dual_mixed_analysis: betree.h dual_mixed_analysis.cpp
-	g++ -g -std=c++11 betree.h dual_tree.h dual_mixed_analysis.cpp -o dual_mixed_analysis -DTIMER -DBPLUS
+dual_mixed_analysis: $(SOURCES) dual_mixed_analysis.cpp
+	$(CXX) $(CFLAGS) $^ -o $@ $(DFLAGS)
+	$(MKDATA_DIR)
 
-analysis: betree.h basic_analysis.cpp
-	g++ -g -std=c++11 betree.h dual_tree.h basic_analysis.cpp -o analysis.o -DTIMER -DBPLUS
+basic_analysis: $(SOURCES) basic_analysis.cpp
+	$(CXX) $(CFLAGS) $^ -o $@ $(DFLAGS)
+	$(MKDATA_DIR)
 
 clean: 
-	$(RM) *.o
-	$(RM) tree_dat/*
-	rm bptree_basic_analysis
-	rm bptree_mixed_analysis
-	rm dual_basic_analysis
-	rm dual_mixed_analysis
-	rm -r tree_dat/
+	$(RM) bptree_basic_analysis
+	$(RM) bptree_mixed_analysis
+	$(RM) dual_basic_analysis
+	$(RM) dual_mixed_analysis
+	$(RM) basic_analysis
+	$(RM) -r tree_dat/

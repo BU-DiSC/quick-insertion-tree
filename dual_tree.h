@@ -9,11 +9,13 @@ class DUAL_TREE_KNOBS
 public:
     // Sorted tree split fraction, it will affect the space utilization of the tree. It means how
     // many elements will stay in the original node.
-    static constexpr float SORTED_TREE_SPLIT_FRAC = 1.0F;
+    static constexpr float SORTED_TREE_SPLIT_FRAC = 0.5F;
 
     // Unsorted tree splitting fraction.
     static constexpr float UNSORTED_TREE_SPLIT_FRAC = 0.5F;
 
+    // Switch for lazy move
+    static const bool ENABLE_LAZY_MOVE = true;
 };
 
 template <typename _key, typename _value, typename _dual_tree_knobs=DUAL_TREE_KNOBS<_key, _value>,
@@ -73,10 +75,16 @@ public:
         }
         else
         {
-            // When _dual_tree_knobs::ALLOW_SORTED_TREE_INSERTION is false, @append is always true.
             bool append = inserted_key >= sorted_tree->getMaximumKey();
-            sorted_tree->insert_to_tail_leaf(inserted_key, inserted_value, append);
-            sorted_size += 1;
+            if(!_dual_tree_knobs::ENABLE_LAZY_MOVE || append) {
+                // If the new key will be appended or lazy move is disabled, we use the insert method.
+                sorted_tree->insert_to_tail_leaf(inserted_key, inserted_value, append);
+                sorted_size += 1;
+            } else {
+                std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(inserted_key, inserted_value);
+                unsorted_tree->insert(swapped.first, swapped.second);
+                unsorted_size += 1;
+            }
         }
         return true;
     }
