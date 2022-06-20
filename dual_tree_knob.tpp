@@ -1,3 +1,4 @@
+#define TYPE int
 // Some helper functions
 std::string str2lower(std::string str) {
     std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c){ return std::tolower(c); });
@@ -56,4 +57,26 @@ template<typename _key, typename _value>
 const bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_LAZY_MOVE = 
     str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "true"));
 
+template<typename _key, typename _value>
+const bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_OUTLIER_DETECTOR = 
+    str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "true"));
 
+template<typename _key, typename _value>
+const uint DUAL_TREE_KNOBS<_key, _value>::HEAP_SIZE = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("HEAP_SIZE", "15"));
+
+template<typename _key, typename _value>
+const uint DUAL_TREE_KNOBS<_key, _value>::INIT_TOLERANCE_FACTOR = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("INIT_TOLERANCE_FACTOR", "100"));
+
+template<typename _key, typename _value>
+const float DUAL_TREE_KNOBS<_key, _value>::MIN_TOLERANCE_FACTOR = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("MIN_TOLERANCE_FACTOR", "20"));
+
+template<typename _key, typename _value>
+const float DUAL_TREE_KNOBS<_key, _value>::EXPECTED_AVG_DISTANCE = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("EXPECTED_AVG_DISTANCE", "2.5"));
+
+template<typename _key, typename _value>
+const TYPE DUAL_TREE_KNOBS<_key, _value>::OUTLIER_DETECTOR_TYPE = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("OUTLIER_DETECTOR_TYPE", "1"));
