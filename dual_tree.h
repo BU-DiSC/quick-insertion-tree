@@ -140,6 +140,16 @@ public:
             unsorted_tree->insert(key, value);
             unsorted_size++;
         }
+
+
+        bool is_empty = false;
+        _key tail_min = _get_required_minimum_inserted_key(is_empty);
+        // _key tail_min = sorted_tree->getTailMinimum(is_empty);
+        if (!is_empty && key < tail_min) {
+            // when key is smaller than tail_min, insert directly to unsorted tree
+            unsorted_tree->insert(key, value);
+            unsorted_size++;
+        }
         else
         {
             // push to heap buffer (if it is enabled)
