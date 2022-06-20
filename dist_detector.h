@@ -1,5 +1,5 @@
 template<typename key_type>
-class dist_detector
+class DistDetector
 {
     // The default value of @average_distance.
     static constexpr float INIT_AVG_DIST = -1;
@@ -50,7 +50,7 @@ class dist_detector
 
 public:
 
-    dist_detector(float _tolerance_factor, float _min_tolerance_factor, 
+    DistDetector(float _tolerance_factor, float _min_tolerance_factor, 
                     float _expected_avg_dist=1) : tolerance_factor(_tolerance_factor), 
                     expected_avg_dist(_expected_avg_dist), 
                     min_tolerance_factor(_min_tolerance_factor),
@@ -62,8 +62,9 @@ public:
 
     bool is_outlier(key_type key) {
         if (counter == 0) {
-            // to calculate distance, there should at least be 1 keys in the tree
+            // to calculate distance, there should be at least 1 keys in the tree
             previous_key = key;
+            counter++;
             return false;
         }
         key_type dist = key - previous_key;

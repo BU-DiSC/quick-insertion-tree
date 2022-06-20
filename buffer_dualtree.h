@@ -21,7 +21,7 @@ public:
     // Unsorted tree splitting fraction.
     static constexpr float UNSORTED_TREE_SPLIT_FRAC = 0.5F;
 
-    static const uint HEAP_SIZE = 0;
+    static const uint HEAP_SIZE = 15;
 
     // The initial tolerance threshold, determine whether the key of the newly added tuple is too far from the previous
     //tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
@@ -43,6 +43,22 @@ public:
 
 };
 
+template<typename _key, typename _value>
+class Heap : public std::priority_queue<std::pair<_key, _value>, 
+                                    std::vector<std::pair<_key, _value>>, 
+                                    std::greater<std::pair<_key, _value>>>
+{
+public:  
+    typename std::vector<std::pair<_key, _value>>::iterator begin(){
+        return std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>, 
+                    std::greater<std::pair<_key, _value>>>::c.begin();
+    }
+    typename std::vector<std::pair<_key, _value>>::iterator end(){
+        return std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>, 
+                    std::greater<std::pair<_key, _value>>>::c.end();
+    }
+};
+
 template <typename _key, typename _value, typename _dual_tree_knobs=DUAL_TREE_KNOBS<_key, _value>,
             typename _betree_knobs = BeTree_Default_Knobs<_key, _value>, 
             typename _compare=std::less<_key>>
@@ -59,11 +75,10 @@ class dual_tree
     // Root directory for storing data.
     static const std::string TREE_DATA_ROOT_DIR;
 
-    std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>, 
-                            std::greater<std::pair<_key, _value>>>* heap_buffer;
+    Heap<_key, _value>* heap_buffer;
 
     // TODO: create a super class for all outlier detectors
-    dist_detector<_key>* outlier_detector;
+    DistDetector<_key>* outlier_detector;
 
 public:
 
@@ -82,13 +97,12 @@ public:
 
         if (_dual_tree_knobs::HEAP_SIZE > 0) {
             // initialize heap buffer if the tuning knob::heap size > 0
-            heap_buffer = new std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>,
-                                                std::greater<std::pair<_key, _value>>>();
+            heap_buffer = new Heap<_key, _value>();
         }
 
         if (_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR) {
             if (_dual_tree_knobs::OUTLIER_DETECTOR_TYPE == DIST) {
-                outlier_detector = new dist_detector<_key>(_dual_tree_knobs::INIT_TOLERANCE_FACTOR, 
+                outlier_detector = new DistDetector<_key>(_dual_tree_knobs::INIT_TOLERANCE_FACTOR, 
                                                         _dual_tree_knobs::MIN_TOLERANCE_FACTOR, _dual_tree_knobs::EXPECTED_AVG_DISTANCE);
             }
         }
@@ -113,12 +127,9 @@ public:
 
     bool insert(_key key, _value value)
     {
-        bool is_empty;
+        bool is_empty = false;
         _key tail_min = _get_required_minimum_inserted_key(is_empty);
         // _key tail_min = sorted_tree->getTailMinimum(is_empty);
-        if (sorted_size == 0) {
-            std::cout << is_empty << std::endl;
-        }
         if (!is_empty && key < tail_min) {
             // when key is smaller than tail_min, insert directly to unsorted tree
             unsorted_tree->insert(key, value);
@@ -137,7 +148,7 @@ public:
                 }
                 else
                 {
-                    if(key > heap_buffer->top().first)
+                    if(std::pair<_key, _value>(key, value) > heap_buffer->top())
                     {
                         // if current key is greater than the minimum key in the heap
                         // pop the heap_min
@@ -175,6 +186,17 @@ public:
         else
         {
             found = unsorted_tree->query(key) || sorted_tree->query(key);
+        }
+
+        if (!found) {
+            // search the buffer
+            typename std::vector<std::pair<_key, _value>>::iterator iter = heap_buffer->begin();
+            while(iter!=heap_buffer->end()) {
+                if (iter->first == key) {
+                    return true;
+                }
+                iter++;
+            }
         }
 
         return found;
@@ -259,9 +281,15 @@ public:
 private:
 
     _key _get_required_minimum_inserted_key(bool& no_lower_bound) {
+        // std::cout << (sorted_tree->more_than_one_leaf() && !sorted_tree->is_tail_leaf_empty()) << std::endl;
         if(sorted_tree->more_than_one_leaf()){
             no_lower_bound = false;
-            return sorted_tree->get_minimum_key_of_tail_leaf();
+
+            if (sorted_tree->is_tail_leaf_empty()) {
+                return sorted_tree->get_prev_tail_maximum_key();
+            } else {
+                return sorted_tree->get_minimum_key_of_tail_leaf();
+            }
         } else {
             // Since there is only 1 leaf in the sorted tree, no lower bound for insertion range.
             no_lower_bound = true;
