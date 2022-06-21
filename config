@@ -1,0 +1,6 @@
+# The split fraction of sorted tree, it represents how many percentage of keys will stay in the 
+#original node after splitting.
+SORTED_TREE_SPLIT_FRAC=0.5
+
+# The split fraction of unsorted tree.
+UNSORTED_TREE_SPLIT_FRAC=0.6

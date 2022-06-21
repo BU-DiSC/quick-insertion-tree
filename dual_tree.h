@@ -1,22 +1,8 @@
 #ifndef DUALTREE_H
-#define DUEALTREE_H
+#define DUALTREE_H
 #include "betree.h"
+#include "dual_tree_knob.h"
 #include <stdlib.h>
-
-template<typename _key, typename _value>
-class DUAL_TREE_KNOBS
-{
-public:
-    // Sorted tree split fraction, it will affect the space utilization of the tree. It means how
-    // many elements will stay in the original node.
-    static constexpr float SORTED_TREE_SPLIT_FRAC = 0.5F;
-
-    // Unsorted tree splitting fraction.
-    static constexpr float UNSORTED_TREE_SPLIT_FRAC = 0.5F;
-
-    // Switch for lazy move
-    static const bool ENABLE_LAZY_MOVE = true;
-};
 
 template <typename _key, typename _value, typename _dual_tree_knobs=DUAL_TREE_KNOBS<_key, _value>,
             typename _betree_knobs = BeTree_Default_Knobs<_key, _value>, 
