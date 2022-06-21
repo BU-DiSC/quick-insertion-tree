@@ -25,6 +25,7 @@ public:
     // Unsorted tree splitting fraction.
     static const float UNSORTED_TREE_SPLIT_FRAC;  
 
+    static const bool ENABLE_LAZY_MOVE;
 };
 
 #include "dual_tree_knob.tpp"
