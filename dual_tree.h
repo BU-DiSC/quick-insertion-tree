@@ -159,6 +159,7 @@ public:
         std::cout << "Dual Tree Knobs:" << std::endl;
         std::cout << "Sorted tree split fraction = " << _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC << std::endl;
         std::cout << "Unsorted tree split fraction = " << _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC << std::endl;
+        std::cout << "Enable lazy move = " << _dual_tree_knobs::ENABLE_LAZY_MOVE << std::endl;
 
         std::cout << "--------------------------------------------------------------------------" << std::endl;
     }

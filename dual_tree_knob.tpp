@@ -1,3 +1,17 @@
+// Some helper functions
+std::string str2lower(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c){ return std::tolower(c); });
+    return str;
+}
+
+bool string_cmp_ignore_case(std::string str1, std::string str2) {
+    return str2lower(str1) == str2lower(str2);
+}
+
+bool str2bool(std::string str) {
+    return string_cmp_ignore_case(str, "true");
+}
+
 /* static */
 template<typename _key, typename _value>
 std::unordered_map<std::string, std::string>& DUAL_TREE_KNOBS<_key, _value>::get_config() {
@@ -38,6 +52,8 @@ template<typename _key, typename _value>
 const float DUAL_TREE_KNOBS<_key, _value>::UNSORTED_TREE_SPLIT_FRAC =
     std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("UNSORTED_TREE_SPLIT_FRAC", "0.5"));
 
-
+template<typename _key, typename _value>
+const bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_LAZY_MOVE = 
+    str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "true"));
 
 
