@@ -1,8 +1,29 @@
 #ifndef DUALTREE_H
 #define DUALTREE_H
-#include "betree.h"
-#include "dual_tree_knob.h"
+
 #include <stdlib.h>
+#include <bits/stdc++.h>
+
+#include "betree.h"
+#include "dist_detector.h"
+#include "dual_tree_knob.h"
+
+template<typename _key, typename _value>
+class Heap : public std::priority_queue<std::pair<_key, _value>, 
+                                    std::vector<std::pair<_key, _value>>, 
+                                    std::greater<std::pair<_key, _value>>>
+{
+public:
+    // add an iterator function for searching elements in heap buffer
+    typename std::vector<std::pair<_key, _value>>::iterator begin(){
+        return std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>, 
+                    std::greater<std::pair<_key, _value>>>::c.begin();
+    }
+    typename std::vector<std::pair<_key, _value>>::iterator end(){
+        return std::priority_queue<std::pair<_key, _value>, std::vector<std::pair<_key, _value>>, 
+                    std::greater<std::pair<_key, _value>>>::c.end();
+    }
+};
 
 template <typename _key, typename _value, typename _dual_tree_knobs=DUAL_TREE_KNOBS<_key, _value>,
             typename _betree_knobs = BeTree_Default_Knobs<_key, _value>, 
@@ -20,6 +41,11 @@ class dual_tree
 
     // Root directory for storing data.
     static const std::string TREE_DATA_ROOT_DIR;
+    
+    Heap<_key, _value>* heap_buffer;
+
+    // TODO: create a super class for all outlier detectors
+    DistDetector<_key>* outlier_detector;
 
 public:
 
@@ -28,12 +54,23 @@ public:
     {   
         const std::string TREE_DATA_ROOT_DIR = "./tree_dat";
         unsorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_1, TREE_DATA_ROOT_DIR, 
-    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC);
+                                    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC);
         sorted_tree = new BeTree<_key, _value, _betree_knobs, _compare>(tree_path_2, TREE_DATA_ROOT_DIR, 
-    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC);
+                                    _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY, _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC);
         sorted_size = 0;
         unsorted_size = 0;
 
+        if (_dual_tree_knobs::HEAP_SIZE > 0) {
+            // initialize heap buffer if the tuning knob::heap size > 0
+            heap_buffer = new Heap<_key, _value>();
+        }
+
+        if (_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR) {
+            if (_dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::DIST) {
+                outlier_detector = new DistDetector<_key>(_dual_tree_knobs::INIT_TOLERANCE_FACTOR, 
+                                                        _dual_tree_knobs::MIN_TOLERANCE_FACTOR, _dual_tree_knobs::EXPECTED_AVG_DISTANCE);
+            }
+        }
     }
 
     // Deconstructor
@@ -41,6 +78,12 @@ public:
     {
         delete sorted_tree;
         delete unsorted_tree;
+        if (_dual_tree_knobs::HEAP_SIZE > 0) {
+            delete heap_buffer;
+        }
+        if (_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR) {
+            delete outlier_detector;
+        }
     }
 
     uint sorted_tree_size() { return sorted_size;}
@@ -49,28 +92,62 @@ public:
 
     bool insert(_key key, _value value)
     {
-        _key inserted_key = key;
-        _value inserted_value = value;
-        bool no_lower_bound = false;
-        _key lower_bound = _get_required_minimum_inserted_key(no_lower_bound);
-        bool less_than_lower_bound = !no_lower_bound && inserted_key < lower_bound; 
-        if(less_than_lower_bound)
-        {
-            unsorted_tree->insert(inserted_key, inserted_value);
-            unsorted_size += 1;
+        bool is_empty = false;
+        _key tail_min = _get_required_minimum_inserted_key(is_empty);
+        // _key tail_min = sorted_tree->getTailMinimum(is_empty);
+        if (!is_empty && key < tail_min) {
+            // when key is smaller than tail_min, insert directly to unsorted tree
+            unsorted_tree->insert(key, value);
+            unsorted_size++;
         }
         else
         {
-            bool append = inserted_key >= sorted_tree->getMaximumKey();
-            if(!_dual_tree_knobs::ENABLE_LAZY_MOVE || append) {
-                // If the new key will be appended or lazy move is disabled, we use the insert method.
-                sorted_tree->insert_to_tail_leaf(inserted_key, inserted_value, append);
-                sorted_size += 1;
-            } else {
-                std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(inserted_key, inserted_value);
-                unsorted_tree->insert(swapped.first, swapped.second);
-                unsorted_size += 1;
+            // push to heap buffer (if it is enabled)
+            // if buffer is full, pop the key of min heap
+            if(_dual_tree_knobs::HEAP_SIZE > 0)
+            {
+                assert(heap_buffer->size() <= _dual_tree_knobs::HEAP_SIZE);
+                if(heap_buffer->size() < _dual_tree_knobs::HEAP_SIZE)
+                {
+                    // heap is not full, add new tuple to the heap and return
+                    heap_buffer->push(std::pair<_key, _value>(key, value));
+                    return true;
+                }
+                else
+                {
+                    // if (key > heap_buffer->top().first)
+                    if(std::pair<_key, _value>(key, value) > heap_buffer->top())
+                    {
+                        // if current key is greater than the minimum key in the heap
+                        // pop the heap_min
+                        std::pair<_key, _value> heap_min = heap_buffer->top();
+                        heap_buffer->pop();
+                        heap_buffer->push(std::pair<_key, _value>(key, value));
+                        // push current key to heap buffer
+                        key = heap_min.first;
+                        value = heap_min.second;
+                    }
+                }
             }
+            bool append = key >= sorted_tree->getMaximumKey();
+            // insert current key to sorted tree if it pass outlier check
+            // note that we only set outlier check for key >= tail_max
+            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
+                if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
+                    std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
+                    unsorted_tree->insert(swapped.first, swapped.second);
+                    unsorted_size += 1;
+                } else {
+                    // If the new key will be appended or lazy move is disabled, we use the insert method.
+                    sorted_tree->insert_to_tail_leaf(key, value, append);
+                    sorted_size++;
+                }
+            }
+            else {
+                // insert outlier key to unsorted tree
+                unsorted_tree->insert(key, value);
+                unsorted_size++;
+            }        
         }
         return true;
     }
@@ -86,6 +163,16 @@ public:
         else
         {
             found = unsorted_tree->query(key) || sorted_tree->query(key);
+        }
+        if (_dual_tree_knobs::HEAP_SIZE > 0 && !found) {
+            // search the buffer
+            typename std::vector<std::pair<_key, _value>>::iterator iter = heap_buffer->begin();
+            while(iter!=heap_buffer->end()) {
+                if (iter->first == key) {
+                    return true;
+                }
+                iter++;
+            }
         }
 
         return found;
@@ -160,6 +247,13 @@ public:
         std::cout << "Sorted tree split fraction = " << _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC << std::endl;
         std::cout << "Unsorted tree split fraction = " << _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC << std::endl;
         std::cout << "Enable lazy move = " << _dual_tree_knobs::ENABLE_LAZY_MOVE << std::endl;
+        std::cout << "Heap buffer size = " << _dual_tree_knobs::HEAP_SIZE << std::endl;
+        std::cout << "Enable outlier detector = " << _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR << std::endl;
+        if (_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR) {
+            std::cout << "Outlier detector type = " << _dual_tree_knobs::OUTLIER_DETECTOR_TYPE << std::endl;
+            std::cout << "Tolerance factor = " << _dual_tree_knobs::INIT_TOLERANCE_FACTOR << std::endl;
+            std::cout << "Expected avg distance = " << _dual_tree_knobs::EXPECTED_AVG_DISTANCE << std::endl;
+        }
 
         std::cout << "--------------------------------------------------------------------------" << std::endl;
     }
@@ -188,7 +282,7 @@ private:
         }
     }
     
-    };
+};
 
 
     
