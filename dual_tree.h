@@ -115,6 +115,7 @@ public:
                 }
                 else
                 {
+                    // if (key > heap_buffer->top().first)
                     if(std::pair<_key, _value>(key, value) > heap_buffer->top())
                     {
                         // if current key is greater than the minimum key in the heap
@@ -131,27 +132,22 @@ public:
             bool append = key >= sorted_tree->getMaximumKey();
             // insert current key to sorted tree if it pass outlier check
             // note that we only set outlier check for key >= tail_max
-            if (!append) {
-                if (_dual_tree_knobs::ENABLE_LAZY_MOVE) {
+            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
+                if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
                     std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
                     unsorted_tree->insert(swapped.first, swapped.second);
                     unsorted_size += 1;
-                }
-                else {
+                } else {
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
                     sorted_tree->insert_to_tail_leaf(key, value, append);
-                    sorted_size += 1;
+                    sorted_size++;
                 }
             }
-            else if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
-                sorted_tree->insert_to_tail_leaf(key, value, append);
-                sorted_size++;
-            } 
             else {
                 // insert outlier key to unsorted tree
                 unsorted_tree->insert(key, value);
                 unsorted_size++;
-            }
+            }        
         }
         return true;
     }
@@ -251,6 +247,13 @@ public:
         std::cout << "Sorted tree split fraction = " << _dual_tree_knobs::SORTED_TREE_SPLIT_FRAC << std::endl;
         std::cout << "Unsorted tree split fraction = " << _dual_tree_knobs::UNSORTED_TREE_SPLIT_FRAC << std::endl;
         std::cout << "Enable lazy move = " << _dual_tree_knobs::ENABLE_LAZY_MOVE << std::endl;
+        std::cout << "Heap buffer size = " << _dual_tree_knobs::HEAP_SIZE << std::endl;
+        std::cout << "Enable outlier detector = " << _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR << std::endl;
+        if (_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR) {
+            std::cout << "Outlier detector type = " << _dual_tree_knobs::OUTLIER_DETECTOR_TYPE << std::endl;
+            std::cout << "Tolerance factor = " << _dual_tree_knobs::INIT_TOLERANCE_FACTOR << std::endl;
+            std::cout << "Expected avg distance = " << _dual_tree_knobs::EXPECTED_AVG_DISTANCE << std::endl;
+        }
 
         std::cout << "--------------------------------------------------------------------------" << std::endl;
     }
