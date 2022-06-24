@@ -115,6 +115,7 @@ public:
                 }
                 else
                 {
+                    // if (key > heap_buffer->top().first)
                     if(std::pair<_key, _value>(key, value) > heap_buffer->top())
                     {
                         // if current key is greater than the minimum key in the heap
@@ -131,27 +132,22 @@ public:
             bool append = key >= sorted_tree->getMaximumKey();
             // insert current key to sorted tree if it pass outlier check
             // note that we only set outlier check for key >= tail_max
-            if (!append) {
-                if (_dual_tree_knobs::ENABLE_LAZY_MOVE) {
+            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
+                if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
                     std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
                     unsorted_tree->insert(swapped.first, swapped.second);
                     unsorted_size += 1;
-                }
-                else {
+                } else {
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
                     sorted_tree->insert_to_tail_leaf(key, value, append);
-                    sorted_size += 1;
+                    sorted_size++;
                 }
             }
-            else if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
-                sorted_tree->insert_to_tail_leaf(key, value, append);
-                sorted_size++;
-            } 
             else {
                 // insert outlier key to unsorted tree
                 unsorted_tree->insert(key, value);
                 unsorted_size++;
-            }
+            }        
         }
         return true;
     }
