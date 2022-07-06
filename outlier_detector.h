@@ -6,7 +6,7 @@ class OutlierDetector
 {
 public:
 
-    virtual bool is_outlier(key_type key);
+    virtual bool is_outlier(key_type key) = 0;
     
 };
 
