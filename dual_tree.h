@@ -45,7 +45,7 @@ class dual_tree
     Heap<_key, _value>* heap_buffer;
 
     // TODO: create a super class for all outlier detectors
-    DistDetector<_key>* outlier_detector;
+    OutlierDetector<_key>* outlier_detector;
 
 public:
 
