@@ -1,6 +1,7 @@
 #include <iostream>
 #include "betree.h"
 #include "dual_tree.h"
+#include "file_reader.h"
 
 using namespace std; 
 
@@ -41,16 +42,8 @@ int main(int argc, char **argv)
 
     // Read the input file
     std::string input_file = argv[1];
-    std::ifstream ifs;
-    std::vector<int> data;
-
-    ifs.open(input_file);
-    ifs.seekg(0, std::ios::end);
-    size_t filesize = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-
-    data.resize(filesize / sizeof(int));
-    ifs.read((char*)data.data(), filesize);
+    FileReader fr = FileReader(input_file);
+    std::vector<int> data = fr.read();
 
     dual_tree<int, int>::show_tree_knobs();
 
