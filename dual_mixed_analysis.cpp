@@ -1,48 +1,21 @@
 #include <iostream>
 #include "betree.h"
 #include "dual_tree.h"
+#include "file_reader.h"
+
 
 using namespace std; 
 
 int dual_mixed_workload_test(string input_file, int num_queries, int perc_load, int n){
     dual_tree<int,int> tree = dual_tree<int,int>("tree_1", "tree_2");
-    long int size = 0;
-    int *data;
 
-    ifstream infile(input_file, ios::in | ios::binary);
-    if (!infile)
-    {
-        cout << "Cannot open file!" << endl;
-        return 0;
-    }
-
-    // ofstream outfile(output_file, ios::out | ios::app);
-    // if (!outfile)
-    // {
-    //     cout << "Cannot open output file!" << endl;
-    //     return 0;
-    // }
-
-    FILE *file = fopen(input_file.c_str(), "rb");
-    if (file == NULL)
-        return 0;
-
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
-    fclose(file);
-
-    cout << "size = " << size << endl;
-
-    data = new int[size / sizeof(int)];
-    infile.read((char *)data, size);
-    infile.close();
-
-    int num = size / sizeof(int);
+    FileReader fr = FileReader(input_file);
+    std::vector<int> data = fr.read();
 
     
     int j = 0;
 
-    cout << "Size of one data element =" << sizeof(data[0]) << endl;
+    // cout << "Size of one data element =" << sizeof(data[0]) << endl;
 
     int num_load = (int)((perc_load / 100.0) * n);
 
@@ -50,7 +23,8 @@ int dual_mixed_workload_test(string input_file, int num_queries, int perc_load, 
     auto start_l = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < num_load; i++)
     {
-        tree.insert(data[i] + 1, data[i] + 1);
+        // cout << "loaded " << data[i]+1 <<endl;
+        tree.insert(data[i], i+1);
         if (num_load < 100)
             num_load = 100;
     }
@@ -125,7 +99,7 @@ int dual_mixed_workload_test(string input_file, int num_queries, int perc_load, 
         else if (tot_inserts < n && tot_queries >= num_queries)
         {
             auto start_ins = std::chrono::high_resolution_clock::now();
-            tree.insert(data[i] + 1, data[i] + 1);
+            tree.insert(data[i], i+1);
             auto stop_ins = std::chrono::high_resolution_clock::now();
             only_insert_time += std::chrono::duration_cast<std::chrono::nanoseconds>(stop_ins - start_ins).count();
             i++;
