@@ -7,6 +7,7 @@
 #include "betree.h"
 #include "dist_detector.h"
 #include "dual_tree_knob.h"
+#include "stdev_detector.h"
 
 template<typename _key, typename _value>
 class Heap : public std::priority_queue<std::pair<_key, _value>, 
@@ -70,6 +71,9 @@ public:
                 outlier_detector = new DistDetector<_key>(_dual_tree_knobs::INIT_TOLERANCE_FACTOR, 
                                                         _dual_tree_knobs::MIN_TOLERANCE_FACTOR, _dual_tree_knobs::EXPECTED_AVG_DISTANCE);
             }
+            else if(_dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV){
+                outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV);
+            }
         }
     }
 
@@ -132,7 +136,9 @@ public:
             bool append = key >= sorted_tree->getMaximumKey();
             // insert current key to sorted tree if it pass outlier check
             // note that we only set outlier check for key >= tail_max
-            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key)) {
+           int tree_size = sorted_size;
+
+            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key, tree_size)) {
                 if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
                     std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
                     unsorted_tree->insert(swapped.first, swapped.second);

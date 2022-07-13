@@ -65,7 +65,7 @@ public:
         counter = 0;
     }
 
-    bool is_outlier(key_type key) {
+    bool is_outlier(key_type key, int tree_size) {
         if (counter == 0) {
             // to calculate distance, there should be at least 1 keys in the tree
             previous_key = key;

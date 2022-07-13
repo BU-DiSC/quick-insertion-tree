@@ -70,6 +70,10 @@ const uint DUAL_TREE_KNOBS<_key, _value>::INIT_TOLERANCE_FACTOR =
     std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("INIT_TOLERANCE_FACTOR", "100"));
 
 template<typename _key, typename _value>
+const uint DUAL_TREE_KNOBS<_key, _value>::NUM_STDEV = 
+    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("NUM_STDEV", "3"));
+
+template<typename _key, typename _value>
 const float DUAL_TREE_KNOBS<_key, _value>::MIN_TOLERANCE_FACTOR = 
     std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("MIN_TOLERANCE_FACTOR", "20"));
 
