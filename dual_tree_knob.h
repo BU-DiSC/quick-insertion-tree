@@ -35,6 +35,8 @@ public:
     //tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
     static const uint INIT_TOLERANCE_FACTOR;
 
+    static const uint NUM_STDEV;
+
     // The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
     //most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
     //This value should be less than @INIT_TOLERANCE_FACTOR
