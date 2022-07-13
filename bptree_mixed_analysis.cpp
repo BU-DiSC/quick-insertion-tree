@@ -9,57 +9,13 @@ using namespace std;
 int bptree_mixed_workload_test(string input_file, int num_queries, int perc_load, int n){
     BeTree<int,int> tree("manager", "./tree_dat", BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
         BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);    
-    // long int size = 0;
-    // int *data;
-
-    // ifstream infile(input_file, ios::in | ios::binary);
-    // if (!infile)
-    // {
-    //     cout << "Cannot open file!" << endl;
-    //     return 0;
-    // }
-
-    // // ofstream outfile(output_file, ios::out | ios::app);
-    // // if (!outfile)
-    // // {
-    // //     cout << "Cannot open output file!" << endl;
-    // //     return 0;
-    // // }
-    // FILE *file = fopen(input_file.c_str(), "rb");
-    // if (file == NULL)
-    //     return 0;
-
-    // fseek(file, 0, SEEK_END);
-    // size = ftell(file);
-    // fclose(file);
-
-    // cout << "size = " << size << endl;
-    // data.resize(size / sizeof(int));
-    // ifs.read((char*)data.data(), size);
-    // // data = new int[size / sizeof(int)];
-    // // infile.read((char *)data, size);
-    // infile.close();
-
-
-    // std::ifstream infile;
-    // std::vector<int> data;
-    // infile.open(input_file);
-    // infile.seekg(0, std::ios::end);
-    // size_t size = infile.tellg();
-    // infile.seekg(0, std::ios::beg);
-    // data.resize(size / sizeof(int));
-    // infile.read((char*)data.data(), size);
-    // infile.close();
 
     FileReader fr = FileReader(input_file);
     std::vector<int> data = fr.read();
 
-    // int num = size / sizeof(int);
-
     
     int j = 0;
 
-    // cout << "Size of one data element =" << sizeof(data[0]) << endl;
 
     int num_load = (int)((perc_load / 100.0) * n);
 
@@ -67,7 +23,7 @@ int bptree_mixed_workload_test(string input_file, int num_queries, int perc_load
     auto start_l = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < num_load; i++)
     {
-        cout << "loaded " << data[i]+1 <<endl;
+        // cout << "loaded " << data[i]+1 <<endl;
         tree.insert(data[i], i+1);
         if (num_load < 100)
             num_load = 100;
