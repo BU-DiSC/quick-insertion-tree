@@ -1888,6 +1888,9 @@ public:
         head_leaf_id = root_id;
         tail_leaf_id = root_id;
 
+        max_key = -1;
+        min_key = -1;
+
         /*std::cout << "B Epsilon Tree" << std::endl;
         std::cout << "Number of Upserts = " << knobs::NUM_UPSERTS << std::endl;
         std::cout << "Number of Pivots = " << knobs::NUM_PIVOTS << std::endl;
