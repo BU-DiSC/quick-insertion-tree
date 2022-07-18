@@ -5,8 +5,8 @@
 #include <bits/stdc++.h>
 
 #include "betree.h"
-#include "dist_detector.h"
 #include "dual_tree_knob.h"
+#include "dist_detector.h"
 #include "stdev_detector.h"
 
 template<typename _key, typename _value>
@@ -72,7 +72,8 @@ public:
                                                         _dual_tree_knobs::MIN_TOLERANCE_FACTOR, _dual_tree_knobs::EXPECTED_AVG_DISTANCE);
             }
             else if(_dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV){
-                outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV);
+                outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV, 
+                                                        _dual_tree_knobs::LAST_K_STDEV);
             }
         }
     }
@@ -145,7 +146,14 @@ public:
                     unsorted_size += 1;
                 } else {
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
-                    sorted_tree->insert_to_tail_leaf(key, value, append);
+                    bool split;
+                    sorted_tree->insert_to_tail_leaf(key, value, append, split);
+                    if (split && _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR && _dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV) {
+                        long long sum_of_keys = sorted_tree->getSumKeys();
+                        long long sum_of_squares = sorted_tree->getSumSquares();
+                        long long stats[2] = {sum_of_keys, sum_of_squares};
+                        outlier_detector->update(sorted_tree->getPrevTailSize(), stats);
+                    }
                     sorted_size++;
                 }
             }

@@ -47,14 +47,20 @@ public:
     //1, then the tolerance factor becomes a constant.
     static const float EXPECTED_AVG_DISTANCE;
 
+    // Knob for outlier detector, if it is enabled, the key would need to pass an outlier check before
+    // inserting to the sorted tree.
     static const bool ENABLE_OUTLIER_DETECTOR;
 
     static const TYPE OUTLIER_DETECTOR_TYPE;
 
-    // outlier detector type DIST
+    // outlier detector type DIST: distance based outlier detector
     static constexpr TYPE DIST = 1;
 
+    // outlier detector type STDEV: standard deviation based outlier detector
     static constexpr TYPE STDEV = 2;
+
+    // Using only last k nodes to calculate the STDEV
+    static const int LAST_K_STDEV;
 
 
 };

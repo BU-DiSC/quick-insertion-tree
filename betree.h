@@ -87,6 +87,8 @@ public:
 #endif
 
     static const int BLOCKS_IN_MEMORY = 500000;
+    // enable STDEV calculation
+    static const bool ENABLE_STDEV = true;
 };
 
 // structure that holds all stats for the tree
@@ -237,6 +239,7 @@ struct Data
 {
     int size;
     std::pair<key_type, value_type> data[knobs::NUM_DATA_PAIRS];
+    long long squares[knobs::NUM_DATA_PAIRS];
 
     Data()
     {
@@ -284,6 +287,10 @@ class BeNode : public Serializable
     uint *next_node;
 
     BlockManager *manager;
+
+    long long sum_keys;
+
+    long long sum_squares;
 
 public:
     // opens the node from disk/memory for access
@@ -500,17 +507,20 @@ public:
                 {
                     // copy element
                     data->data[last_index] = data->data[i];
+                    if (knobs::ENABLE_STDEV) data->squares[last_index] = data->squares[i];                    
                     i--;
                 }
                 else
                 {
                     data->data[last_index] = buffer_elements[j];
+                    if (knobs::ENABLE_STDEV) data->squares[last_index] = (long long)buffer_elements[j].first * buffer_elements[j].first;
                     j--;
                 }
             }
             else
             {
                 data->data[last_index] = buffer_elements[j];
+                if (knobs::ENABLE_STDEV) data->squares[last_index] = (long long)buffer_elements[j].first * buffer_elements[j].first;
                 j--;
             }
             last_index--;
@@ -533,9 +543,13 @@ public:
 
         if (data->size > 0)
             assert(element >= data->data[data->size - 1]);
+        
+        if (knobs::ENABLE_STDEV) {
+            data->squares[data->size] = (long long)element.first * element.first;
+        }
 
         data->data[data->size++] = element;
-
+        
         // check if after adding, the leaf  ` has exceeded limit and
         // return accordingly
         return data->size >= knobs::NUM_DATA_PAIRS;
@@ -571,6 +585,7 @@ public:
                 }
                 auto ret = data->data[i];
                 data->data[i] = std::pair<key_type, value_type>(key, val); 
+                if (knobs::ENABLE_STDEV) data->squares[i] = (long long)key * key;
                 return ret;
 
             }
@@ -625,9 +640,18 @@ public:
 #elif SPLIT50
         start_index = 0.5 * (data->size);
 #endif
+
+        if (knobs::ENABLE_STDEV) {
+            for (int i = 0; i < start_index; i++) {
+                sum_keys += data->data[i].first;
+                sum_squares += data->squares[i];
+            }
+        }
+
         for (int i = start_index; i < data->size; i++)
         {
             // new_sibling->data->data[new_sibling->data->size++] = data->data[i];
+            if (knobs::ENABLE_STDEV) new_sibling.data->squares[new_sibling.data->size] = data->squares[i];
             new_sibling.data->data[new_sibling.data->size++] = data->data[i];
         }
 
@@ -1629,6 +1653,14 @@ public:
         return &data->data[slot].first;
     }
 
+    long long getSumKeys() {
+        return sum_keys;
+    }
+
+    long long getSumSquares() {
+        return sum_squares;
+    }
+
 public:
     void fanout(int &num, int &total, int &max, int &min, int *arr, int &internal)
     {
@@ -1933,7 +1965,6 @@ public:
     }
 
     key_type getTailMinimum(bool& is_empty) {
-        // TODO: getDataSize may have issues when node.data is not initialized 
         if (tail_leaf == nullptr || tail_leaf->getDataSize() == 0) {
             // tail node is empty when tree is empty or after splitting with split_factor = 1
             is_empty = true;
@@ -1942,6 +1973,20 @@ public:
             is_empty = false;
             return tail_leaf->getDataPairKey(0);
         }
+    }
+
+    long long getSumSquares() {
+        // return the sum of squared keys in the previous tail leaf
+        return prev_tail->getSumSquares();
+    }
+
+    long long getSumKeys() {
+        // return the sum of keys in the previous tail leaf
+        return prev_tail->getSumKeys();
+    }
+
+    int getPrevTailSize() {
+        return prev_tail->getDataSize();
     }
 
     key_type get_minimum_key_of_tail_leaf() {
@@ -1966,9 +2011,9 @@ public:
         return ret;
     }
 
-    bool insert_to_tail_leaf(key_type key, value_type val, bool append)
+    bool insert_to_tail_leaf(key_type key, value_type val, bool append, bool& need_split)
     {   
-        bool need_split;
+        // bool need_split;
         if(tail_leaf == nullptr)
         {
             // No tuple has been inserted, the tree is empty, but a root node is created when the
