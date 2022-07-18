@@ -1,5 +1,10 @@
+#ifndef DIST_DETECTOR_H
+#define DIST_DETECTOR_H
+
+#include "outlier_detector.h"
+
 template<typename key_type>
-class DistDetector
+class DistDetector : public OutlierDetector<key_type>
 {
     // The default value of @average_distance.
     static constexpr float INIT_AVG_DIST = -1;
@@ -90,3 +95,5 @@ public:
         return false;
     }
 };
+
+#endif
