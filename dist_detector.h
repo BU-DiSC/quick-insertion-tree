@@ -1,6 +1,7 @@
 #ifndef DIST_DETECTOR_H
 #define DIST_DETECTOR_H
 
+#include <algorithm>
 #include "outlier_detector.h"
 
 template<typename key_type>
@@ -38,7 +39,7 @@ class DistDetector : public OutlierDetector<key_type>
     key_type previous_key;
 
     // total number of elements in sorted tree
-    uint counter;
+    int counter;
 
     void update_tolerance_factor()
     {
@@ -94,6 +95,8 @@ public:
 
         return false;
     }
+
+    void update(int size, long long* stats) {}
 };
 
 #endif
