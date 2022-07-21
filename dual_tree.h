@@ -103,7 +103,7 @@ public:
         if (!is_empty && key < tail_min) {
             // when key is smaller than tail_min, insert directly to unsorted tree
             
-            // std::cout <<"key is smller than tail min: " << key << std::endl;
+            std::cout <<"key is smller than tail min: " << key << std::endl;
             unsorted_tree->insert(key, value);
             unsorted_size++;
         }
@@ -279,11 +279,11 @@ private:
             no_lower_bound = false;
 
             if (sorted_tree->is_tail_leaf_empty()) {
-                // std::cout << "prev tail max = " << sorted_tree->get_prev_tail_maximum_key() << "\t";
+                std::cout << "prev tail max = " << sorted_tree->get_prev_tail_maximum_key() << "\t";
 
                 return sorted_tree->get_prev_tail_maximum_key();
             } else {
-                // std::cout << "curr tail min = " << sorted_tree->get_minimum_key_of_tail_leaf() << "\t";
+                std::cout << "curr tail min = " << sorted_tree->get_minimum_key_of_tail_leaf() << "\t";
 
                 return sorted_tree->get_minimum_key_of_tail_leaf();
             }
@@ -292,7 +292,7 @@ private:
             no_lower_bound = true;
             // return a random value;
         
-            // std::cout << "curr max = " << sorted_tree->get_minimum_key_of_tail_leaf() << "\t";
+            std::cout << "curr max = " << sorted_tree->getMaximumKey() << "\t";
             return sorted_tree->getMaximumKey();
         }
     }

@@ -40,10 +40,10 @@
             long long first = (long long) sumSq/n;
             long long second = (long long)sum/n*sum/n;
             sd = (long long)sqrt(first - second);
-            // std::cout<<"insert key : "<< key << "    sd: " << sd << "   range = " << (long long)sum / n + num_stdev * sd << std::endl;
+            std::cout<<"insert key : "<< key << "    sd: " << sd << "   range = " << (long long)sum / n + num_stdev * sd << std::endl;
             return false;
         }
-        // std::cout << "key beyond range: "<< key << std::endl;
+        std::cout << "key beyond range: "<< key << std::endl;
 
         return true;
     }

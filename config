@@ -10,13 +10,13 @@ UNSORTED_TREE_SPLIT_FRAC=0.5
 ENABLE_LAZY_MOVE=false
 
 # Knob for heap buffer, if HEAP_SIZE <= 0, heap buffer will be disabled
-HEAP_SIZE=15
+HEAP_SIZE=100
 
 # The initial tolerance threshold, determine whether the key of the newly added tuple is too far from the previous
 # tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
 INIT_TOLERANCE_FACTOR=100
 
-NUM_STDEV=3
+NUM_STDEV=2.5
 
 # The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
 # most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
