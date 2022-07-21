@@ -72,8 +72,7 @@ public:
                                                         _dual_tree_knobs::MIN_TOLERANCE_FACTOR, _dual_tree_knobs::EXPECTED_AVG_DISTANCE);
             }
             else if(_dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV){
-                outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV, 
-                                                        _dual_tree_knobs::LAST_K_STDEV);
+                outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV);
             }
         }
     }
@@ -95,13 +94,16 @@ public:
 
     uint unsorted_tree_size() { return unsorted_size;}
 
-    bool insert(_key key, _value value)
+        bool insert(_key key, _value value)
     {
+
         bool is_empty = false;
         _key tail_min = _get_required_minimum_inserted_key(is_empty);
         // _key tail_min = sorted_tree->getTailMinimum(is_empty);
         if (!is_empty && key < tail_min) {
             // when key is smaller than tail_min, insert directly to unsorted tree
+            
+            // std::cout <<"key is smller than tail min: " << key << std::endl;
             unsorted_tree->insert(key, value);
             unsorted_size++;
         }
@@ -134,26 +136,19 @@ public:
                     }
                 }
             }
-            bool append = key >= sorted_tree->getMaximumKey();
-            // insert current key to sorted tree if it pass outlier check
-            // note that we only set outlier check for key >= tail_max
-           int tree_size = sorted_size;
+             bool append = key >= sorted_tree->getMaximumKey();
+             // insert current key to sorted tree if it pass outlier check
+             // note that we only set outlier check for key >= tail_max
+            int tree_size = sorted_size;
 
-            if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key, tree_size)) {
-                if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
-                    std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
-                    unsorted_tree->insert(swapped.first, swapped.second);
+             if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR || !outlier_detector->is_outlier(key, tree_size)) {
+                 if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE) {
+                     std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
+                     unsorted_tree->insert(swapped.first, swapped.second);
                     unsorted_size += 1;
                 } else {
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
-                    bool split;
-                    sorted_tree->insert_to_tail_leaf(key, value, append, split);
-                    if (split && _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR && _dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV) {
-                        long long sum_of_keys = sorted_tree->getSumKeys();
-                        long long sum_of_squares = sorted_tree->getSumSquares();
-                        long long stats[2] = {sum_of_keys, sum_of_squares};
-                        outlier_detector->update(sorted_tree->getPrevTailSize(), stats);
-                    }
+                    sorted_tree->insert_to_tail_leaf(key, value, append);
                     sorted_size++;
                 }
             }
@@ -284,14 +279,20 @@ private:
             no_lower_bound = false;
 
             if (sorted_tree->is_tail_leaf_empty()) {
+                // std::cout << "prev tail max = " << sorted_tree->get_prev_tail_maximum_key() << "\t";
+
                 return sorted_tree->get_prev_tail_maximum_key();
             } else {
+                // std::cout << "curr tail min = " << sorted_tree->get_minimum_key_of_tail_leaf() << "\t";
+
                 return sorted_tree->get_minimum_key_of_tail_leaf();
             }
         } else {
             // Since there is only 1 leaf in the sorted tree, no lower bound for insertion range.
             no_lower_bound = true;
             // return a random value;
+        
+            // std::cout << "curr max = " << sorted_tree->get_minimum_key_of_tail_leaf() << "\t";
             return sorted_tree->getMaximumKey();
         }
     }

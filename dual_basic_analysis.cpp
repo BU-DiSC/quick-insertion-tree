@@ -21,7 +21,8 @@ void dual_tree_test(const std::vector<int>& data_set)
     idx = 0;
     for(int i: data_set)
     {
-        dt.insert(i, idx++); 
+        // dt.insert(i, idx++); 
+        dt.insert(i, i); 
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
