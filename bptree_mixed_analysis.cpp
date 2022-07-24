@@ -153,6 +153,7 @@ int main(int argc, char **argv)
     if(argc < 5)
     {
         std::cout<< "Usage: ./bptree_mixed_analysis <input_file> <num_queries> <perc_load> <n>" << std::endl;
+        return -1;
     }
 
     // Read the input file

@@ -1,6 +1,7 @@
 .vscode
 *.o
 test_set*
+workloads/
 tree_dat/
 *.dat
 bptree_basic_analysis
@@ -11,3 +12,4 @@ tree_1/
 tree_2/
 *.txt
 workloadgenerator
+config*
