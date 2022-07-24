@@ -143,7 +143,7 @@ public:
 
             if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR() || !outlier_detector->is_outlier(key, tree_size)) {
                 if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE()) {
-                    std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
+                    std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_eaf(key, value);
                     unsorted_tree->insert(swapped.first, swapped.second);
                     unsorted_size += 1;
                 } else {
