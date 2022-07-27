@@ -20,7 +20,7 @@ fi
 
 if [ $# -ne 7 ] 
 then
-	echo "The command should be: ./workload.sh {data size} {K value(less than 100)} {L value(less than 100) {output path} {payload(in bytes)} {number of output files} {random seed}"
+	echo "The command should be: ./workload.sh <data size> <K value(less than 100)> <L value(less than 100)> <output path> <payload(in bytes)> <number of output files> <random seed>"
 	exit 1
 fi
 
