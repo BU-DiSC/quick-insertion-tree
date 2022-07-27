@@ -35,6 +35,8 @@ public:
     //tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
     static const uint INIT_TOLERANCE_FACTOR;
 
+    static const uint NUM_STDEV;
+
     // The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
     //most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
     //This value should be less than @INIT_TOLERANCE_FACTOR
@@ -45,14 +47,20 @@ public:
     //1, then the tolerance factor becomes a constant.
     static const float EXPECTED_AVG_DISTANCE;
 
+    // Knob for outlier detector, if it is enabled, the key would need to pass an outlier check before
+    // inserting to the sorted tree.
     static const bool ENABLE_OUTLIER_DETECTOR;
 
     static const TYPE OUTLIER_DETECTOR_TYPE;
 
-    // outlier detector type DIST
+    // outlier detector type DIST: distance based outlier detector
     static constexpr TYPE DIST = 1;
 
+    // outlier detector type STDEV: standard deviation based outlier detector
     static constexpr TYPE STDEV = 2;
+
+    // Using only last k nodes to calculate the STDEV
+    static const int LAST_K_STDEV;
 
 
 };

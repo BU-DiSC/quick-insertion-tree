@@ -16,6 +16,10 @@ HEAP_SIZE=15
 # tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
 INIT_TOLERANCE_FACTOR=100
 
+# When the stdev based outlier detector is enabled, it would compare the coming key to avg_key + NUM_STDEV * stdev
+# (of the sorted tree).
+NUM_STDEV=3
+
 # The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
 # most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
 # This value should be less than @INIT_TOLERANCE_FACTOR
@@ -31,4 +35,8 @@ EXPECTED_AVG_DISTANCE=2.5
 ENABLE_OUTLIER_DETECTOR=true
 
 # Outlier detector type: distance-based=1, stdev-based=2
-OUTLIER_DETECTOR_TYPE=1
+OUTLIER_DETECTOR_TYPE=2
+
+# Calculate the standard deviation using the LASK_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0, 
+# a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
+LAST_K_STDEV=100
