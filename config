@@ -35,4 +35,6 @@ ENABLE_OUTLIER_DETECTOR=true
 # Outlier detector type: distance-based=1, stdev-based=2
 OUTLIER_DETECTOR_TYPE=2
 
+# Calculate the standard deviation using the LASK_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0, 
+# a comparably large NUM_STDEV (e.g. NUM_STDEV = 10) could result in better insert performance.
 LAST_K_STDEV=100

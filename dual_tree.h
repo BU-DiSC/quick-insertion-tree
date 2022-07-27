@@ -148,7 +148,9 @@ public:
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
                     bool split;
                     sorted_tree->insert_to_tail_leaf(key, value, append, split);
-                    if (split && _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR && _dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV) {
+                    if (split && _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR 
+                            && _dual_tree_knobs::OUTLIER_DETECTOR_TYPE == _dual_tree_knobs::STDEV
+                            && _dual_tree_knobs::LAST_K_STDEV > 0) {
                         long long sum_of_keys = sorted_tree->getSumKeys();
                         long long sum_of_squares = sorted_tree->getSumSquares();
                         long long stats[2] = {sum_of_keys, sum_of_squares};
