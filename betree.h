@@ -1951,28 +1951,20 @@ public:
         return max_key;
     }
 
-    key_type getTailMinimum(bool& is_empty) {
-        if (tail_leaf == nullptr || tail_leaf->getDataSize() == 0) {
-            // tail node is empty when tree is empty or after splitting with split_factor = 1
-            is_empty = true;
-            return max_key;
-        } else {
-            is_empty = false;
-            return tail_leaf->getDataPairKey(0);
-        }
-    }
-
     long long getSumSquares() {
         // return the sum of squared keys in the previous tail leaf
+        assert(prev_tail != nullptr);
         return prev_tail->getSumSquares();
     }
 
     long long getSumKeys() {
         // return the sum of keys in the previous tail leaf
+        assert(prev_tail != nullptr);
         return prev_tail->getSumKeys();
     }
 
     int getPrevTailSize() {
+        assert(prev_tail != nullptr);
         return prev_tail->getDataSize();
     }
 
