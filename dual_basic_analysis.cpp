@@ -5,10 +5,11 @@
 
 using namespace std; 
 
-void dual_tree_test(const std::vector<int>& data_set)
+void dual_tree_test(const std::vector<int>& data_set, const std::string config_file_path)
 {
     auto start = std::chrono::high_resolution_clock::now();
-    dual_tree<int, int> dt("tree_1", "tree_2");
+    dual_tree<int, int> dt("tree_1", "tree_2", config_file_path);
+    dual_tree<int, int>::show_tree_knobs();
     int idx = 0;
     int cnt = 0;
     for(int i: data_set){
@@ -35,19 +36,18 @@ void dual_tree_test(const std::vector<int>& data_set)
 
 int main(int argc, char **argv)
 {
-    if(argc < 2)
+    if(argc < 3)
     {
-        std::cout<< "Usage: ./dual_basic_analysis <input_file>" << std::endl;
+        std::cout<< "Usage: ./dual_basic_analysis <input_file> <config_file>" << std::endl;
+        return -1;
     }
-
-    // Read the input file
+    // read arguments
     std::string input_file = argv[1];
+    std::string config_path = argv[2];
     FileReader fr = FileReader(input_file);
     std::vector<int> data = fr.read();
 
-    dual_tree<int, int>::show_tree_knobs();
-
-    dual_tree_test(data);
+    dual_tree_test(data, config_path);
     std::this_thread::sleep_for(std::chrono::seconds(2));
     return 0;
 }

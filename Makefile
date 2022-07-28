@@ -2,7 +2,7 @@
 CXX=g++
 CFLAGS=-g -std=c++11
 DFLAGS=-DTIME -DBPLUS
-SOURCES=betree.h dual_tree.h
+SOURCES=betree.h dual_tree_knob.h dual_tree.h
 MKDIR_P=mkdir -p
 MKDATA_DIR = $(MKDIR_P) tree_dat
 
