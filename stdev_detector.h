@@ -61,13 +61,31 @@ class StdevDetector : public OutlierDetector<key_type>
             if (k <= 0) updateStdev(key);
             return false;
         }
-        long long stdev = sqrt(sumSq / (n - 1) - sum / n * sum / (n - 1));
+        long long stdev = sqrt((long long)sumSq / (n - 1) - (long long)sum / n * sum / (n - 1));
         if (key <= sum / n + num_stdev * stdev) {
             if (k <= 0) updateStdev(key);
+
             return false;
         }
         return true;
     }
+
+
+// bool is_outlier(key_type key, int tree_size)
+//     {
+//         if ((tree_size < 30) || (long long)key <= (long long)sum / n + num_stdev * sd)
+//         {
+//             updateStdev(key);
+//             long long first = (long long) sumSq/n;
+//             long long second = (long long)sum/n*sum/n;
+//             sd = (long long)sqrt(first - second);
+//             std::cout<<"insert key : "<< key << "    sd: " << sd << "   range = " << (long long)sum / n + num_stdev * sd << std::endl;
+//             return false;
+//         }
+//         std::cout << "key beyond range: "<< key << std::endl;
+
+//         return true;
+//     }
 
     void update(int size, long long* stats) {
         n -= leaf_size[next_idx];

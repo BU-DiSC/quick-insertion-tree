@@ -10,7 +10,7 @@ UNSORTED_TREE_SPLIT_FRAC=0.5
 ENABLE_LAZY_MOVE=false
 
 # Knob for heap buffer, if HEAP_SIZE <= 0, heap buffer will be disabled
-HEAP_SIZE=15
+HEAP_SIZE=100
 
 # The initial tolerance threshold, determine whether the key of the newly added tuple is too far from the previous
 # tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
@@ -39,4 +39,4 @@ OUTLIER_DETECTOR_TYPE=2
 
 # Calculate the standard deviation using the LASK_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0, 
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
-LAST_K_STDEV=100
+LAST_K_STDEV=0

@@ -2835,6 +2835,12 @@ public:
         return prev_tail->getLastDataPair().first;
     }
 
+     key_type get_prev_tail_minimum_key() {
+        assert(prev_tail != nullptr);
+        return prev_tail->getDataPairKey(0);
+       
+    }
+
     double findMedian(int *a, int n)
     {
         std::sort(a, a + n);
