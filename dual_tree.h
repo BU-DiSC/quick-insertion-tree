@@ -151,7 +151,7 @@ public:
                     unsorted_size += 1;
                 } else {
                     // If the new key will be appended or lazy move is disabled, we use the insert method.
-                    bool split;
+                    bool split = false;
                     sorted_tree->insert_to_tail_leaf(key, value, append, split);
                     if (split && _dual_tree_knobs::ENABLE_OUTLIER_DETECTOR() 
                             && _dual_tree_knobs::OUTLIER_DETECTOR_TYPE() == _dual_tree_knobs::STDEV
