@@ -6,8 +6,10 @@
 
 using namespace std; 
 
-int dual_mixed_workload_test(string input_file, int num_queries, int perc_load, int n){
-    dual_tree<int,int> tree = dual_tree<int,int>("tree_1", "tree_2");
+int dual_mixed_workload_test(string input_file, string config_file_path, int num_queries, int perc_load, int n){
+    dual_tree<int,int> tree = dual_tree<int,int>("tree_1", "tree_2", config_file_path);
+    dual_tree<int, int>::show_tree_knobs();
+
 
     FileReader fr = FileReader(input_file);
     std::vector<int> data = fr.read();
@@ -150,16 +152,18 @@ int dual_mixed_workload_test(string input_file, int num_queries, int perc_load, 
 
 int main(int argc, char **argv)
 {
-    if(argc < 5)
+    if(argc < 6)
     {
-        std::cout<< "Usage: ./dual_mixed_analysis <input_file> <num_queries> <perc_load> <n>" << std::endl;
+        std::cout<< "Usage: ./dual_mixed_analysis <input_file> <config_file> <num_queries> <perc_load> <n>" << std::endl;
+        return -1;
     }
 
     // Read the input file
     std::string input_file = argv[1];
-    int num_queries = atoi(argv[2]);
-    int perc_load = atoi(argv[3]);
-    int n = atoi(argv[4]);
+    std::string config_file_path = argv[2];
+    int num_queries = atoi(argv[3]);
+    int perc_load = atoi(argv[4]);
+    int n = atoi(argv[5]);
     std::ifstream ifs;
     std::vector<int> data;
 
@@ -170,9 +174,7 @@ int main(int argc, char **argv)
 
     data.resize(filesize / sizeof(int));
     ifs.read((char*)data.data(), filesize);
-
-    dual_tree<int, int>::show_tree_knobs();
-
-    dual_mixed_workload_test(input_file, num_queries, perc_load, n);
+ 
+    dual_mixed_workload_test(input_file, config_file_path, num_queries, perc_load, n);
     return 0;
 }

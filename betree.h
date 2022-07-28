@@ -1629,6 +1629,22 @@ public:
         return &data->data[slot].first;
     }
 
+    long long getSumKeys() {
+        long long sum_keys = 0;
+        for (int i = 0; i < data->size; i++) {
+            sum_keys += (long long)data->data[i].first;
+        }
+        return sum_keys;
+    }
+
+    long long getSumSquares() {
+        long long sum_squares = 0;
+        for (int i = 0; i < data->size; i++) {
+            sum_squares += (long long)data->data[i].first * (long long)data->data[i].first;
+        }
+        return sum_squares;
+    }
+
 public:
     void fanout(int &num, int &total, int &max, int &min, int *arr, int &internal)
     {
@@ -1936,7 +1952,6 @@ public:
     }
 
     key_type getTailMinimum(bool& is_empty) {
-        // TODO: getDataSize may have issues when node.data is not initialized 
         if (tail_leaf == nullptr || tail_leaf->getDataSize() == 0) {
             // tail node is empty when tree is empty or after splitting with split_factor = 1
             is_empty = true;
@@ -1947,7 +1962,19 @@ public:
         }
     }
 
-    
+    long long getSumSquares() {
+        // return the sum of squared keys in the previous tail leaf
+        return prev_tail->getSumSquares();
+    }
+
+    long long getSumKeys() {
+        // return the sum of keys in the previous tail leaf
+        return prev_tail->getSumKeys();
+    }
+
+    int getPrevTailSize() {
+        return prev_tail->getDataSize();
+    }
 
     key_type get_minimum_key_of_tail_leaf() {
         if(tail_leaf == nullptr) {
@@ -1971,9 +1998,9 @@ public:
         return ret;
     }
 
-    bool insert_to_tail_leaf(key_type key, value_type val, bool append)
+    bool insert_to_tail_leaf(key_type key, value_type val, bool append, bool& need_split)
     {   
-        bool need_split;
+        // bool need_split;
         if(tail_leaf == nullptr)
         {
             // No tuple has been inserted, the tree is empty, but a root node is created when the
@@ -2799,8 +2826,7 @@ public:
     }
 
     bool is_tail_leaf_empty() {
-        BeNode<key_type, value_type, knobs, compare> *leaf = new BeNode<key_type, value_type, knobs, compare>(manager, tail_leaf_id);
-        int tail_size = leaf->get_leaf_occupancy();
+        int tail_size = tail_leaf->get_leaf_occupancy();
         return tail_size == 0;
     }
 
