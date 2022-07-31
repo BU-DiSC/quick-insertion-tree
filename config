@@ -38,7 +38,7 @@ ENABLE_OUTLIER_DETECTOR=true
 OUTLIER_DETECTOR_TYPE=3
 
 # Tolorance factor for outlier detector type 3 (toloranced std)
-STD_TOLORANCE_FACTOR=5
+STD_TOLORANCE_FACTOR=0.7
 
 # Calculate the standard deviation using the LASK_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0, 
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
