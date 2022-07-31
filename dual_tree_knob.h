@@ -36,6 +36,9 @@ public:
     //tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
     static uint INIT_TOLERANCE_FACTOR();
 
+    // Tolorance factor for standard deviation based outlier detector
+    static float STD_TOLORANCE_FACTOR();
+
     static uint NUM_STDEV();
 
     // The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
@@ -57,6 +60,9 @@ public:
 
     // outlier detector type STDEV: standard deviation based outlier detector
     static constexpr TYPE STDEV = 2;
+
+    // outlier detector type TOLORANCED_STD: standard deviation based outlier detector with tolorance factor
+    static constexpr TYPE TOLORANCED_STD = 3;
 
     // Using only last k nodes to calculate the STDEV
     static int LAST_K_STDEV();

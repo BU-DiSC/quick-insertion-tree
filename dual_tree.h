@@ -8,6 +8,7 @@
 #include "dual_tree_knob.h"
 #include "dist_detector.h"
 #include "stdev_detector.h"
+#include "tolorenced_std_detector.h"
 
 template<typename _key, typename _value>
 class Heap : public std::priority_queue<std::pair<_key, _value>, 
@@ -76,6 +77,9 @@ public:
             else if(_dual_tree_knobs::OUTLIER_DETECTOR_TYPE() == _dual_tree_knobs::STDEV){
                 outlier_detector = new StdevDetector<_key>(_dual_tree_knobs::NUM_STDEV(), 
                                                         _dual_tree_knobs::LAST_K_STDEV());
+            }
+            else if(_dual_tree_knobs::OUTLIER_DETECTOR_TYPE() == _dual_tree_knobs::TOLORANCED_STD){
+                outlier_detector = new TolorencedStdDetector<_key>(_dual_tree_knobs::STD_TOLORANCE_FACTOR(), _dual_tree_knobs::NUM_STDEV(), _dual_tree_knobs::LAST_K_STDEV());
             }
         }
     }
@@ -276,6 +280,7 @@ public:
             std::cout << "Expected avg distance = " << _dual_tree_knobs::EXPECTED_AVG_DISTANCE() << std::endl;
             std::cout << "Number of stdev = " << _dual_tree_knobs::NUM_STDEV() << std::endl;
             std::cout << "Calculating stdev of last k = " << _dual_tree_knobs::LAST_K_STDEV() << " leaves" << std::endl;
+            std::cout << "Standard Deviation Tolorance Factor = " << _dual_tree_knobs::STD_TOLORANCE_FACTOR() << std::endl;
         }
 
         std::cout << "--------------------------------------------------------------------------" << std::endl;

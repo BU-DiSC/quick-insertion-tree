@@ -75,9 +75,15 @@ uint DUAL_TREE_KNOBS<_key, _value>::HEAP_SIZE(){
 }
 
 template<typename _key, typename _value>
-uint DUAL_TREE_KNOBS<_key, _value>::NUM_STDEV() { 
+float DUAL_TREE_KNOBS<_key, _value>::STD_TOLORANCE_FACTOR(){
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("STD_TOLORANCE_FACTOR", "1.5"));
+}
+
+template<typename _key, typename _value>
+uint DUAL_TREE_KNOBS<_key, _value>::NUM_STDEV(){ 
     return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("NUM_STDEV", "3"));
 }
+
 
 template<typename _key, typename _value>
 uint DUAL_TREE_KNOBS<_key, _value>::INIT_TOLERANCE_FACTOR(){ 
