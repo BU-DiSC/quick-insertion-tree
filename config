@@ -16,7 +16,7 @@ HEAP_SIZE=100
 # tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
 INIT_TOLERANCE_FACTOR=100
 
-NUM_STDEV=2.5
+NUM_STDEV=3
 
 # The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
 # most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
@@ -32,7 +32,10 @@ EXPECTED_AVG_DISTANCE=2.5
 # and if a key is identified as outlier, it would be inserted to unsorted tree.
 ENABLE_OUTLIER_DETECTOR=true
 
-# Outlier detector type: distance-based=1, stdev-based=2
-OUTLIER_DETECTOR_TYPE=2
+# Outlier detector type: distance-based=1, stdev-based=2, toloranced_std=3
+OUTLIER_DETECTOR_TYPE=3
+
+# Tolorance factor for outlier detector type 3 (toloranced std)
+STD_TOLORANCE_FACTOR=5
 
 LAST_K_STDEV=100
