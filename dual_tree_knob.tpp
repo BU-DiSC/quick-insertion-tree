@@ -18,7 +18,7 @@ template<typename _key, typename _value>
 std::unordered_map<std::string, std::string>& DUAL_TREE_KNOBS<_key, _value>::get_config() {
     static auto config = new std::unordered_map<std::string, std::string>();
     if(config->empty()) {
-        std::ifstream infile("./config");
+        std::ifstream infile(CONFIG_FILE_PATH);
         std::string line;
         while(std::getline(infile, line)) {
             line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
@@ -46,50 +46,66 @@ std::string DUAL_TREE_KNOBS<_key, _value>::config_get_or_default(std::string kno
 }
 
 template<typename _key, typename _value>
-const float DUAL_TREE_KNOBS<_key, _value>::SORTED_TREE_SPLIT_FRAC = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("SORTED_TREE_SPLIT_FRAC", "1.0"));
+std::string DUAL_TREE_KNOBS<_key, _value>::CONFIG_FILE_PATH = "";
+
 
 template<typename _key, typename _value>
-const float DUAL_TREE_KNOBS<_key, _value>::UNSORTED_TREE_SPLIT_FRAC =
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("UNSORTED_TREE_SPLIT_FRAC", "0.5"));
+float DUAL_TREE_KNOBS<_key, _value>::SORTED_TREE_SPLIT_FRAC(){ 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("SORTED_TREE_SPLIT_FRAC", "1.0"));
+}
 
 template<typename _key, typename _value>
-const bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_LAZY_MOVE = 
-    str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "true"));
+float DUAL_TREE_KNOBS<_key, _value>::UNSORTED_TREE_SPLIT_FRAC(){
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("UNSORTED_TREE_SPLIT_FRAC", "0.5"));
+}
 
 template<typename _key, typename _value>
-const bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_OUTLIER_DETECTOR = 
-    str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "true"));
+bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_LAZY_MOVE(){ 
+    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "true"));
+}
 
 template<typename _key, typename _value>
-const uint DUAL_TREE_KNOBS<_key, _value>::HEAP_SIZE = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("HEAP_SIZE", "15"));
+bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_OUTLIER_DETECTOR(){ 
+    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "true"));
+}
 
 template<typename _key, typename _value>
-const uint DUAL_TREE_KNOBS<_key, _value>::INIT_TOLERANCE_FACTOR = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("INIT_TOLERANCE_FACTOR", "100"));
+uint DUAL_TREE_KNOBS<_key, _value>::HEAP_SIZE(){ 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("HEAP_SIZE", "15"));
+}
 
 template<typename _key, typename _value>
-const uint DUAL_TREE_KNOBS<_key, _value>::STD_TOLORANCE_FACTOR = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("STD_TOLORANCE_FACTOR", "1.5"));
+float DUAL_TREE_KNOBS<_key, _value>::STD_TOLORANCE_FACTOR(){
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("STD_TOLORANCE_FACTOR", "1.5"));
+}
 
 template<typename _key, typename _value>
-const uint DUAL_TREE_KNOBS<_key, _value>::NUM_STDEV = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("NUM_STDEV", "3"));
+uint DUAL_TREE_KNOBS<_key, _value>::NUM_STDEV(){ 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("NUM_STDEV", "3"));
+}
+
 
 template<typename _key, typename _value>
-const float DUAL_TREE_KNOBS<_key, _value>::MIN_TOLERANCE_FACTOR = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("MIN_TOLERANCE_FACTOR", "20"));
+uint DUAL_TREE_KNOBS<_key, _value>::INIT_TOLERANCE_FACTOR(){ 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("INIT_TOLERANCE_FACTOR", "100"));
+}
 
 template<typename _key, typename _value>
-const float DUAL_TREE_KNOBS<_key, _value>::EXPECTED_AVG_DISTANCE = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("EXPECTED_AVG_DISTANCE", "2.5"));
+float DUAL_TREE_KNOBS<_key, _value>::MIN_TOLERANCE_FACTOR(){ 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("MIN_TOLERANCE_FACTOR", "20"));
+}
 
 template<typename _key, typename _value>
-const TYPE DUAL_TREE_KNOBS<_key, _value>::OUTLIER_DETECTOR_TYPE = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("OUTLIER_DETECTOR_TYPE", "1"));
+float DUAL_TREE_KNOBS<_key, _value>::EXPECTED_AVG_DISTANCE(){
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("EXPECTED_AVG_DISTANCE", "2.5"));
+}
 
 template<typename _key, typename _value>
-const TYPE DUAL_TREE_KNOBS<_key, _value>::LAST_K_STDEV = 
-    std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("LAST_K_STDEV", "0"));
+TYPE DUAL_TREE_KNOBS<_key, _value>::LAST_K_STDEV() { 
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("LAST_K_STDEV", "0"));
+}
 
+template<typename _key, typename _value>
+TYPE DUAL_TREE_KNOBS<_key, _value>::OUTLIER_DETECTOR_TYPE(){ 
+    return std::stoi(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("OUTLIER_DETECTOR_TYPE", "1"));
+}
