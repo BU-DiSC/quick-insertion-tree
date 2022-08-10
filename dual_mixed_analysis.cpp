@@ -146,6 +146,7 @@ int dual_mixed_workload_test(string input_file, string config_file_path, int num
     cout << "Total Point Queries Executed           = " << tot_queries << endl;
     cout << "Total Empty Queries                    = " << empty_queries << endl;
     cout << "Total Number of Operations             = " << num_oper << endl;
+    tree.display_stats();
     return 1;
 }
 
