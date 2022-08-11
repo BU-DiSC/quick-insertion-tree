@@ -218,6 +218,9 @@ public:
 
     void display_stats()
     {
+        /**
+         * display the statistics of the dual tree 
+         */
         sorted_tree->fanout();
         std::cout << "Sorted Tree: number of splitting leaves = " << sorted_tree->traits.leaf_splits
             << std::endl;
@@ -261,7 +264,6 @@ public:
         std::cout << "Unsorted tree size = " << unsorted_size << std::endl;
         std::cout << "Lazy move called times = " << call_counter.lazy_move << std::endl;
 #endif
-
         
     }
 
@@ -307,6 +309,18 @@ public:
 
     unsigned long long get_unsorted_tree_true_size() {return unsorted_tree->getNumKeys();}
     
+    std::string get_stats() {
+        std::string stats = "";
+        stats += std::to_string(sorted_size) + "," + std::to_string(unsorted_size) + ",";
+        stats += std::to_string(sorted_tree->depth()) + "," + std::to_string(unsorted_tree->depth()) + ",";
+        stats += std::to_string(sorted_tree->getNumWrites()) + "," + 
+                        std::to_string(unsorted_tree->getNumWrites()) + ",";
+#ifdef COUNTER
+        stats += std::to_string(call_counter.lazy_move) + ",";
+#endif
+        return stats;
+    }
+
 private:
 
     _key _get_required_minimum_inserted_key(bool& no_lower_bound) {

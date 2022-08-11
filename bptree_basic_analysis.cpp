@@ -1,11 +1,12 @@
 #include <iostream>
+#include <fstream>
 #include "betree.h"
 #include "dual_tree.h"
 #include "file_reader.h"
 
 using namespace std; 
 
-void b_plus_tree_test(const std::vector<int>& data_set)
+void b_plus_tree_test(const std::string input_file_path)
 {
     // init a tree that takes integers for both key and value
     // the first argument is the name of the block manager for the cache (can be anything)
@@ -13,6 +14,9 @@ void b_plus_tree_test(const std::vector<int>& data_set)
     // 3rd argument is the size of every block in bytes. Suggest to keep it as is since 4096B = 4KB = 1 page
     // 4th argument is the number of blocks to store in memory. Right now, it is at 10000 blocks = 10000*4096 bytes = 40.96 MB
     // potentially, the only argument to change would be the last one (4th arg) to increase the memory capacity
+
+    FileReader fr = FileReader(input_file_path);
+    std::vector<int> data_set = fr.read();
 
     auto start = std::chrono::high_resolution_clock::now();
     BeTree<int,int> tree("manager", "./tree_dat", BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
@@ -26,8 +30,20 @@ void b_plus_tree_test(const std::vector<int>& data_set)
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    auto load_time = duration.count();
+    std::cout << "Data Load time For b plus tree(us):" << load_time << std::endl;
 
-    std::cout << "Data Load time For b plus tree(us):" << duration.count() << std::endl;
+    /** write to csv file
+     *  csv file header would be:
+     *  input_file, data_load_time, height, # of writes
+    */ 
+    std::ofstream csvfile;
+    csvfile.open("bptree_basic.csv", ofstream::app);
+    csvfile << input_file_path << ",";
+    csvfile << load_time << ",";
+    csvfile << tree.depth() << ",";
+    csvfile << tree.getNumWrites() << "\n";
+    csvfile.close();
 
 }
 int main(int argc, char **argv)
@@ -40,9 +56,6 @@ int main(int argc, char **argv)
 
     // Read the input file
     std::string input_file = argv[1];
-    FileReader fr = FileReader(input_file);
-    std::vector<int> data = fr.read();
-
-    b_plus_tree_test(data);
+    b_plus_tree_test(input_file);
     return 0;
 }

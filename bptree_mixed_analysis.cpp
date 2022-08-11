@@ -144,6 +144,22 @@ int bptree_mixed_workload_test(string input_file, int num_queries, int perc_load
     cout << "Total Point Queries Executed           = " << tot_queries << endl;
     cout << "Total Empty Queries                    = " << empty_queries << endl;
     cout << "Total Number of Operations             = " << num_oper << endl;
+
+    /** write to csv file
+     *  csv file header would be:
+     *  input_file, data_load_time, insert_time, query_time,
+     *  # of inserts, # of queries, # of emtpy queries,
+     *  height, # of writes
+    */ 
+    std::ofstream csvfile;
+    csvfile.open("bptree_mixed.csv", ofstream::app);
+    csvfile << input_file << ",";
+    csvfile << duration << "," << only_insert_time << "," << only_query_time << ",";
+    csvfile << tot_inserts << "," << tot_queries << "," << empty_queries << ",";
+    csvfile << tree.depth() << ",";
+    csvfile << tree.getNumWrites() << "\n";
+    csvfile.close();
+
     return 1;
 }
 
@@ -161,8 +177,8 @@ int main(int argc, char **argv)
     int num_queries = atoi(argv[2]);
     int perc_load = atoi(argv[3]);
     int n = atoi(argv[4]);
-    std::ifstream ifs;
-    std::vector<int> data;
+    // std::ifstream ifs;
+    // std::vector<int> data;
 
     // ifs.open(input_file);
     // ifs.seekg(0, std::ios::end);
