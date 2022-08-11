@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "betree.h"
 #include "dual_tree.h"
 #include "file_reader.h"
@@ -146,6 +147,24 @@ int dual_mixed_workload_test(string input_file, string config_file_path, int num
     cout << "Total Point Queries Executed           = " << tot_queries << endl;
     cout << "Total Empty Queries                    = " << empty_queries << endl;
     cout << "Total Number of Operations             = " << num_oper << endl;
+    tree.display_stats();
+
+    /** write to csv file
+     *  csv file header would be:
+     *  input_file, config_file, data_load_time, insert_time, query_time,
+     *  # of inserts, # of queries, # of emtpy queries,
+     *  sorted_tree_size, unsorted_tree_size, sorted_tree_height, unsorted_tree_height, 
+     *  # of writes(sorted), # of writes(unsorted), call_times(lazy move)
+    */ 
+    std::ofstream csvfile;
+    csvfile.open("dualtree_mixed.csv", ofstream::app);
+    csvfile << input_file << ",";
+    csvfile << config_file_path << ",";
+    csvfile << duration << "," << only_insert_time << "," << only_query_time << ",";
+    csvfile << tot_inserts << "," << tot_queries << "," << empty_queries << ",";
+    csvfile << tree.get_stats() << "\n";
+    csvfile.close();
+
     return 1;
 }
 

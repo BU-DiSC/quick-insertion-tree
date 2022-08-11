@@ -3,12 +3,17 @@
 
 #include <stdlib.h>
 #include <bits/stdc++.h>
+#include <iostream>
 
 #include "betree.h"
 #include "dual_tree_knob.h"
 #include "dist_detector.h"
 #include "stdev_detector.h"
 #include "tolorenced_std_detector.h"
+
+struct Counter {
+    int lazy_move = 0;
+};
 
 template<typename _key, typename _value>
 class Heap : public std::priority_queue<std::pair<_key, _value>, 
@@ -96,6 +101,9 @@ public:
             delete outlier_detector;
         }
     }
+#ifdef COUNTER
+    Counter call_counter;
+#endif
 
     uint sorted_tree_size() { return sorted_size;}
 
@@ -150,6 +158,9 @@ public:
 
             if (!_dual_tree_knobs::ENABLE_OUTLIER_DETECTOR() || !outlier_detector->is_outlier(key, tree_size)) {
                 if (!append && _dual_tree_knobs::ENABLE_LAZY_MOVE()) {
+#ifdef COUNTER
+                    call_counter.lazy_move++;
+#endif
                     std::pair<_key, _value> swapped = sorted_tree->swap_in_tail_leaf(key, value);
                     unsorted_tree->insert(swapped.first, swapped.second);
                     unsorted_size += 1;
@@ -207,6 +218,9 @@ public:
 
     void display_stats()
     {
+        /**
+         * display the statistics of the dual tree 
+         */
         sorted_tree->fanout();
         std::cout << "Sorted Tree: number of splitting leaves = " << sorted_tree->traits.leaf_splits
             << std::endl;
@@ -218,8 +232,8 @@ public:
             sorted_tree->traits.num_internal_nodes << std::endl;
         std::cout << "Sorted Tree: Maximum value = " << sorted_tree->getMaximumKey() << std::endl;
         std::cout << "Sorted Tree: Minimum value = " << sorted_tree->getMinimumKey() << std::endl;
-
-        std::vector<int> sorted_tree_occs = sorted_tree->get_leaves_occupancy();
+        std::cout << "Sorted Tree: height = " << sorted_tree->depth() << std::endl;
+        // std::vector<int> sorted_tree_occs = sorted_tree->get_leaves_occupancy();
         // std::cout << "Sorted Tree Leaf Occupancy: ";
         // for (auto i : sorted_tree_occs) {
         //     std::cout << i << " ";
@@ -237,14 +251,19 @@ public:
             unsorted_tree->traits.num_internal_nodes << std::endl;
         std::cout << "Unsorted Tree: Maximum value = " << unsorted_tree->getMaximumKey() << std::endl;
         std::cout << "Unsorted Tree: Minimum value = " << unsorted_tree->getMinimumKey() << std::endl;
-
-        std::vector<int> unsorted_tree_occs = unsorted_tree->get_leaves_occupancy();
+        std::cout << "Unsorted Tree: height = " << unsorted_tree->depth() << std::endl;
+        // std::vector<int> unsorted_tree_occs = unsorted_tree->get_leaves_occupancy();
         // std::cout << "Unsorted Tree Leaf Occupancy: ";
         // for (auto i : unsorted_tree_occs) {
         //     std::cout << i << " ";
         // }
         std::cout << std::endl;
 
+#ifdef COUNTER
+        std::cout << "Sorted tree size = " << sorted_size << std::endl;
+        std::cout << "Unsorted tree size = " << unsorted_size << std::endl;
+        std::cout << "Lazy move called times = " << call_counter.lazy_move << std::endl;
+#endif
         
     }
 
@@ -290,6 +309,18 @@ public:
 
     unsigned long long get_unsorted_tree_true_size() {return unsorted_tree->getNumKeys();}
     
+    std::string get_stats() {
+        std::string stats = "";
+        stats += std::to_string(sorted_size) + "," + std::to_string(unsorted_size) + ",";
+        stats += std::to_string(sorted_tree->depth()) + "," + std::to_string(unsorted_tree->depth()) + ",";
+        stats += std::to_string(sorted_tree->getNumWrites()) + "," + 
+                        std::to_string(unsorted_tree->getNumWrites()) + ",";
+#ifdef COUNTER
+        stats += std::to_string(call_counter.lazy_move) + ",";
+#endif
+        return stats;
+    }
+
 private:
 
     _key _get_required_minimum_inserted_key(bool& no_lower_bound) {

@@ -13,3 +13,4 @@ tree_2/
 *.txt
 workloadgenerator
 config*
+*.csv

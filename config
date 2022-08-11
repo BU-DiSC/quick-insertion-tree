@@ -7,10 +7,10 @@ UNSORTED_TREE_SPLIT_FRAC=0.5
 
 # If enable lazy move, then every time an insertion(instead of appending) happens to the sorted tree, a 
 #key right after the new inserted key will be moved to the unsorted tree.
-ENABLE_LAZY_MOVE=false
+ENABLE_LAZY_MOVE=true
 
 # Knob for heap buffer, if HEAP_SIZE <= 0, heap buffer will be disabled
-HEAP_SIZE=100
+HEAP_SIZE=0
 
 # The initial tolerance threshold, determine whether the key of the newly added tuple is too far from the previous
 # tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
@@ -32,7 +32,7 @@ EXPECTED_AVG_DISTANCE=2.5
 
 # If enable outlier detector, a key within certain range would have to pass the outlier check before insertion,
 # and if a key is identified as outlier, it would be inserted to unsorted tree.
-ENABLE_OUTLIER_DETECTOR=true
+ENABLE_OUTLIER_DETECTOR=false
 
 # Outlier detector type: distance-based=1, stdev-based=2, toloranced_std=3
 OUTLIER_DETECTOR_TYPE=3
