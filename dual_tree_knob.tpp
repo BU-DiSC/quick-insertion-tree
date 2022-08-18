@@ -51,7 +51,7 @@ std::string DUAL_TREE_KNOBS<_key, _value>::CONFIG_FILE_PATH = "";
 
 template<typename _key, typename _value>
 float DUAL_TREE_KNOBS<_key, _value>::SORTED_TREE_SPLIT_FRAC(){ 
-    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("SORTED_TREE_SPLIT_FRAC", "1.0"));
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("SORTED_TREE_SPLIT_FRAC", "0.8"));
 }
 
 template<typename _key, typename _value>
@@ -61,17 +61,17 @@ float DUAL_TREE_KNOBS<_key, _value>::UNSORTED_TREE_SPLIT_FRAC(){
 
 template<typename _key, typename _value>
 bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_LAZY_MOVE(){ 
-    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "true"));
+    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_LAZY_MOVE", "false"));
 }
 
 template<typename _key, typename _value>
 bool DUAL_TREE_KNOBS<_key, _value>::ENABLE_OUTLIER_DETECTOR(){ 
-    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "true"));
+    return str2bool(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "false"));
 }
 
 template<typename _key, typename _value>
 uint DUAL_TREE_KNOBS<_key, _value>::HEAP_SIZE(){ 
-    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("HEAP_SIZE", "15"));
+    return std::stof(DUAL_TREE_KNOBS<_key, _value>::config_get_or_default("HEAP_SIZE", "0"));
 }
 
 template<typename _key, typename _value>
