@@ -2864,7 +2864,12 @@ public:
 
         traits.max_fanout = max;
         traits.min_fanout = min;
-        traits.average_fanout = ceil(total / num);
+        try {
+            if (num == 0) throw 0;
+            traits.average_fanout = ceil(total / num);
+        } catch (...) {
+            traits.average_fanout = 0;
+        }
         traits.num_nodes = n;
 
         delete[] arr;
