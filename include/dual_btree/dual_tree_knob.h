@@ -1,31 +1,31 @@
 #ifndef DUAL_TREE_KNOB_H
 #define DUAL_TREE_KNOB_H
-#define TYPE int
 
-#include <fstream>
 #include <unordered_map>
 #include <string>
-#include <algorithm>
-#include <iostream>
+#include "../../src/outlier_detector.h"
+#include "../../src/stdev_detector.h"
+#include "../../src/dist_detector.h"
 
-template<typename _key, typename _value>
-class DUAL_TREE_KNOBS
-{
-private: 
-    static std::unordered_map<std::string, std::string>& get_config();
- 
-    static std::string config_get_or_default(std::string knob_name, std::string default_val);
-    
-public: 
 
-    static std::string CONFIG_FILE_PATH; 
- 
+class DUAL_TREE_KNOBS {
+private:
+    static std::unordered_map<std::string, std::string> &get_config();
+
+    static std::string config_get_or_default(const std::string &knob_name, const std::string &default_val);
+
+    static std::unordered_map<std::string, std::string> config;
+
+public:
+
+    static std::string CONFIG_FILE_PATH;
+
     // Sorted tree split fraction, it will affect the space utilization of the tree. It means how
     // many elements will stay in the original node.
     static float SORTED_TREE_SPLIT_FRAC();
- 
+
     // Unsorted tree splitting fraction.
-    static float UNSORTED_TREE_SPLIT_FRAC();  
+    static float UNSORTED_TREE_SPLIT_FRAC();
 
     static bool ENABLE_LAZY_MOVE();
 
@@ -36,9 +36,6 @@ public:
     //tuple in the sorted tree. If set it to 0, the dual tree will disable the outlier detector.
     static uint INIT_TOLERANCE_FACTOR();
 
-    // Tolorance factor for standard deviation based outlier detector
-    static float STD_TOLORANCE_FACTOR();
-
     static uint NUM_STDEV();
 
     // The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
@@ -48,28 +45,24 @@ public:
 
     // The expected average distance between any two consecutive tuples in the sorted tree. This
     //tuning knob helps to modify the tolerance factor in the outlier detector. If it is less or equal to 
-    //1, then the tolerance factor becomes a ant.
+    //1, then the tolerance factor becomes an ant.
     static float EXPECTED_AVG_DISTANCE();
 
     static bool ENABLE_OUTLIER_DETECTOR();
 
-    static TYPE OUTLIER_DETECTOR_TYPE();
+    static int OUTLIER_DETECTOR_TYPE();
 
     // outlier detector type DIST: distance based outlier detector
-    static constexpr TYPE DIST = 1;
+    static constexpr int DIST = 1;
 
     // outlier detector type STDEV: standard deviation based outlier detector
-    static constexpr TYPE STDEV = 2;
-
-    // outlier detector type TOLORANCED_STD: standard deviation based outlier detector with tolorance factor
-    static constexpr TYPE TOLORANCED_STD = 3;
+    static constexpr int STDEV = 2;
 
     // Using only last k nodes to calculate the STDEV
     static int LAST_K_STDEV();
 
-
+    template<typename key_type, typename value_type>
+    static OutlierDetector<key_type, value_type> *get_detector();
 };
-
-#include "dual_tree_knob.tpp"
 
 #endif // !DUAL_TREE_KNOB_H

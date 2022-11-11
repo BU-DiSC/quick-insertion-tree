@@ -1,18 +1,11 @@
-#ifndef BACKUP_H
-#define BACKUP_H
+#ifndef BLOCK_MANAGER_H
+#define BLOCK_MANAGER_H
 
-#include <cstdint>
-#include <cstddef>
-#include <iostream>
-#include <ext/stdio_filebuf.h>
 #include <unistd.h>
 #include <cassert>
 #include "lru_cache.h"
 #include <fstream>
-#include <list>
-#include <algorithm>
-#include <map>
-#include <stdlib.h>
+#include <cstring>
 #include <fcntl.h>
 
 #define BLOCK_SIZE_BYTES 4096
@@ -27,14 +20,12 @@
 // unsigned long writeblock_time = 0;
 // #endif
 
-class Block
-{
+class Block {
 public:
     unsigned char block_buf[BLOCK_SIZE_BYTES];
 };
 
-class BlockManager
-{
+class BlockManager {
 public:
     std::string name;
     std::string root_dir;
@@ -75,18 +66,16 @@ public:
         // deserializeb = deserialize_time;
     }
 #endif
-    std::string getBlockFileName(int id)
-    {
+
+    std::string getBlockFileName(uint id) const {
         return root_dir + "/" + std::to_string(id);
     }
 
-    std::string getParentFileName()
-    {
+    std::string getParentFileName() const {
         return root_dir + "/" + name;
     }
 
-    void writeBlock(uint id, uint pos)
-    {
+    void writeBlock(uint id, uint pos) {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
 #endif
@@ -103,8 +92,8 @@ public:
 
         unsigned long long cor_pos = beg + ((id - 1) * size_of_each_block);
 
-        fout.seekp(cor_pos, fout.beg);
-        fout.write((char *)internal_memory[pos].block_buf, size_of_each_block);
+        fout.seekp(cor_pos, std::ofstream::beg);
+        fout.write(reinterpret_cast<char *>(internal_memory[pos].block_buf), size_of_each_block);
         fout.flush();
         fout.close();
 
@@ -116,16 +105,14 @@ public:
 #endif
     }
 
-    void writeBlock(uint id, uint pos, bool dirty)
-    {
+    void writeBlock(uint id, uint pos, bool dirty) {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
 #endif
         if (pos >= blocks_in_memory_cap)
             return;
 
-        if (dirty)
-        {
+        if (dirty) {
 
             std::string filename = getParentFileName();
 
@@ -135,12 +122,8 @@ public:
 
             // get position
             unsigned long long cor_pos = ((id - 1) * size_of_each_block);
-            if (id == 1048703)
-            {
-                std::cout << "here" << std::endl;
-            }
 
-            pwrite(fout, (char *)&(internal_memory[pos].block_buf), size_of_each_block, cor_pos);
+            pwrite(fout, internal_memory[pos].block_buf, size_of_each_block, cor_pos);
             close(fout);
 
             num_writes++;
@@ -152,8 +135,7 @@ public:
 #endif
     }
 
-    void readBlock(uint id, uint pos)
-    {
+    void readBlock(uint id, uint pos) {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
 #endif
@@ -164,7 +146,7 @@ public:
         // get position
         unsigned long long cor_pos = ((id - 1) * size_of_each_block);
 
-        pread(fin, (char *)internal_memory[pos].block_buf, size_of_each_block, cor_pos);
+        pread(fin, internal_memory[pos].block_buf, size_of_each_block, cor_pos);
 
         close(fin);
         num_reads++;
@@ -176,10 +158,21 @@ public:
     }
 
 public:
-    BlockManager(std::string _name, std::string _root_dir,
-                 unsigned long long _size_of_each_block, uint _blocks_in_memory_cap) : name(_name), root_dir(_root_dir), size_of_each_block(_size_of_each_block),
-                                                                        blocks_in_memory_cap(_blocks_in_memory_cap), current_blocks(0), num_reads(0), num_writes(0), leaf_cache_misses(0), internal_cache_misses(0), leaf_cache_hits(0), internal_cache_hits(0), total_cache_reqs(0), blocks_written(0)
-    {
+    BlockManager(const std::string &_name, const std::string &_root_dir,
+                 unsigned long long _size_of_each_block, uint _blocks_in_memory_cap) :
+            name(_name),
+            root_dir(_root_dir),
+            current_blocks(0),
+            size_of_each_block(_size_of_each_block),
+            blocks_in_memory_cap(_blocks_in_memory_cap),
+            blocks_written(0),
+            num_reads(0),
+            num_writes(0),
+            leaf_cache_misses(0),
+            internal_cache_misses(0),
+            leaf_cache_hits(0),
+            internal_cache_hits(0),
+            total_cache_reqs(0) {
 
         internal_memory = new Block[blocks_in_memory_cap];
 
@@ -190,67 +183,45 @@ public:
         // total_cache_reqs = 0;
 
         std::string filename = getParentFileName();
-        std::ofstream dummy_file(filename.c_str(), std::ios::out | std::ios::binary);
-        if (!dummy_file)
-        {
-            std::cout << "Error in creating file!" << std::endl;
+        std::ofstream dummy_file(filename, std::ios::out | std::ios::binary);
+        if (!dummy_file) {
+            std::cout << "Error creating file: " << filename << std::endl;
         }
         dummy_file.flush();
         assert(dummy_file.good());
         dummy_file.close();
     }
 
-    ~BlockManager()
-    {
+    ~BlockManager() {
         // write all blocks back to disk
-        uint pos;
-
-        std::unordered_map<uint, Node *>::iterator it = open_blocks->getBegin();
-        std::unordered_map<uint, Node *>::iterator eit = open_blocks->getEnd();
-        for (; it != eit; ++it)
-        {
-            pos = open_blocks->get(it->second->getId());
-            writeBlock(it->second->getId(), pos, true);
+        for (const auto &[id, node] : open_blocks->node_hash) {
+            writeBlock(node->id, node->pos, true);
         }
 
-        // delete
-        // delete[] internal_memory->block_buf;
         delete[] internal_memory;
-
         delete open_blocks;
     }
 
     // allocates a file (dummy) in the backup directory on disk and returns an id
     // the id identifies the file, which would later be used as the node id
-    uint allocate()
-    {
-        uint id = ++current_blocks;
-
-        if (id == 1048703)
-        {
-            std::cout << "here" << std::endl;
-        }
-
-        return id;
+    uint allocate() {
+        return ++current_blocks;
     }
 
-    void deallocate(uint id)
-    {
+    void deallocate(uint id) const {
         std::string filename = getBlockFileName(id);
         assert(unlink(filename.c_str()) == 0);
     }
 
-    uint OpenBlock(uint id, bool &miss)
-    {
+    uint OpenBlock(uint id, bool &miss) {
 #ifdef PROFILE
         auto start = std::chrono::high_resolution_clock::now();
 #endif
         uint pos = open_blocks->get(id);
 
-        total_cache_reqs += 1;
+        total_cache_reqs++;
 
-        if (pos < blocks_in_memory_cap)
-        {
+        if (pos < blocks_in_memory_cap) {
             // block is already open in memory
             miss = false;
             return pos;
@@ -261,13 +232,11 @@ public:
         pos = open_blocks->put(id, &evicted_id);
 
         // write old block back to disk
-        if (evicted_id > 0)
-        {
+        if (evicted_id > 0) {
             // find if evicted id is in dirty nodes
             // auto it = std::find(dirty_nodes.begin(), dirty_nodes.end(), evicted_id);
             auto it = dirty_nodes.find(evicted_id);
-            if (it != dirty_nodes.end())
-            {
+            if (it != dirty_nodes.end()) {
                 // write block if dirty
                 writeBlock(evicted_id, pos, true);
                 // dirty_nodes.remove(evicted_id);
@@ -287,61 +256,51 @@ public:
         return pos;
     }
 
-    void setLeafCacheMisses(unsigned long long counter)
-    {
+    void setLeafCacheMisses(unsigned long long counter) {
         leaf_cache_misses = counter;
     }
 
-    void setInternalCacheMisses(unsigned long long counter)
-    {
+    void setInternalCacheMisses(unsigned long long counter) {
         internal_cache_misses = counter;
     }
 
-    void setLeafCacheHits(unsigned long long counter)
-    {
+    void setLeafCacheHits(unsigned long long counter) {
         leaf_cache_hits = counter;
     }
 
-    void setInternalCacheHits(unsigned long long counter)
-    {
+    void setInternalCacheHits(unsigned long long counter) {
         internal_cache_hits = counter;
     }
 
-    void addLeafCacheMisses()
-    {
+    void addLeafCacheMisses() {
         leaf_cache_misses++;
     }
 
-    void addInternalCacheMisses()
-    {
+    void addInternalCacheMisses() {
         internal_cache_misses++;
     }
 
-    void addLeafCacheHits()
-    {
+    void addLeafCacheHits() {
         leaf_cache_hits++;
     }
 
-    void addInternalCacheHits()
-    {
+    void addInternalCacheHits() {
         internal_cache_hits++;
     }
 
-    unsigned long long getLeafCacheMisses() { return leaf_cache_misses; }
+    unsigned long long getLeafCacheMisses() const { return leaf_cache_misses; }
 
-    unsigned long long getInternalCacheMisses() { return internal_cache_misses; }
+    unsigned long long getInternalCacheMisses() const { return internal_cache_misses; }
 
-    unsigned long long getLeafCacheHits() { return leaf_cache_hits; }
+    unsigned long long getLeafCacheHits() const { return leaf_cache_hits; }
 
-    unsigned long long getInternalCacheHits() { return internal_cache_hits; }
+    unsigned long long getInternalCacheHits() const { return internal_cache_hits; }
 
-    unsigned long long getTotalCacheReqs() { return total_cache_reqs; }
+    unsigned long long getTotalCacheReqs() const { return total_cache_reqs; }
 
-    uint getCurrentBlocks() { return current_blocks; }
+    uint getCurrentBlocks() const { return current_blocks; }
 
-    void addDirtyNode(uint nodeId)
-    {
-
+    void addDirtyNode(uint nodeId) {
         dirty_nodes.insert({nodeId, nodeId});
     }
 };

@@ -2,11 +2,11 @@
 #define DIST_DETECTOR_H
 
 #include <algorithm>
+#include <iostream>
 #include "outlier_detector.h"
 
-template<typename key_type>
-class DistDetector : public OutlierDetector<key_type>
-{
+template<typename key_type, typename value_type>
+class DistDetector : public OutlierDetector<key_type, value_type> {
     // The default value of @average_distance.
     static constexpr float INIT_AVG_DIST = -1;
 
@@ -41,14 +41,10 @@ class DistDetector : public OutlierDetector<key_type>
     // total number of elements in sorted tree
     int counter;
 
-    void update_tolerance_factor()
-    {
-        if(avg_dist < expected_avg_dist + MAX_ERROR)
-        {
+    void update_tolerance_factor() {
+        if (avg_dist < expected_avg_dist + MAX_ERROR) {
             tolerance_factor = init_tolerance_factor;
-        }
-        else
-        {
+        } else {
             tolerance_factor *= expected_avg_dist / avg_dist;
         }
         tolerance_factor = std::max(tolerance_factor, min_tolerance_factor);
@@ -56,17 +52,16 @@ class DistDetector : public OutlierDetector<key_type>
 
 public:
 
-    DistDetector(float _tolerance_factor, float _min_tolerance_factor, 
-                    float _expected_avg_dist=1) : tolerance_factor(_tolerance_factor), 
-                    expected_avg_dist(_expected_avg_dist), 
-                    min_tolerance_factor(_min_tolerance_factor),
-                    init_tolerance_factor(_tolerance_factor)
-    {
+    DistDetector(float _tolerance_factor, float _min_tolerance_factor,
+                 float _expected_avg_dist = 1) : min_tolerance_factor(_min_tolerance_factor),
+                                                 expected_avg_dist(_expected_avg_dist),
+                                                 tolerance_factor(_tolerance_factor),
+                                                 init_tolerance_factor(_tolerance_factor) {
         avg_dist = INIT_AVG_DIST;
         counter = 0;
     }
 
-    bool is_outlier(key_type key, int tree_size) {
+    bool is_outlier(const key_type &key) {
         if (counter == 0) {
             // to calculate distance, there should be at least 1 keys in the tree
             previous_key = key;
@@ -78,13 +73,12 @@ public:
         if (avg_dist == INIT_AVG_DIST) {
             // sorted tree is empty, counter = 1
             avg_dist = dist;
-        }
-        else {
+        } else {
             if (dist > avg_dist * tolerance_factor) {
                 // key to insert is outlier
                 return true;
             }
-            avg_dist = ((double)(avg_dist * (counter - 1) + dist)) / counter;
+            avg_dist = (static_cast<double>(avg_dist * (counter - 1) + dist)) / counter;
             if (expected_avg_dist > 1) {
                 update_tolerance_factor();
             }
@@ -96,7 +90,9 @@ public:
         return false;
     }
 
-    void update(int size, long long* stats) {}
+    void update(BeTree<key_type, value_type> *tree) {
+        std::cout << "DistDetector" << std::endl;
+    }
 };
 
 #endif

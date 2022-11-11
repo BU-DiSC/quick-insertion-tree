@@ -41,7 +41,7 @@ random_seed=$7
 
 if [ ! -d "$output_path" ]
 then
-    $echo "mkdir $output_path"
+    echo "mkdir $output_path"
 	mkdir "$output_path"
 fi
 
