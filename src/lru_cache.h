@@ -1,7 +1,6 @@
 #ifndef LRUCache_H
 #define LRUCache_H
 
-//#include <unordered_map>
 
 struct Node {
     uint id;
@@ -84,7 +83,7 @@ class LRUCache {
     LinkedList list;
 
 public:
-    std::unordered_map<uint, Node *> node_hash;
+    std::unordered_map<uint, Node *> node_hash{};
 
     LRUCache(uint _cap) : capacity(_cap), size(0) {}
 
@@ -116,14 +115,6 @@ public:
         node_hash[id] = node;
 
         return node->pos;
-    }
-
-    std::unordered_map<uint, Node *>::iterator getBegin() {
-        return node_hash.begin();
-    }
-
-    std::unordered_map<uint, Node *>::iterator getEnd() {
-        return node_hash.end();
     }
 };
 

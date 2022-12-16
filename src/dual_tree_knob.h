@@ -3,13 +3,12 @@
 
 #include <unordered_map>
 #include <string>
-#include "../../src/outlier_detector.h"
-#include "../../src/stdev_detector.h"
-#include "../../src/dist_detector.h"
+#include "outlier_detector.h"
+#include "stdev_detector.h"
+#include "dist_detector.h"
 
 
 class DUAL_TREE_KNOBS {
-private:
     static std::unordered_map<std::string, std::string> &get_config();
 
     static std::string config_get_or_default(const std::string &knob_name, const std::string &default_val);
@@ -48,8 +47,6 @@ public:
     //1, then the tolerance factor becomes an ant.
     static float EXPECTED_AVG_DISTANCE();
 
-    static bool ENABLE_OUTLIER_DETECTOR();
-
     static int OUTLIER_DETECTOR_TYPE();
 
     // outlier detector type DIST: distance based outlier detector
@@ -62,7 +59,16 @@ public:
     static int LAST_K_STDEV();
 
     template<typename key_type, typename value_type>
-    static OutlierDetector<key_type, value_type> *get_detector();
+    static OutlierDetector<key_type, value_type> *get_detector() {
+        if (OUTLIER_DETECTOR_TYPE() == DIST) {
+            return new DistDetector<key_type, value_type>(INIT_TOLERANCE_FACTOR(), MIN_TOLERANCE_FACTOR(),
+                                                          EXPECTED_AVG_DISTANCE());
+        }
+        if (OUTLIER_DETECTOR_TYPE() == STDEV) {
+            return new StdevDetector<key_type, value_type>(NUM_STDEV(), LAST_K_STDEV());
+        }
+        return nullptr;
+    }
 };
 
 #endif // !DUAL_TREE_KNOB_H

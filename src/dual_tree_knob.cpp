@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <dual_tree_knob.h>
+#include "dual_tree_knob.h"
 
 // Some helper functions
 std::string str2lower(std::string str) {
@@ -60,11 +60,6 @@ bool DUAL_TREE_KNOBS::ENABLE_LAZY_MOVE() {
 }
 
 
-bool DUAL_TREE_KNOBS::ENABLE_OUTLIER_DETECTOR() {
-    return str2bool(DUAL_TREE_KNOBS::config_get_or_default("ENABLE_OUTLIER_DETECTOR", "false"));
-}
-
-
 uint DUAL_TREE_KNOBS::HEAP_SIZE() {
     return std::stoi(DUAL_TREE_KNOBS::config_get_or_default("HEAP_SIZE", "0"));
 }
@@ -97,16 +92,4 @@ int DUAL_TREE_KNOBS::LAST_K_STDEV() {
 
 int DUAL_TREE_KNOBS::OUTLIER_DETECTOR_TYPE() {
     return std::stoi(DUAL_TREE_KNOBS::config_get_or_default("OUTLIER_DETECTOR_TYPE", "1"));
-}
-
-template<typename key_type, typename value_type>
-OutlierDetector<key_type, value_type> *DUAL_TREE_KNOBS::get_detector() {
-    if (OUTLIER_DETECTOR_TYPE() == DIST) {
-        return new DistDetector<key_type, value_type>(INIT_TOLERANCE_FACTOR(), MIN_TOLERANCE_FACTOR(),
-                                                      EXPECTED_AVG_DISTANCE());
-    }
-    if (OUTLIER_DETECTOR_TYPE() == STDEV) {
-        return new StdevDetector<key_type, value_type>(NUM_STDEV(), LAST_K_STDEV());
-    }
-    return nullptr;
 }

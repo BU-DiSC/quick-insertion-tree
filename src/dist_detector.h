@@ -35,7 +35,7 @@ class DistDetector : public OutlierDetector<key_type, value_type> {
     // @toleranace_factor to the initial one.
     const float init_tolerance_factor;
 
-    // The most recently added key of the sorted tree;
+    // The most recently added key of the sorted tree
     key_type previous_key;
 
     // total number of elements in sorted tree
@@ -90,7 +90,7 @@ public:
         return false;
     }
 
-    void update(BeTree<key_type, value_type> *tree) {
+    void update(BeTree<key_type, value_type> &tree) {
         std::cout << "DistDetector" << std::endl;
     }
 };

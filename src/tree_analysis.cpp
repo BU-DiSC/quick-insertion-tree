@@ -1,8 +1,8 @@
 #include <random>
 #include <memory>
-#include <dual_tree.h>
 #include <chrono>
 #include <filesystem>
+#include "dual_tree.h"
 
 #ifndef INSERT_TO_QUERY_RATIO
 #define INSERT_TO_QUERY_RATIO 0.5
@@ -84,6 +84,10 @@ void display_help(const char *name) {
                                       "  --num_queries <num_queries>  The number of queries to be executed after the initial load. Default value 0.\n";
 }
 
+enum TreeType {
+    SIMPLE, FAST, DUAL
+};
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         display_help(argv[0]);
@@ -92,10 +96,11 @@ int main(int argc, char **argv) {
 
     const char *input_file = argv[1];
     const char *config_file = nullptr;
+    TreeType type = TreeType::DUAL;
     int num_queries = 0;
     int perc_load = 100;
     std::string seed;
-    for (int i = 0; i < argc; i++) {
+    for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
             display_help(argv[0]);
             return 0;
@@ -107,6 +112,12 @@ int main(int argc, char **argv) {
             num_queries = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--perc_load") == 0) {
             perc_load = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--simple") == 0) {
+            type = TreeType::SIMPLE;
+        } else if (strcmp(argv[i], "--fast") == 0) {
+            type = TreeType::FAST;
+        } else {
+            std::cerr << "Discarding option: " << argv[++i] << std::endl;
         }
     }
 
@@ -121,11 +132,23 @@ int main(int argc, char **argv) {
     std::unique_ptr<collection<int, int>> tree;
     std::string root_dir = "tree_dat";
     std::filesystem::create_directories(root_dir);
-    if (config_file) {
-        tree = std::make_unique<dual_tree<int, int>>("tree_1", "tree_2", root_dir, config_file);
-    } else {
-        tree = std::make_unique<BeTree<int, int>>("manager", root_dir, BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
-                                                  BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+    switch (type) {
+        case SIMPLE:
+            std::cout << "Single Btree" << std::endl;
+            tree = std::make_unique<BeTree<int, int>>("manager", root_dir, BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
+                                                      BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+            break;
+        case FAST:
+            std::cout << "Fast Append Btree" << std::endl;
+            tree = std::make_unique<FastAppendBeTree<int, int>>("manager", root_dir,
+                                                                BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
+                                                                BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+            break;
+        case DUAL:
+            std::cout << "Dual Btree" << std::endl;
+            DUAL_TREE_KNOBS::CONFIG_FILE_PATH = config_file;
+            tree = std::make_unique<dual_tree<int, int>>("tree_1", "tree_2", root_dir);
+            break;
     }
     workload(tree, data, num_queries, perc_load, seed);
     return 0;

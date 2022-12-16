@@ -30,12 +30,8 @@ MIN_TOLERANCE_FACTOR = 20
 # 1, then the tolerance factor becomes a constant.
 EXPECTED_AVG_DISTANCE = 2.5
 
-# If enable outlier detector, a key within certain range would have to pass the outlier check before insertion,
-# and if a key is identified as outlier, it would be inserted to unsorted tree.
-ENABLE_OUTLIER_DETECTOR = false
-
-# Outlier detector type: distance-based=1, stdev-based=2, tolerance_std=3
-OUTLIER_DETECTOR_TYPE = 3
+# Outlier detector type: distance-based=1, stdev-based=2
+OUTLIER_DETECTOR_TYPE = 2
 
 # Calculate the standard deviation using the LAST_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0,
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.

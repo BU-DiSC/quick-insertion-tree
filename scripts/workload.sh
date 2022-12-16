@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This workload is written for https://github.com/BU-DiSC/bods. To use this script, you should 
+# This workload is written for https://github.com/BU-DiSC/bods. To use this script, you should
 # first download and compile the "bods" project, and then put this script with the executable in the same
 # directory. The seed of the generator will always be the time seed.
 # This script accept 6 arguments:
@@ -8,8 +8,8 @@
 # 2. The value of K(0 <= K <= 50)
 # 3. The value of L(0 <= L <= 50)
 # 4. The output path(Where to store the output files)
-# 5. The payload(integers that are greater than 0)
-# 6. The number of files produced.
+# 5. The number of files produced.
+# 6. The seed of the generator.
 
 WORKLOAD_GENERATOR="sortedness_data_generator"
 if [ ! -f "$WORKLOAD_GENERATOR" ]
@@ -18,9 +18,9 @@ then
 	exit 1
 fi
 
-if [ $# -ne 7 ] 
+if [ $# -ne 6 ]
 then
-	echo "The command should be: ./workload.sh <data size> <K value(less than 100)> <L value(less than 100)> <output path> <payload(in bytes)> <number of output files> <random seed>"
+	echo "The command should be: ./workload.sh <data size> <K value(less than 100)> <L value(less than 100)> <output path> <number of output files> <random seed>"
 	exit 1
 fi
 
@@ -33,11 +33,10 @@ then
 else
     output_path="${4}/"
 fi
-payload=$5
 alpha=2.5
 beta=2.9
-test_file_num=$6
-random_seed=$7
+test_file_num=$5
+random_seed=$6
 
 if [ ! -d "$output_path" ]
 then
@@ -59,17 +58,15 @@ then
 	mkdir "$final_test_dir"
 fi
 
-echo "Produce test datasets of $test_file_num files and each of them contains ${data_size} keys(k = ${k_val}, l = ${l_val}, payload = ${payload}) to ${output_path}"
+echo "Produce test datasets of $test_file_num files and each of them contains ${data_size} keys(k = ${k_val}, l = ${l_val}) to ${output_path}"
 
-for j in $( seq 1 $test_file_num )
+for j in $( seq 1 "$test_file_num" )
 do
 		seed=$((random_seed-1+j))
-        output_file="${final_test_dir}${data_size}_k${k_val}_l${l_val}_${seed}_p${payload}.txt"
+        output_file="${final_test_dir}${data_size}_k${k_val}_l${l_val}_${seed}.txt"
         echo "Generating ${j}th file $output_file"
-		./$WORKLOAD_GENERATOR -N $data_size -K $k_val -L $l_val -S $seed -o $output_file -a $alpha -b $beta -P $payload
+		./$WORKLOAD_GENERATOR -N "$data_size" -K "$k_val" -L "$l_val" -S $seed -o "$output_file" -a $alpha -b $beta -P 0
         # sleep enough time to wait for workload_generator.o changing the random seed
 		sleep 5s
         echo "-------------------------------------------------------------"
 done
-
-

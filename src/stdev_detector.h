@@ -23,13 +23,13 @@ class StdevDetector : public OutlierDetector<key_type, value_type> {
     size_t next_idx;
 
     // A vector storing every leaf size in sorted tree
-    size_t* leaf_size;
+    size_t *leaf_size;
 
     // Sums of keys of each node
-    key_type* sums_of_keys;
+    key_type *sums_of_keys;
 
     // Sums of squared keys of each node
-    key_type* sums_of_squares;
+    key_type *sums_of_squares;
 
     key_type prev_key;
 public:
@@ -70,12 +70,12 @@ public:
         return false;
     }
 
-    void update(BeTree<key_type, value_type> *tree) {
+    void update(BeTree<key_type, value_type> &tree) {
         if (k == 0)
             return;
-        long long sum_of_keys = tree->getSumKeys();
-        long long sum_of_squares = tree->getSumSquares();
-        int size = tree->getPrevTailSize();
+        long long sum_of_keys = tree.getSumKeys();
+        long long sum_of_squares = tree.getSumSquares();
+        int size = tree.getPrevTailSize();
         // update function for last k nodes std outlier
 
         // remove the popped node from count, sum, and sum_square
