@@ -37,7 +37,7 @@ struct BeTree_Default_Knobs {
     // size of pivots in Bytes
     // Number of keys = Block_size/sizeof(key)
     // Pivot size = ((Number of keys)^Epsilon) * sizeof(key)
-    static const int PIVOT_SIZE = int(pow(NUM_DATA_PAIRS, EPSILON)) * UNIT_SIZE;
+    static constexpr int PIVOT_SIZE = int(pow(NUM_DATA_PAIRS, EPSILON)) * UNIT_SIZE;
 
     // size of Buffer in Bytes
     static constexpr int BUFFER_SIZE = DATA_SIZE - PIVOT_SIZE;
@@ -56,9 +56,10 @@ struct BeTree_Default_Knobs {
     static constexpr int FLUSH_LIMIT = NUM_UPSERTS;
     static constexpr int LEAF_FLUSH_LIMIT = NUM_UPSERTS;
 
-    static constexpr int BLOCKS_IN_MEMORY = 500000;
+    static constexpr int BLOCKS_IN_MEMORY = 1500000;
 };
 
+// structure that holds all stats for the tree
 struct BeTraits {
     int internal_flushes = 0;
     int leaf_flushes = 0;
@@ -103,4 +104,4 @@ struct Data {
     }
 };
 
-#endif //BETREE_UTILS_H
+#endif

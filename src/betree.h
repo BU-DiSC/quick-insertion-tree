@@ -3,11 +3,11 @@
 
 #include <algorithm>
 #include <ostream>
+#include <cmath>
 
 #include "block_manager.h"
 #include "betree_utils.h"
-
-// structure that holds all stats for the tree
+#include "collection.h"
 
 // class that defines the B Epsilon tree Node
 template<typename key_type, typename value_type, typename knobs = BeTree_Default_Knobs<key_type, value_type>, typename compare = std::less<key_type>>
@@ -45,23 +45,23 @@ class BeNode {
     // next node pointer (node id)
     uint *next_node;
 
-    BlockManager *manager;
+    BlockManager &manager;
 
 public:
     // opens the node from disk/memory for access
     void open() {
         bool miss = false;
-        Deserialize(manager->internal_memory[manager->OpenBlock(id, miss)]);
+        Deserialize(manager.internal_memory[manager.OpenBlock(id, miss)]);
         if (miss) {
             if (*is_leaf)
-                manager->addLeafCacheMisses();
+                manager.addLeafCacheMisses();
             else
-                manager->addInternalCacheMisses();
+                manager.addInternalCacheMisses();
         } else {
             if (*is_leaf)
-                manager->addLeafCacheHits();
+                manager.addLeafCacheHits();
             else
-                manager->addInternalCacheHits();
+                manager.addInternalCacheHits();
         }
     }
 
@@ -76,8 +76,8 @@ public:
      *  Function: creates a new node set to the given id
      *              and parent as set.
      */
-    BeNode(BlockManager *_manager, uint _id, uint _parent, bool _is_leaf, bool _is_root, uint _next_node) {
-        manager = _manager;
+    BeNode(BlockManager &_manager, uint _id, uint _parent, bool _is_leaf, bool _is_root, uint _next_node) :
+            manager(_manager) {
         id = _id;
         parent = nullptr;
         is_leaf = nullptr;
@@ -102,8 +102,7 @@ public:
      *  returns: N/A
      *  Function: initializes a node to the given id and retrieves from disk.
      */
-    BeNode(BlockManager *_manager, uint _id) {
-        manager = _manager;
+    BeNode(BlockManager &_manager, uint _id) : manager(_manager) {
         id = _id;
         parent = nullptr;
         is_leaf = nullptr;
@@ -131,25 +130,19 @@ public:
     void setLeaf(bool _is_leaf) {
         open();
         *is_leaf = _is_leaf;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     void setRoot(bool _is_root) {
         open();
         *is_root = _is_root;
-        manager->addDirtyNode(id);
-    }
-
-    void setNextNode(uint *_next_node) {
-        open();
-        next_node = _next_node;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     void setNextNode(uint next_node_id) {
         open();
         *next_node = next_node_id;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     uint *getNextNode() {
@@ -199,7 +192,7 @@ public:
         assert(*is_leaf);
 
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         // we want to maintain all elements in the leaf in a sorted order
         // since existing elements will be sorted and the buffer elements will also come
@@ -237,7 +230,7 @@ public:
         open();
         assert(*is_leaf);
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         if (data->size > 0)
             assert(element >= data->data[data->size - 1]);
@@ -266,7 +259,7 @@ public:
 
         assert(*is_leaf);
 
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
         // Search the first key that is greater than the inserted key.
         int max_pos = 0;
         key_type max_key = data->data[0].first;
@@ -305,9 +298,9 @@ public:
         open();
         assert(*is_leaf);
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
-        new_id = manager->allocate();
+        new_id = manager.allocate();
         // create new node
         BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_id);
         new_sibling.setParent(*parent);
@@ -315,12 +308,12 @@ public:
         new_sibling.setRoot(false);
         new_sibling.setNextNode(*next_node);
 
-        manager->addDirtyNode(new_id);
+        manager.addDirtyNode(new_id);
 
         traits.num_blocks++;
 
         // start moving data pairs
-        int start_index = split_frac * data->size;
+        int start_index = data->size * split_frac;
         for (int i = start_index; i < data->size; i++) {
             new_sibling.data->data[new_sibling.data->size++] = data->data[i];
         }
@@ -355,18 +348,18 @@ public:
         // make sure that caller is not a leaf node
         assert(!*is_leaf);
 
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         // make sure that we split only when we have hit the
         // pivot capacity
         assert(getPivotsCtr() == knobs::NUM_PIVOTS);
 
         // create a new node (blockid, parent = this->parent, is_leaf = false)
-        new_id = manager->allocate();
+        new_id = manager.allocate();
         BeNode<key_type, value_type, knobs, compare> new_node(manager, new_id, *parent, false, false, *next_node);
         traits.num_blocks++;
 
-        manager->addDirtyNode(new_id);
+        manager.addDirtyNode(new_id);
 
         BeNode temp_mover(manager, new_id);
 
@@ -387,7 +380,7 @@ public:
             // change the parent node for the pivots
             temp_mover.setToId(pivot_pointers[i]);
             *temp_mover.parent = new_node.getId();
-            manager->addDirtyNode(temp_mover.getId());
+            manager.addDirtyNode(temp_mover.getId());
         }
 
         // reset pivots counter for old node
@@ -425,7 +418,7 @@ public:
 
         delete temp;
 
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         *next_node = new_id;
 
@@ -440,7 +433,7 @@ public:
 
         if (isRoot()) {
             std::sort(buffer->buffer, buffer->buffer + buffer->size);
-            manager->addDirtyNode(id);
+            manager.addDirtyNode(id);
         }
 
         // find no. of elements that can be flushed to each child
@@ -484,32 +477,24 @@ public:
         auto *temp = new Buffer<key_type, value_type, knobs>();
         for (int i = 0; i < buffer->size; i++) {
             // if (slotOfKey(buffer->buffer[i].first) == chosen_child)
-            if (buffer_spots[i] == chosen_child) {
-                // check if we are exceeding threshold
-                // we are fine till the time we are less than the threshold limit,
-                // and we are less than available spots in the child's buffer
-                if ((num_to_flush < flush_limit) && (num_to_flush < available_spots)) {
-                    elements_to_flush[num_to_flush] = buffer->buffer[i];
-                    num_to_flush++;
-
-                    // we can now move to the next iteration
-                    continue;
-                }
+            // check if we are exceeding threshold
+            // we are fine till the time we are less than the threshold limit,
+            // and we are less than available spots in the child's buffer
+            if (buffer_spots[i] == chosen_child && num_to_flush < flush_limit && num_to_flush < available_spots) {
+                elements_to_flush[num_to_flush] = buffer->buffer[i];
+                num_to_flush++;
+            } else {
+                temp->buffer[temp->size] = buffer->buffer[i];
+                temp->size++;
             }
-
-            temp->buffer[temp->size] = buffer->buffer[i];
-            temp->size++;
         }
         delete[] buffer_spots;
-#ifdef PROFILE
-        auto start_replace = std::chrono::high_resolution_clock::now();
-#endif
         // copy temp to buffer
         memcpy(buffer->buffer, temp->buffer, temp->size * sizeof(buffer->buffer[0]));
 
         buffer->size = temp->size;
 
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         delete temp;
     }
@@ -519,18 +504,18 @@ public:
      *  Function: flushes element of internal node buffer to its child leaf.
      *              If exceeding capacity of leaf, it splits
      */
-    bool
-    flushLeaf(BeNode<key_type, value_type, knobs, compare> &child, std::pair<key_type, value_type> *elements_to_flush,
-              int &num_to_flush, key_type &split_key, uint &new_node_id, BeTraits &traits, float split_frac = 0.5) {
+    bool flushLeaf(BeNode<key_type, value_type, knobs, compare> &child,
+                   std::pair<key_type, value_type> *elements_to_flush, int &num_to_flush, key_type &split_key,
+                   uint &new_node_id, BeTraits &traits, float split_frac = 0.5) {
         // make sure caller is not a leaf node
         open();
         assert(!*is_leaf);
 
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         child.open();
-        manager->addDirtyNode(child.getId());
+        manager.addDirtyNode(child.getId());
 
         // make sure child is a leaf node
         assert(child.isLeaf());
@@ -566,8 +551,8 @@ public:
         child.open();
 
         // set node as dirty
-        manager->addDirtyNode(id);
-        manager->addDirtyNode(child.getId());
+        manager.addDirtyNode(id);
+        manager.addDirtyNode(child.getId());
 
         // make sure child is not a leaf node
         assert(!child.isLeaf());
@@ -623,31 +608,26 @@ public:
         // fetch the child node that has been chosen to flush to
         BeNode<key_type, value_type, knobs, compare> child(manager, pivot_pointers[chosen_child_idx]);
         child.open();
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
-        Result res = NOSPLIT;
-
+        Result res;
         if (child.isLeaf()) {
-
-            Result flag = flushLeaf(child, elements_to_flush, num_to_flush, split_key, new_node_id, traits, split_frac)
-                          ? SPLIT : NOSPLIT;
-
-            if (flag == SPLIT) {
+            if (flushLeaf(child, elements_to_flush, num_to_flush, split_key, new_node_id, traits, split_frac)) {
+                res = SPLIT;
                 traits.leaf_splits++;
+            } else {
+                res = NOSPLIT;
             }
-
             traits.leaf_flushes++;
-
-            delete[] elements_to_flush;
-            return flag;
+        } else {
+            if (flushInternal(child, elements_to_flush, num_to_flush)) {
+                res = child.flushLevel(split_key, new_node_id, traits, split_frac);
+            } else {
+                res = NOSPLIT;
+            }
+            traits.internal_flushes++;
         }
 
-        traits.internal_flushes++;
-        if (flushInternal(child, elements_to_flush, num_to_flush)) {
-            res = child.flushLevel(split_key, new_node_id, traits, split_frac);
-        }
-
-        // if flushInternal was a success and buffer didn't exceed capacity
         delete[] elements_to_flush;
         return res;
     }
@@ -662,11 +642,11 @@ public:
         assert(!*is_leaf);
 
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
-        uint node_position = slotOfKey(split_key);
+        int node_position = slotOfKey(split_key);
 
-        for (uint i = getPivotsCtr() - 1; i >= node_position; i--) {
+        for (int i = getPivotsCtr() - 1; i >= node_position; i--) {
             pivot_pointers[i + 2] = pivot_pointers[i + 1];
             child_key_values[i + 1] = child_key_values[i];
         }
@@ -686,7 +666,7 @@ public:
         buffer->size++;
 
         // set node as dirty
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
 
         return buffer->size >= knobs::NUM_UPSERTS;
     }
@@ -753,13 +733,13 @@ public:
     void setPivotCounter(int _size) {
         open();
         *pivots_ctr = _size;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     void setParent(uint _parent) {
         open();
         *parent = _parent;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     void setChildKey(key_type child_key, int slot) {
@@ -767,7 +747,7 @@ public:
         assert(slot >= 0);
 
         child_key_values[slot] = child_key;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     void setPivot(uint pivot_node_id, int slot) {
@@ -775,7 +755,7 @@ public:
         assert(slot >= 0 && slot < knobs::NUM_PIVOTS + 1);
 
         pivot_pointers[slot] = pivot_node_id;
-        manager->addDirtyNode(id);
+        manager.addDirtyNode(id);
     }
 
     key_type getChildKey(int slot) {
@@ -803,63 +783,9 @@ public:
     long long getSumSquares() const {
         long long sum_squares = 0;
         for (int i = 0; i < data->size; i++) {
-            sum_squares += static_cast<long long>(data->data[i].first) * data->data[i].first;
+            sum_squares += (long long) data->data[i].first * (long long) data->data[i].first;
         }
         return sum_squares;
-    }
-
-    void fanout(int &num, int &total, int &max, int &min, int *arr, int &internal) {
-        open();
-        uint orig_id = id;
-        if (!*is_leaf) {
-            internal++;
-            total += getPivotsCtr();
-            arr[num] = getPivotsCtr();
-            num++;
-
-            if (getPivotsCtr() >= max)
-                max = getPivotsCtr();
-
-            if (getPivotsCtr() <= min)
-                min = getPivotsCtr();
-
-            for (int i = 0; i < getPivotsCtr(); i++) {
-                uint curr_id = id;
-                setToId(pivot_pointers[i]);
-                fanout(num, total, max, min, arr, internal);
-                setToId(curr_id);
-            }
-            setToId(orig_id);
-        }
-    }
-
-    double buffer_occupancy(int &num, int &total, int &max, int &min, int &empty, int *arr) {
-        open();
-        uint orig_id = id;
-        if (!*is_leaf) {
-            total += buffer->size;
-            arr[num] = buffer->size;
-            num++;
-
-            if (buffer->size >= max)
-                max = buffer->size;
-
-            if (buffer->size <= min)
-                min = buffer->size;
-
-            if (buffer->size == 0)
-                empty++;
-
-            for (int i = 0; i < getPivotsCtr(); i++) {
-                uint curr_id = id;
-                setToId(pivot_pointers[i]);
-                buffer_occupancy(num, total, max, min, empty, arr);
-                setToId(curr_id);
-            }
-            setToId(orig_id);
-        }
-
-        return total / static_cast<double>(num);
     }
 
     int depth() {
@@ -884,32 +810,27 @@ public:
         return data->size;
     }
 
-    void Deserialize(Block &disk_store) {
-        is_leaf = reinterpret_cast<bool *>(disk_store.block_buf);
-        is_root = reinterpret_cast<bool *>(disk_store.block_buf + sizeof(bool));
-        parent = reinterpret_cast<uint *>(disk_store.block_buf + sizeof(bool) + sizeof(bool));
-        next_node = reinterpret_cast<uint *>(disk_store.block_buf + sizeof(bool) + sizeof(bool) + sizeof(uint));
-        pivots_ctr = reinterpret_cast<int *>(disk_store.block_buf + sizeof(bool) + sizeof(bool) + sizeof(uint) +
-                                             sizeof(uint));
+    void Deserialize(const Block &disk_store) {
+        is_leaf = (bool *) (disk_store.block_buf);
+        is_root = (bool *) (disk_store.block_buf + sizeof(bool));
+        parent = (uint *) (disk_store.block_buf + sizeof(bool) + sizeof(bool));
+        next_node = (uint *) (disk_store.block_buf + sizeof(bool) + sizeof(bool) + sizeof(uint));
+        pivots_ctr = (int *) (disk_store.block_buf + sizeof(bool) + sizeof(bool) + sizeof(uint) + sizeof(uint));
 
         // every node has either a buffer or data. So essentially, both are in the same place
-        data = reinterpret_cast<Data<key_type, value_type, knobs> *>(disk_store.block_buf + sizeof(bool) +
-                                                                     sizeof(bool) + sizeof(uint) +
-                                                                     sizeof(uint) + sizeof(int));
-        buffer = reinterpret_cast<Buffer<key_type, value_type, knobs> *>(disk_store.block_buf + sizeof(bool) +
-                                                                         sizeof(bool) + sizeof(uint) +
-                                                                         sizeof(uint) + sizeof(int));
+        data = (Data<key_type, value_type, knobs> *) (disk_store.block_buf + sizeof(bool) + sizeof(bool) +
+                                                      sizeof(uint) + sizeof(uint) + sizeof(int));
+        buffer = (Buffer<key_type, value_type, knobs> *) (disk_store.block_buf + sizeof(bool) + sizeof(bool) +
+                                                          sizeof(uint) + sizeof(uint) + sizeof(int));
 
-        child_key_values = reinterpret_cast<key_type *>(disk_store.block_buf + sizeof(uint) + sizeof(bool) +
-                                                        sizeof(bool) + sizeof(uint) + sizeof(int) +
-                                                        sizeof(Buffer<key_type, value_type, knobs>));
+        child_key_values = (key_type *) (disk_store.block_buf + sizeof(uint) + sizeof(bool) + sizeof(bool) +
+                                         sizeof(uint) + sizeof(int) + sizeof(Buffer<key_type, value_type, knobs>));
 
         int num = knobs::NUM_CHILDREN;
 
-        pivot_pointers = reinterpret_cast<uint *>(disk_store.block_buf + sizeof(uint) + sizeof(bool) + sizeof(bool) +
-                                                  sizeof(uint) + sizeof(int) +
-                                                  sizeof(Buffer<key_type, value_type, knobs>) +
-                                                  (num * sizeof(key_type)));
+        pivot_pointers = (uint *) (disk_store.block_buf + sizeof(uint) + sizeof(bool) + sizeof(bool) + sizeof(uint) +
+                                   sizeof(int) + sizeof(Buffer<key_type, value_type, knobs>) +
+                                   (num * sizeof(key_type)));
 
         assert(*is_leaf == true || *is_leaf == false);
         assert(*is_root == true || *is_root == false);
@@ -918,8 +839,6 @@ public:
         assert(*next_node >= 0);
     }
 };
-
-#include "collection.h"
 
 template<typename key_type, typename value_type, typename knobs = BeTree_Default_Knobs<key_type, value_type>, typename compare = std::less<key_type>>
 class BeTree : public collection<key_type, value_type> {
@@ -932,11 +851,11 @@ class BeTree : public collection<key_type, value_type> {
     }
 
     std::ostream &get_stats(std::ostream &os) const override {
-        os << depth() << ", " << getNumWrites();
+        os << "SIMPLE, " << depth() << ", " << getNumWrites();
         return os;
     }
 
-    BlockManager *manager;
+    BlockManager manager;
 
     BeNode<key_type, value_type, knobs, compare> *root;
 
@@ -955,24 +874,25 @@ class BeTree : public collection<key_type, value_type> {
     BeTraits traits;
 
 public:
-    BeTree(const std::string &_name, const std::string &_rootDir, unsigned long long _size_of_each_block,
-           uint _blocks_in_memory, float split_frac = 0.5) : tail_leaf(nullptr), head_leaf(nullptr),
-                                                             split_frac(split_frac) {
-        manager = new BlockManager(_name, _rootDir, _size_of_each_block, _blocks_in_memory);
-
-        uint root_id = manager->allocate();
+    BeTree(const std::string &name, const std::string &rootDir, unsigned long long block_size, uint blocks_in_memory,
+           float split_frac = 0.5) :
+            manager(name, rootDir, block_size, blocks_in_memory),
+            tail_leaf(nullptr),
+            prev_tail(nullptr),
+            head_leaf(nullptr),
+            split_frac(split_frac) {
+        uint root_id = manager.allocate();
         root = new BeNode<key_type, value_type, knobs, compare>(manager, root_id);
         root->setRoot(true);
         root->setLeaf(true);
 
         tail_leaf_id = root_id;
 
-        max_key = {};
+        max_key = -1;
     }
 
     ~BeTree() {
         delete root;
-        delete manager;
     }
 
     long long getSumKeys() const {
@@ -1001,17 +921,17 @@ public:
         return prev_tail->getDataSize();
     }
 
-    unsigned long long getNumWrites() const { return manager->num_writes; }
+    unsigned long long getNumWrites() const { return manager.num_writes; }
 
     bool more_than_one_leaf() {
-        return head_leaf && head_leaf != tail_leaf;
+        return head_leaf && tail_leaf && head_leaf != tail_leaf;
     }
 
-    bool is_tail_leaf_empty() {
+    bool is_tail_leaf_empty() const {
         return tail_leaf->get_leaf_occupancy() == 0;
     }
 
-    key_type get_prev_tail_maximum_key() {
+    key_type get_prev_tail_maximum_key() const {
         assert(prev_tail != nullptr);
         return prev_tail->getLastDataPair().first;
     }
@@ -1019,12 +939,12 @@ public:
     bool insert(key_type key, value_type value) {
         // if root is a leaf node, we insert in leaf until it exceeds capacity
         root->open();
-        manager->addDirtyNode(root->getId());
+        manager.addDirtyNode(root->getId());
         if (root->isLeaf()) {
             std::pair<key_type, value_type> elements_to_insert[] = {std::pair<key_type, value_type>(key, value)};
             int num_to_insert = 1;
             bool flag = root->insertInLeaf(elements_to_insert, num_to_insert);
-            manager->addDirtyNode(root->getId());
+            manager.addDirtyNode(root->getId());
             uint new_id;
             if (tail_leaf == nullptr || tail_leaf == nullptr) {
                 tail_leaf = root;
@@ -1045,7 +965,7 @@ public:
                 traits.leaf_splits++;
 
                 // create new root node
-                uint new_root_id = manager->allocate();
+                uint new_root_id = manager.allocate();
                 auto *new_root = new BeNode<key_type, value_type, knobs, compare>(manager, new_root_id);
                 new_root->setRoot(true);
                 new_root->setChildKey(split_key_new, 0);
@@ -1053,7 +973,7 @@ public:
                 new_root->setPivot(new_leaf.getId(), 1);
                 new_root->setPivotCounter(new_root->getPivotsCtr() + 2);
 
-                manager->addDirtyNode(new_root_id);
+                manager.addDirtyNode(new_root_id);
 
                 // change old root
                 root->setRoot(false);
@@ -1062,15 +982,15 @@ public:
                 new_leaf.setParent(new_root->getId());
                 root->setParent(new_root->getId());
 
-                manager->addDirtyNode(root->getId());
-                manager->addDirtyNode(new_leaf.getId());
+                manager.addDirtyNode(root->getId());
+                manager.addDirtyNode(new_leaf.getId());
 
                 assert(root->getDataSize() <= knobs::NUM_DATA_PAIRS);
 
                 // initially, the root is the head_leaf and tail_leaf. Now that we split, we need to update tail_leaf
                 tail_leaf_id = new_leaf.getId();
                 tail_leaf->setToId(new_leaf.getId());
-
+                // TODO: delete root;
                 root = new_root;
             }
 
@@ -1084,7 +1004,7 @@ public:
             uint new_node_id = 0;
 
             Result result = root->flushLevel(split_key, new_node_id, traits, split_frac);
-            manager->addDirtyNode(root->getId());
+            manager.addDirtyNode(root->getId());
             BeNode<key_type, value_type, knobs, compare> new_node(manager, new_node_id);
 
             bool flag;
@@ -1111,14 +1031,14 @@ public:
                     if (child_parent.isRoot()) {
                         child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                         BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_node_id);
-                        manager->addDirtyNode(new_node_id);
+                        manager.addDirtyNode(new_node_id);
                         traits.internal_splits++;
 
                         // create new root
-                        uint new_root_id = manager->allocate();
+                        uint new_root_id = manager.allocate();
                         auto *new_root = new BeNode<key_type, value_type, knobs, compare>(manager, new_root_id);
                         new_root->setRoot(true);
-                        manager->addDirtyNode(new_root_id);
+                        manager.addDirtyNode(new_root_id);
 
                         new_root->setChildKey(split_key, 0);
                         new_root->setPivot(child_parent.getId(), 0);
@@ -1127,14 +1047,13 @@ public:
 
                         child_parent.setRoot(false);
                         child_parent.setParent(new_root->getId());
-                        manager->addDirtyNode(child_parent.getId());
+                        manager.addDirtyNode(child_parent.getId());
 
                         new_sibling.setParent(new_root->getId());
-                        manager->addDirtyNode(new_sibling.getId());
+                        manager.addDirtyNode(new_sibling.getId());
 
+                        // TODO: delete root;
                         root = new_root;
-
-                        // counting one I/O for writing old root back to disk as it was modified done later
 
                         break;
                     }
@@ -1144,9 +1063,9 @@ public:
 
                     // we set new_node to the newly split node
                     child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
-                    manager->addDirtyNode(child_parent.getId());
+                    manager.addDirtyNode(child_parent.getId());
                     new_node.setToId(new_node_id);
-                    manager->addDirtyNode(new_node_id);
+                    manager.addDirtyNode(new_node_id);
                 } else {
                     root->open();
                     break;
@@ -1168,23 +1087,30 @@ public:
         return max_key;
     }
 
-    bool insert_to_tail_leaf(key_type key, value_type val, bool append, bool &need_split) {
-        need_split = false;
+    /**
+     *
+     * @param key
+     * @param val
+     * @param append
+     * @return need_split
+     */
+    bool insert_to_tail_leaf(key_type key, value_type val, bool append) {
         if (tail_leaf == nullptr) {
             // No tuple has been inserted, the tree is empty, but a root node is created when the
             //constructor was called, so we directly use it.
             BeNode<key_type, value_type, knobs, compare> *leaf = root;
             leaf->setLeaf(true);
             leaf->insertInLeaf(std::pair<key_type, value_type>(key, val));
-            manager->addDirtyNode(root->getId());
+            manager.addDirtyNode(root->getId());
 
             head_leaf = leaf;
             tail_leaf = leaf;
             tail_leaf_id = leaf->getId();
 
             max_key = key;
-            return true;
+            return false;
         }
+        bool need_split;
         if (append) {
             need_split = tail_leaf->insertInLeaf(std::pair<key_type, value_type>(key, val));
             max_key = key;
@@ -1195,12 +1121,12 @@ public:
         }
         if (!need_split) {
             // No split is needed
-            manager->addDirtyNode(tail_leaf_id);
-            return true;
+            manager.addDirtyNode(tail_leaf_id);
+            return false;
         }
         key_type split_key_leaf = tail_leaf->getDataPairKey(tail_leaf->getDataSize() - 1);
-        uint new_leaf_id = manager->allocate();
-        tail_leaf->splitLeaf(split_key_leaf, this->traits, new_leaf_id, split_frac);
+        uint new_leaf_id = manager.allocate();
+        tail_leaf->splitLeaf(split_key_leaf, traits, new_leaf_id, split_frac);
         traits.leaf_splits++;
         auto *new_leaf = new BeNode<key_type, value_type, knobs, compare>(manager, new_leaf_id);
         new_leaf->setLeaf(true);
@@ -1208,7 +1134,7 @@ public:
             // only one node in the tree, the split is simple
             key_type split_key_new = root->getDataPairKey(root->getDataSize() - 1);
 
-            uint new_root_id = manager->allocate();
+            uint new_root_id = manager.allocate();
             auto *new_root = new BeNode<key_type, value_type, knobs, compare>(manager, new_root_id);
             new_root->setRoot(true);
 
@@ -1216,7 +1142,7 @@ public:
             new_root->setPivot(root->getId(), 0);
             new_root->setPivot(new_leaf->getId(), 1);
             new_root->setPivotCounter(new_root->getPivotsCtr() + 2);
-            manager->addDirtyNode(new_root_id);
+            manager.addDirtyNode(new_root_id);
 
             root->setRoot(false);
             root->setNextNode(new_leaf->getId());
@@ -1225,9 +1151,10 @@ public:
             new_leaf->setParent(new_root_id);
             root->setParent(new_root_id);
 
-            manager->addDirtyNode(new_leaf->getId());
-            manager->addDirtyNode(root->getId());
+            manager.addDirtyNode(new_leaf->getId());
+            manager.addDirtyNode(root->getId());
 
+            // TODO: delete root;
             root = new_root;
 
             prev_tail = tail_leaf;
@@ -1241,8 +1168,8 @@ public:
             new_leaf->setParent(tail_leaf->getParent());
             tail_leaf->setNextNode(new_leaf->getId());
 
-            manager->addDirtyNode(new_leaf->getId());
-            manager->addDirtyNode(tail_leaf->getId());
+            manager.addDirtyNode(new_leaf->getId());
+            manager.addDirtyNode(tail_leaf->getId());
 
             prev_tail = tail_leaf;
             tail_leaf = new_leaf;
@@ -1253,7 +1180,7 @@ public:
             while (true) {
                 BeNode<key_type, value_type, knobs, compare> child_parent(manager, new_node.getParent());
                 bool flag = child_parent.addPivot(split_key, new_node_id);
-                manager->addDirtyNode(child_parent.getId());
+                manager.addDirtyNode(child_parent.getId());
                 if (!flag) {
                     // Do not need to split anymore
                     break;
@@ -1265,24 +1192,25 @@ public:
                     //id of the node that is newly split.
                     child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                     BeNode<key_type, value_type, knobs, compare> new_sibling(manager, new_node_id);
-                    manager->addDirtyNode(new_node_id);
+                    manager.addDirtyNode(new_node_id);
                     traits.internal_splits++;
 
-                    uint new_root_id = manager->allocate();
+                    uint new_root_id = manager.allocate();
                     auto *new_root = new BeNode<key_type, value_type, knobs, compare>(manager, new_root_id);
                     new_root->setRoot(true);
                     new_root->setChildKey(split_key, 0);
                     new_root->setPivot(child_parent.getId(), 0);
                     new_root->setPivot(new_sibling.getId(), 1);
                     new_root->setPivotCounter(new_root->getPivotsCtr() + 2);
-                    manager->addDirtyNode(new_root_id);
+                    manager.addDirtyNode(new_root_id);
 
                     child_parent.setRoot(false);
                     child_parent.setParent(new_root->getId());
-                    manager->addDirtyNode(child_parent.getId());
+                    manager.addDirtyNode(child_parent.getId());
                     new_sibling.setParent(new_root->getId());
-                    manager->addDirtyNode(new_sibling.getId());
+                    manager.addDirtyNode(new_sibling.getId());
 
+                    // TODO: delete root;
                     root = new_root;
                     break;
                 }
@@ -1291,9 +1219,9 @@ public:
                 //split is needed.
                 child_parent.splitInternal(split_key, traits, new_node_id, split_frac);
                 traits.internal_splits++;
-                manager->addDirtyNode(child_parent.getId());
+                manager.addDirtyNode(child_parent.getId());
                 new_node.setToId(new_node_id);
-                manager->addDirtyNode(new_node_id);
+                manager.addDirtyNode(new_node_id);
             }
         }
 

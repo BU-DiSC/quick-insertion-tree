@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <queue>
+#include <unordered_map>
 
 #include "collection.h"
 #include "dual_tree_knob.h"
@@ -40,12 +41,12 @@ public:
     }
 };
 
-template<typename key_type, typename value_type, typename _betree_knobs = BeTree_Default_Knobs<key_type, value_type>, typename _compare=std::less<key_type>>
+template<typename key_type, typename value_type>
 class dual_tree : public collection<key_type, value_type> {
     // tree to accept unsorted input data.
-    FastAppendBeTree<key_type, value_type, _betree_knobs, _compare> unsorted_tree;
+    FastAppendBeTree<key_type, value_type> unsorted_tree;
     // tree to accept sorted input data.
-    FastAppendBeTree<key_type, value_type, _betree_knobs, _compare> sorted_tree;
+    FastAppendBeTree<key_type, value_type> sorted_tree;
 
     uint sorted_size;
 
@@ -54,7 +55,7 @@ class dual_tree : public collection<key_type, value_type> {
     Heap<key_type, value_type> *heap_buffer;
 
     OutlierDetector<key_type, value_type> *outlier_detector;
-
+    using knobs = BeTree_Default_Knobs<key_type, value_type>;
 public:
     void add(const key_type &key, const value_type &value) override {
         insert(key, value);
@@ -64,11 +65,18 @@ public:
         return query(key);
     }
 
+    std::ostream &get_stats(std::ostream &os) const override {
+        os << "DUAL, " << sorted_size << ", " << unsorted_size << ", " << sorted_tree.depth() << ", "
+           << unsorted_tree.depth()
+           << ", " << sorted_tree.getNumWrites() << ", " << unsorted_tree.getNumWrites();
+        return os;
+    }
+
     // Default constructor, disable the buffer.
     dual_tree(const std::string &unsorted_tree_path, const std::string &sorted_tree_path, const std::string &root_dir) :
-            unsorted_tree(unsorted_tree_path, root_dir, _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY,
+            unsorted_tree(unsorted_tree_path, root_dir, knobs::BLOCK_SIZE, knobs::BLOCKS_IN_MEMORY,
                           DUAL_TREE_KNOBS::UNSORTED_TREE_SPLIT_FRAC()),
-            sorted_tree(sorted_tree_path, root_dir, _betree_knobs::BLOCK_SIZE, _betree_knobs::BLOCKS_IN_MEMORY,
+            sorted_tree(sorted_tree_path, root_dir, knobs::BLOCK_SIZE, knobs::BLOCKS_IN_MEMORY,
                         DUAL_TREE_KNOBS::SORTED_TREE_SPLIT_FRAC()),
             sorted_size(0),
             unsorted_size(0) {
@@ -137,8 +145,7 @@ public:
             return true;
         } else {
             // If the new key will be appended or lazy move is disabled, we use the insert method.
-            bool split;
-            sorted_tree.insert_to_tail_leaf(key, value, append, split);
+            bool split = sorted_tree.insert_to_tail_leaf(key, value, append);
             if (split && outlier_detector) {
                 outlier_detector->update(sorted_tree);
             }
@@ -155,17 +162,9 @@ public:
         // Search the one with more tuples at first.
         if (sorted_size > unsorted_size) {
             return sorted_tree.query(key) || unsorted_tree.query(key);
-        } else {
-            return unsorted_tree.query(key) || sorted_tree.query(key);
         }
+        return unsorted_tree.query(key) || sorted_tree.query(key);
     }
-
-    std::ostream &get_stats(std::ostream &os) const override {
-        os << sorted_size << ", " << unsorted_size << ", " << sorted_tree.depth() << ", " << unsorted_tree.depth()
-           << ", " << sorted_tree.getNumWrites() << ", " << unsorted_tree.getNumWrites();
-        return os;
-    }
-
 };
 
 #endif

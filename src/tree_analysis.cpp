@@ -1,5 +1,4 @@
 #include <random>
-#include <memory>
 #include <chrono>
 #include <filesystem>
 #include "dual_tree.h"
@@ -20,10 +19,10 @@ std::vector<int> read_file(const char *filename) {
     return data;
 }
 
-void workload(const std::unique_ptr<collection<int, int>> &tree, const std::vector<int> &data, int num_queries,
-              int perc_load, const std::string &seed) {
-    auto num_inserts = data.size();
-    auto num_load = num_inserts * perc_load / 100;
+void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned int num_queries,
+              unsigned int perc_load, const std::string &seed) {
+    unsigned int num_inserts = data.size();
+    unsigned int num_load = num_inserts * perc_load / 100;
 
     std::cout << "Loading " << perc_load << "% (" << num_load << "/" << num_inserts << ")\n";
 
@@ -31,12 +30,12 @@ void workload(const std::unique_ptr<collection<int, int>> &tree, const std::vect
     std::mt19937 generator{seq};
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
 
-    unsigned long tot_inserts = num_load;
-    unsigned long tot_queries = 0;
-    unsigned long empty_queries = 0;
+    unsigned int tot_inserts = num_load;
+    unsigned int tot_queries = 0;
+    unsigned int empty_queries = 0;
 
     auto start = std::chrono::high_resolution_clock::now();
-    int idx = 0;
+    unsigned int idx = 0;
     auto it = data.cbegin();
     while (idx < num_load) {
         tree->add(*it++, idx++);
@@ -129,27 +128,28 @@ int main(int argc, char **argv) {
     }
     std::cout << "Number of keys in sorted position: " << cnt << std::endl;
 
-    std::unique_ptr<collection<int, int>> tree;
+    collection<int, int> *tree;
     std::string root_dir = "tree_dat";
     std::filesystem::create_directories(root_dir);
     switch (type) {
         case SIMPLE:
             std::cout << "Single Btree" << std::endl;
-            tree = std::make_unique<BeTree<int, int>>("manager", root_dir, BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
-                                                      BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+            tree = new BeTree<int, int>("manager", root_dir, BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
+                                        BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
             break;
         case FAST:
             std::cout << "Fast Append Btree" << std::endl;
-            tree = std::make_unique<FastAppendBeTree<int, int>>("manager", root_dir,
-                                                                BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
-                                                                BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+            tree = new FastAppendBeTree<int, int>("manager", root_dir,
+                                                  BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
+                                                  BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
             break;
         case DUAL:
             std::cout << "Dual Btree" << std::endl;
             DUAL_TREE_KNOBS::CONFIG_FILE_PATH = config_file;
-            tree = std::make_unique<dual_tree<int, int>>("tree_1", "tree_2", root_dir);
+            tree = new dual_tree<int, int>("tree_1", "tree_2", root_dir);
             break;
     }
     workload(tree, data, num_queries, perc_load, seed);
+    delete tree;
     return 0;
 }

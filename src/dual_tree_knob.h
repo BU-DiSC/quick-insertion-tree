@@ -2,11 +2,9 @@
 #define DUAL_TREE_KNOB_H
 
 #include <unordered_map>
-#include <string>
-#include "outlier_detector.h"
-#include "stdev_detector.h"
-#include "dist_detector.h"
 
+#include "dist_detector.h"
+#include "stdev_detector.h"
 
 class DUAL_TREE_KNOBS {
     static std::unordered_map<std::string, std::string> &get_config();
@@ -71,4 +69,4 @@ public:
     }
 };
 
-#endif // !DUAL_TREE_KNOB_H
+#endif

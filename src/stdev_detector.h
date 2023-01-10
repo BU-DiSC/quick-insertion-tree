@@ -54,12 +54,12 @@ public:
             prev_key = key;
             return false;
         }
-        auto x = key - prev_key;
-        auto _s0 = s0 + 1;
-        auto _s1 = static_cast<double>(s1) + x;
-        auto mean = _s1 / _s0;
-        auto _s2 = s2 + x * x;
-        auto std_dev = sqrt((_s2 - _s1 * mean) / _s0);
+        key_type x = key - prev_key;
+        size_t _s0 = s0 + 1;
+        key_type _s1 = s1 + x;
+        double mean = _s1 / (double) _s0;
+        key_type _s2 = s2 + x * x;
+        double std_dev = sqrt((_s2 - _s1 * mean) / _s0);
         if (x > mean + num_stdev * std_dev) {
             return true;
         }
@@ -94,7 +94,7 @@ public:
         s2 += sum_of_squares;
 
         // update the next_idx that indicates the next node to pop
-        next_idx = (++next_idx) % k;
+        next_idx = (next_idx + 1) % k;
     }
 };
 

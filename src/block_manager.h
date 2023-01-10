@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include "lru_cache.h"
 
 #define BLOCK_SIZE_BYTES 4096
@@ -33,10 +34,6 @@ class BlockManager {
     unsigned long long internal_cache_hits;
 
     unsigned long long total_cache_reqs;
-
-    std::string getBlockFileName(uint id) const {
-        return root_dir + "/" + std::to_string(id);
-    }
 
     std::string getParentFileName() const {
         return root_dir + "/" + name;
@@ -72,12 +69,13 @@ public:
             current_blocks(0),
             size_of_each_block(_size_of_each_block),
             blocks_in_memory_cap(_blocks_in_memory_cap),
-            num_writes(0),
+            dirty_nodes(),
             leaf_cache_misses(0),
             internal_cache_misses(0),
             leaf_cache_hits(0),
             internal_cache_hits(0),
-            total_cache_reqs(0) {
+            total_cache_reqs(0),
+            num_writes(0) {
 
         internal_memory = new Block[blocks_in_memory_cap];
 
@@ -132,6 +130,7 @@ public:
                 // write block if dirty
                 writeBlock(evicted_id, pos);
                 dirty_nodes.erase(evicted_id);
+                std::cout << "eviction" << std::endl;
             }
         }
 

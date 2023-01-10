@@ -2,7 +2,6 @@
 #define DIST_DETECTOR_H
 
 #include <algorithm>
-#include <iostream>
 #include "outlier_detector.h"
 
 template<typename key_type, typename value_type>
@@ -78,7 +77,7 @@ public:
                 // key to insert is outlier
                 return true;
             }
-            avg_dist = (static_cast<double>(avg_dist * (counter - 1) + dist)) / counter;
+            avg_dist = ((double) (avg_dist * (counter - 1) + dist)) / counter;
             if (expected_avg_dist > 1) {
                 update_tolerance_factor();
             }
@@ -91,7 +90,6 @@ public:
     }
 
     void update(BeTree<key_type, value_type> &tree) {
-        std::cout << "DistDetector" << std::endl;
     }
 };
 

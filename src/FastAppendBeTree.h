@@ -3,13 +3,18 @@
 
 #include "betree.h"
 
-template<typename key_type, typename value_type, typename knobs = BeTree_Default_Knobs<key_type, value_type>, typename compare = std::less<key_type>>
-class FastAppendBeTree : public BeTree<key_type, value_type, knobs, compare> {
-    using super = BeTree<key_type, value_type, knobs, compare>;
+template<typename key_type, typename value_type>
+class FastAppendBeTree : public BeTree<key_type, value_type> {
+    using super = BeTree<key_type, value_type>;
 public:
     FastAppendBeTree(const std::string &_name, const std::string &_rootDir, unsigned long long _size_of_each_block,
-                   uint _blocks_in_memory, float split_frac = 0.5) : super(_name, _rootDir, _size_of_each_block,
-                                                                          _blocks_in_memory, split_frac) {}
+                     uint _blocks_in_memory, float split_frac = 0.5) : super(_name, _rootDir, _size_of_each_block,
+                                                                             _blocks_in_memory, split_frac) {}
+
+    std::ostream &get_stats(std::ostream &os) const override {
+        os << "FAST, " << super::depth() << ", " << super::getNumWrites();
+        return os;
+    }
 
     void add(const key_type &key, const value_type &value) {
         if (super::more_than_one_leaf()) {
@@ -25,9 +30,8 @@ public:
                 return;
             }
         }
-        bool split;
         bool append = key >= super::getMaximumKey();
-        super::insert_to_tail_leaf(key, value, append, split);
+        super::insert_to_tail_leaf(key, value, append);
     }
 };
 
