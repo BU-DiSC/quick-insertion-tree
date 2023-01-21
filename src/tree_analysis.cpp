@@ -22,7 +22,7 @@ std::vector<int> read_file(const char *filename) {
 void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned int num_queries,
               unsigned int perc_load, const std::string &seed) {
     unsigned int num_inserts = data.size();
-    unsigned int num_load = num_inserts * perc_load / 100;
+    unsigned int num_load = perc_load / 100.0 * num_inserts;
 
     std::cout << "Loading " << perc_load << "% (" << num_load << "/" << num_inserts << ")\n";
 
@@ -34,9 +34,9 @@ void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned
     unsigned int tot_queries = 0;
     unsigned int empty_queries = 0;
 
-    auto start = std::chrono::high_resolution_clock::now();
-    unsigned int idx = 0;
+    int idx = 0;
     auto it = data.cbegin();
+    auto start = std::chrono::high_resolution_clock::now();
     while (idx < num_load) {
         tree->add(*it++, idx++);
     }
@@ -62,16 +62,24 @@ void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned
             empty_queries += !res;
         }
     }
+
+    std::uniform_int_distribution<unsigned int> range_distribution(0, num_inserts - 1);
+    auto raw_start = std::chrono::high_resolution_clock::now();
+    // 10% random queries from workload, no empty queries
+    for (int i = 0; i < num_inserts * 0.1; i++) {
+        tree->contains(data[range_distribution(generator) % data.size()]);
+    }
     auto stop = std::chrono::high_resolution_clock::now();
 
     auto duration = (stop - start).count();
     auto load_duration = (stop_load - start).count();
     auto insert_duration = (insert_time - start).count();
     auto query_duration = (query_time - start).count();
+    auto raw_duration = (stop - raw_start).count();
 
     std::ofstream results("results.csv", std::ofstream::app);
-    results << duration << ", " << load_duration << ", " << insert_duration << ", " << query_duration << ", "
-            << tot_inserts << ", " << tot_queries << ", " << empty_queries << ", " << *tree << "\n";
+    results << load_duration << ", " << insert_duration << ", " << query_duration << ", " << raw_duration << ", "
+            << duration << ", " << tot_inserts << ", " << tot_queries << ", " << empty_queries << ", " << *tree << "\n";
 }
 
 void display_help(const char *name) {

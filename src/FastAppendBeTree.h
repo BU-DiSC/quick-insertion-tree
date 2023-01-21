@@ -16,7 +16,7 @@ public:
         return os;
     }
 
-    void add(const key_type &key, const value_type &value) {
+    void add(const key_type &key, const value_type &value) override {
         if (super::more_than_one_leaf()) {
             key_type tail_min;
             if (super::is_tail_leaf_empty()) {
