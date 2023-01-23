@@ -686,10 +686,11 @@ public:
         // if current node is not a leaf, first check the buffer
 
         // binary search on buffer
-        bool found = std::binary_search(buffer->buffer, buffer->buffer + buffer->size, key,
-                                        compare_pair_kv<key_type, value_type>());
-        if (found)
-            return true;
+        for (int i = 0; i < buffer->size; ++i) {
+            if (buffer->buffer[i].first == key) {
+                return true;
+            }
+        }
 
         // if not found in buffer, we need to search its pivots
         int chosen_child_idx = slotOfKey(key);

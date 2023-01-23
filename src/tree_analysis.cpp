@@ -53,7 +53,7 @@ void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned
             insert_time += stop_ins - start_ins;
             tot_inserts++;
         } else {
-            int query_index = static_cast<int>(generator() % tot_inserts);
+            int query_index = (int) (generator() % tot_inserts);
             auto start_q = std::chrono::high_resolution_clock::now();
             bool res = tree->contains(query_index);
             auto stop_q = std::chrono::high_resolution_clock::now();
