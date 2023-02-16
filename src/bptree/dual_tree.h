@@ -28,18 +28,9 @@ class dual_tree : public FastAppendTree<key_type, value_type> {
 
 protected:
     void update_stats(const node_t &leaf) override {
-        if (!outlier_detector) return;
-
-        outlier_stats stats;
-        stats.keys_count = leaf.info->size;
-        stats.keys_sum = 0;
-        stats.key_squares_sum = 0;
-        for (int i = 0; i < leaf.info->size; ++i) {
-            const key_type &key = leaf.keys[i];
-            stats.keys_sum += key;
-            stats.key_squares_sum += key * key;
+        if (outlier_detector) {
+            outlier_detector->update(leaf.keys, leaf.info->size);
         }
-        outlier_detector->update(stats);
     }
 
 public:
@@ -161,7 +152,7 @@ public:
     }
 
     std::pair<key_type, value_type> swap_max(const key_type &key, const value_type &value) {
-        node_t tail(super::manager.open_block(super::tail_leaf_id));
+        node_t tail(super::manager.open_block(super::tail_id));
         super::size--;
         tail.info->size--;
         assert(tail.keys[tail.info->size] == super::tail_max);

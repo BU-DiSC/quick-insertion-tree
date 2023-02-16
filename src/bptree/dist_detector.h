@@ -95,7 +95,7 @@ public:
         return false;
     }
 
-    void update(const outlier_stats &stats) override {
+    void update(const key_type *keys, uint32_t size) override {
     }
 };
 

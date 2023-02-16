@@ -15,7 +15,7 @@ public:
 
     virtual bool is_outlier(const key_type &key) = 0;
 
-    virtual void update(const outlier_stats &stats) = 0;
+    virtual void update(const key_type *keys, uint32_t size) = 0;
 
     virtual ~OutlierDetector() = default;
 };

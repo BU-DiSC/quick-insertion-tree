@@ -23,9 +23,11 @@ protected:
     const uint32_t split_leaf_pos;
 
     uint32_t root_id;
-    uint32_t tail_leaf_id;
+    uint32_t head_id;
+    uint32_t tail_id;
     uint32_t size;
     uint32_t depth;
+    key_type tree_min;
     key_type tail_min;
     key_type tail_max;
     BlockManager manager;
@@ -134,6 +136,7 @@ protected:
     }
 
     virtual void update_stats(const node_t &leaf) {
+        throw std::runtime_error("not implemented");
     }
 
     bool leaf_insert(node_t &leaf, const key_type &key, const value_type &value) {
@@ -152,7 +155,10 @@ protected:
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
-            if (tail_leaf_id == leaf.info->id) { // && index == 0
+            if (head_id == leaf.info->id) { // && index == 0
+                tree_min = leaf.keys[0];
+            }
+            if (tail_id == leaf.info->id) { // && index == 0
                 tail_min = leaf.keys[0];
                 tail_max = leaf.keys[leaf.info->size - 1];
             }
@@ -188,8 +194,11 @@ protected:
             new_leaf.values[index - leaf.info->size] = value;
         }
 
-        if (tail_leaf_id == leaf.info->id) {
-            tail_leaf_id = new_leaf_id;
+        if (head_id == leaf.info->id) { // && index == 0
+            tree_min = leaf.keys[0];
+        }
+        if (tail_id == leaf.info->id) {
+            tail_id = new_leaf_id;
             tail_min = new_leaf.keys[0];
             tail_max = new_leaf.keys[new_leaf.info->size - 1];
             update_stats(leaf);
@@ -225,7 +234,7 @@ public:
             split_leaf_pos((node_t::leaf_capacity + 1) * split_frac) {
         assert(split_leaf_pos < node_t::leaf_capacity + 1);
         assert(split_internal_pos < node_t::internal_capacity);
-        tail_leaf_id = root_id = manager.allocate();
+        head_id = tail_id = root_id = manager.allocate();
         node_t root(manager.open_block(root_id), bp_node_info::LEAF);
         manager.mark_dirty(root_id);
         root.info->id = root_id;

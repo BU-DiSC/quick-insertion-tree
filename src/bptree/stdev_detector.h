@@ -83,10 +83,19 @@ public:
         return false;
     }
 
-    void update(const outlier_stats &stats) {
+    void update(const key_type *keys, uint32_t size) override {
         // update function for last k nodes std outlier
         if (k == 0) {
             return;
+        }
+
+        size_t keys_count = size;
+        key_type keys_sum = 0;
+        key_type key_squares_sum = 0;
+        for (int i = 0; i < size; ++i) {
+            const key_type &key = keys[i];
+            keys_sum += key;
+            key_squares_sum += key * key;
         }
 
         // remove the popped node from count, sum, and sum_square
@@ -95,14 +104,14 @@ public:
         s2 -= sums_of_squares[next_idx];
 
         // update buffer
-        leaf_size[next_idx] = stats.keys_count;
-        sums_of_keys[next_idx] = stats.keys_sum;
-        sums_of_squares[next_idx] = stats.key_squares_sum;
+        leaf_size[next_idx] = keys_count;
+        sums_of_keys[next_idx] = keys_sum;
+        sums_of_squares[next_idx] = key_squares_sum;
 
         // update the new node to count, sum, and sum_square
-        s0 += stats.keys_count;
-        s1 += stats.keys_sum;
-        s2 += stats.key_squares_sum;
+        s0 += keys_count;
+        s1 += keys_sum;
+        s2 += key_squares_sum;
 
         // update the next_idx that indicates the next node to pop
         next_idx = (next_idx + 1) & k;
