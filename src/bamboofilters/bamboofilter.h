@@ -1,14 +1,11 @@
 #ifndef BAMBOOFILTER_H_
 #define BAMBOOFILTER_H_
+
 #include <cmath>
-#include <cstdint>
 #include <vector>
 
-#include "predefine.h"
 #include "segment.h"
 #include "hash.h"
-
-#include <cstdint>
 
 class BambooFilter {
 public:

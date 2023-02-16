@@ -1,4 +1,6 @@
-.vscode/settings.json
+.vscode
+.idea
+cmake-build-default
 input*
 *.csv
 vanillla
@@ -6,3 +8,4 @@ outofplace
 inplace
 .gitignore
 *.dat
+a.out

@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
     int raw_write_perc = 10;
     int mix_load_perc = 10;
     int updates_perc = 10;
-    const char *seed;
+    const char *seed = "1234";
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
             display_help(argv[0]);
@@ -158,6 +158,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    srand(std::stoi(seed));
     std::vector<int> data = read_file(input_file);
     int idx = 0;
     int cnt = 0;

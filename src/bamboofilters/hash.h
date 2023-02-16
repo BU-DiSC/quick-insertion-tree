@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include "hash.h"
 
 static void mix(uint32_t &a, uint32_t &b, uint32_t &c) {
     a -= b;

@@ -42,7 +42,7 @@ class StdevDetector : public OutlierDetector<key_type> {
 
     key_type prev_key;
 public:
-    void init(const key_type &key) {
+    void init(const key_type &key) override {
         prev_key = key;
     }
 

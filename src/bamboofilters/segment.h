@@ -1,9 +1,10 @@
 #ifndef SEGMENT_H
 #define SEGMENT_H
 
-#include <immintrin.h>
 #include <cstring>
 #include <cstdint>
+#include <immintrin.h>
+
 #include "predefine.h"
 
 class Segment {
@@ -107,7 +108,7 @@ public:
         total_size = chain_num * chain_capacity * bucket_size + safe_pad;
         data_base = new char[total_size];
         memset(data_base, 0, (chain_num * chain_capacity * bucket_size));
-        temp = new char[safe_pad_simd + (2 * chain_capacity * bucket_size + 23) / 24 * 24 + safe_pad_simd];
+        temp = new char[safe_pad_simd + ((2 * chain_capacity * bucket_size + 23) / 24 + 1) * 24 + safe_pad_simd];
     }
 
     Segment(const Segment &s)
@@ -117,7 +118,7 @@ public:
               insert_cur(0),
               ANS_MASK(s.ANS_MASK) {
         data_base = new char[total_size];
-        temp = new char[safe_pad_simd + (2 * chain_capacity * bucket_size + 23) / 24 * 24 + safe_pad_simd];
+        temp = new char[safe_pad_simd + ((2 * chain_capacity * bucket_size + 23) / 24 + 1) * 24 + safe_pad_simd];
         memcpy(data_base, s.data_base, total_size);
     }
 
@@ -155,7 +156,7 @@ public:
             uint32_t new_chain_len = chain_capacity * bucket_size;
             ANS_MASK = ~(0xFFFFFFFF << 2 * (2 * chain_capacity * kTagsPerBucket % 16));
             delete[] temp;
-            temp = new char[safe_pad_simd + (2 * chain_capacity * bucket_size + 23) / 24 * 24 + safe_pad_simd];
+            temp = new char[safe_pad_simd + ((2 * chain_capacity * bucket_size + 23) / 24 + 1) * 24 + safe_pad_simd];
 
             total_size = chain_num * chain_capacity * bucket_size + safe_pad;
             data_base = new char[total_size];
@@ -226,7 +227,7 @@ public:
         char *p1 = data_base;
         uint32_t len1 = (chain_capacity * bucket_size);
         char *p2 = segment->data_base;
-        uint32_t len2 = (segment->chain_capacity * segment->bucket_size);
+        uint32_t len2 = (segment->chain_capacity * Segment::bucket_size);
 
         chain_capacity += segment->chain_capacity;
         insert_cur = 0;
@@ -241,7 +242,7 @@ public:
         }
         delete[] p1;
         delete[] temp;
-        temp = new char[safe_pad_simd + (2 * chain_capacity * bucket_size + 23) / 24 * 24 + safe_pad_simd];
+        temp = new char[safe_pad_simd + ((2 * chain_capacity * bucket_size + 23) / 24 + 1) * 24 + safe_pad_simd];
     }
 };
 

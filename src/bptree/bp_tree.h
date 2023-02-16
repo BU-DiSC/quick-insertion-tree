@@ -136,7 +136,6 @@ protected:
     }
 
     virtual void update_stats(const node_t &leaf) {
-        throw std::runtime_error("not implemented");
     }
 
     bool leaf_insert(node_t &leaf, const key_type &key, const value_type &value) {

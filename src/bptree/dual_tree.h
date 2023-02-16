@@ -165,7 +165,7 @@ public:
     }
 
     bool update(const key_type &key, const value_type &value) override {
-        throw std::runtime_error("Not implemented");
+        throw std::runtime_error("Dual update not implemented");
     }
 
     std::optional<value_type> get(const key_type &key) override {
