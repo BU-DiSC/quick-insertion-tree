@@ -2,6 +2,7 @@
 #define DIST_DETECTOR_H
 
 #include <algorithm>
+
 #include "outlier_detector.h"
 
 template<typename key_type>
@@ -94,7 +95,7 @@ public:
         return false;
     }
 
-    void update(const bp_stats &stats) override {
+    void update(const outlier_stats &stats) override {
     }
 };
 

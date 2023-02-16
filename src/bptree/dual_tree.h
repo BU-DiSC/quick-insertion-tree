@@ -8,6 +8,7 @@
 #ifdef DUAL_FILTERS
 #include "bamboofilter.h"
 #endif
+#include "config.h"
 #include "fast_append_tree.h"
 
 template<typename key_type, typename value_type>
@@ -29,7 +30,7 @@ protected:
     void update_stats(const node_t &leaf) override {
         if (!outlier_detector) return;
 
-        bp_stats stats;
+        outlier_stats stats;
         stats.keys_count = leaf.info->size;
         stats.keys_sum = 0;
         stats.key_squares_sum = 0;

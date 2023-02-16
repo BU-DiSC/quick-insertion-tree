@@ -83,7 +83,7 @@ public:
         return false;
     }
 
-    void update(const bp_stats &stats) {
+    void update(const outlier_stats &stats) {
         // update function for last k nodes std outlier
         if (k == 0) {
             return;

@@ -2,14 +2,8 @@
 #define BP_TREE_H
 
 #include "kv_store.h"
-#include "bp_node.h"
 #include "block_manager.h"
-
-struct bp_stats {
-    uint64_t keys_sum;
-    uint64_t key_squares_sum;
-    uint32_t keys_count;
-};
+#include "bp_node.h"
 
 template<typename key_type, typename value_type>
 class dual_tree;

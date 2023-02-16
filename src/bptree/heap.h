@@ -1,9 +1,9 @@
 #ifndef HEAP_H
 #define HEAP_H
 
-#include <unordered_map>
-#include <queue>
 #include <iostream>
+#include <queue>
+#include <unordered_map>
 
 template<typename key_type, typename value_type>
 class Heap {

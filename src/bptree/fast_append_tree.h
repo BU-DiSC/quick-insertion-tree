@@ -2,7 +2,6 @@
 #define FAST_APPEND_TREE_H
 
 #include "bp_tree.h"
-#include "config.h"
 
 template<typename key_type, typename value_type>
 class FastAppendTree : public bp_tree<key_type, value_type> {

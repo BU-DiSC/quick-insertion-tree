@@ -1,10 +1,10 @@
 #ifndef BP_NODE_H
 #define BP_NODE_H
 
-#include "kv_store.h"
 #include "block_manager.h"
-#include <ostream>
+#include "kv_store.h"
 #include <algorithm>
+#include <ostream>
 
 struct bp_node_info {
     uint32_t id;
