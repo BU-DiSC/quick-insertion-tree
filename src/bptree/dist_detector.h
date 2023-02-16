@@ -4,8 +4,8 @@
 #include <algorithm>
 #include "outlier_detector.h"
 
-template<typename key_type, typename value_type>
-class DistDetector : public OutlierDetector<key_type, value_type> {
+template<typename key_type>
+class DistDetector : public OutlierDetector<key_type> {
     // The default value of @average_distance.
     static constexpr float INIT_AVG_DIST = -1;
 
@@ -60,7 +60,12 @@ public:
         counter = 0;
     }
 
-    bool is_outlier(const key_type &key) {
+    void init(const key_type &key) override {
+        previous_key = key;
+        counter = 1;
+    }
+
+    bool is_outlier(const key_type &key) override {
         if (counter == 0) {
             // to calculate distance, there should be at least 1 keys in the tree
             previous_key = key;
@@ -89,7 +94,7 @@ public:
         return false;
     }
 
-    void update(BeTree<key_type, value_type> &tree) {
+    void update(const bp_stats &stats) override {
     }
 };
 

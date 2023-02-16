@@ -1,6 +1,10 @@
 #include <random>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include "bp_tree.h"
+#include "config.h"
+#include "fast_append_tree.h"
 #include "dual_tree.h"
 
 #ifndef INSERT_TO_QUERY_RATIO
@@ -19,67 +23,90 @@ std::vector<int> read_file(const char *filename) {
     return data;
 }
 
-void workload(collection<int, int> *tree, const std::vector<int> &data, unsigned int num_queries,
-              unsigned int perc_load, const std::string &seed) {
-    unsigned int num_inserts = data.size();
-    unsigned int num_load = perc_load / 100.0 * num_inserts;
+void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned raw_read_perc, unsigned raw_write_perc,
+              unsigned mix_load_perc, unsigned updates_perc, const std::string &seed) {
+    unsigned num_inserts = data.size();
 
-    std::cout << "Loading " << perc_load << "% (" << num_load << "/" << num_inserts << ")\n";
+    unsigned raw_queries = raw_read_perc / 100.0 * num_inserts;
+    unsigned raw_writes = raw_write_perc / 100.0 * num_inserts;
+    unsigned mixed_size = mix_load_perc / 100.0 * num_inserts;
+    unsigned updates = updates_perc / 100.0 * num_inserts;
+    unsigned num_load = num_inserts - raw_writes - mixed_size;
 
     std::seed_seq seq(seed.begin(), seed.end());
     std::mt19937 generator{seq};
-    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::uniform_int_distribution<int> distribution(0, 1);
 
-    unsigned int tot_inserts = num_load;
-    unsigned int tot_queries = 0;
-    unsigned int empty_queries = 0;
+    std::ofstream results("results.csv", std::ofstream::app);
+    unsigned mix_inserts = 0;
+    unsigned mix_queries = 0;
+    unsigned empty_queries = 0;
 
     int idx = 0;
     auto it = data.cbegin();
+    std::cout << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
     while (idx < num_load) {
-        tree->add(*it++, idx++);
+        store.insert(*it++, idx++);
     }
-    auto stop_load = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::high_resolution_clock::now() - start;
+    results << duration.count();
 
+    std::cout << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
+    start = std::chrono::high_resolution_clock::now();
+    while (idx < num_load + raw_writes) {
+        store.insert(*it++, idx++);
+    }
+    duration = std::chrono::high_resolution_clock::now() - start;
+    results << ", " << duration.count();
+
+    std::cout << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
     auto insert_time = start;
     auto query_time = start;
-    while (tot_inserts < num_inserts || tot_queries < num_queries) {
-        if (tot_queries >= num_queries ||
-            (tot_inserts < num_inserts && distribution(generator) < INSERT_TO_QUERY_RATIO)) {
+    while (mix_inserts < mixed_size || mix_queries < mixed_size) {
+        if (mix_queries >= mixed_size || (mix_inserts < mixed_size && distribution(generator))) {
             auto start_ins = std::chrono::high_resolution_clock::now();
-            tree->add(*it++, idx++);
+            store.insert(*it++, idx++);
             auto stop_ins = std::chrono::high_resolution_clock::now();
             insert_time += stop_ins - start_ins;
-            tot_inserts++;
+            mix_inserts++;
         } else {
-            int query_index = (int) (generator() % tot_inserts);
+            int query_index = (int) (generator() % idx);
             auto start_q = std::chrono::high_resolution_clock::now();
-            bool res = tree->contains(query_index);
+            bool res = store.contains(query_index);
             auto stop_q = std::chrono::high_resolution_clock::now();
             query_time += stop_q - start_q;
-            tot_queries++;
+            mix_queries++;
             empty_queries += !res;
         }
     }
+    duration = (insert_time - start);
+    results << ", " << duration.count();
+    duration = (query_time - start);
+    results << ", " << duration.count();
 
-    std::uniform_int_distribution<unsigned int> range_distribution(0, num_inserts - 1);
-    auto raw_start = std::chrono::high_resolution_clock::now();
-    // 10% random queries from workload, no empty queries
-    for (int i = 0; i < num_inserts * 0.1; i++) {
-        tree->contains(data[range_distribution(generator) % data.size()]);
+    std::cout << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
+    std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
+    start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < raw_queries; i++) {
+        store.contains(data[range_distribution(generator) % data.size()]);
     }
-    auto stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::high_resolution_clock::now() - start;
+    results << ", " << duration.count();
 
-    auto duration = (stop - start).count();
-    auto load_duration = (stop_load - start).count();
-    auto insert_duration = (insert_time - start).count();
-    auto query_duration = (query_time - start).count();
-    auto raw_duration = (stop - raw_start).count();
+    std::cout << "Updates (" << updates << "/" << num_inserts << ")\n";
+    start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < updates; i++) {
+        store.insert(data[range_distribution(generator) % data.size()], 0);
+    }
+    duration = std::chrono::high_resolution_clock::now() - start;
+    results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
-    std::ofstream results("results.csv", std::ofstream::app);
-    results << load_duration << ", " << insert_duration << ", " << query_duration << ", " << raw_duration << ", "
-            << duration << ", " << tot_inserts << ", " << tot_queries << ", " << empty_queries << ", " << *tree << "\n";
+//    for (const auto &item: data) {
+//        if (!store.contains(item)) {
+//            std::cerr << "Error: " << item << " not found\n";
+//        }
+//    }
 }
 
 void display_help(const char *name) {
@@ -102,11 +129,13 @@ int main(int argc, char **argv) {
     }
 
     const char *input_file = argv[1];
-    const char *config_file = nullptr;
+    const char *config_file = "config.toml";
     TreeType type = TreeType::DUAL;
-    int num_queries = 0;
-    int perc_load = 100;
-    std::string seed;
+    int raw_read_perc = 10;
+    int raw_write_perc = 10;
+    int mix_load_perc = 10;
+    int updates_perc = 10;
+    const char *seed;
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
             display_help(argv[0]);
@@ -115,16 +144,22 @@ int main(int argc, char **argv) {
             config_file = argv[++i];
         } else if (strcmp(argv[i], "--seed") == 0) {
             seed = argv[++i];
-        } else if (strcmp(argv[i], "--num_queries") == 0) {
-            num_queries = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--perc_load") == 0) {
-            perc_load = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--raw_write") == 0) {
+            raw_write_perc = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--raw_read") == 0) {
+            raw_read_perc = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--mixed") == 0) {
+            mix_load_perc = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--updates") == 0) {
+            updates_perc = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--simple") == 0) {
             type = TreeType::SIMPLE;
         } else if (strcmp(argv[i], "--fast") == 0) {
             type = TreeType::FAST;
+        } else if (strcmp(argv[i], "--dual") == 0) {
+            type = TreeType::DUAL;
         } else {
-            std::cerr << "Discarding option: " << argv[++i] << std::endl;
+            std::cerr << "Discarding option: " << argv[i] << std::endl;
         }
     }
 
@@ -136,28 +171,26 @@ int main(int argc, char **argv) {
     }
     std::cout << "Number of keys in sorted position: " << cnt << std::endl;
 
-    collection<int, int> *tree;
-    std::string root_dir = "tree_dat";
-    std::filesystem::create_directories(root_dir);
+    Config config(config_file);
     switch (type) {
-        case SIMPLE:
-            std::cout << "Single Btree" << std::endl;
-            tree = new BeTree<int, int>("manager", root_dir, BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
-                                        BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+        case SIMPLE: {
+            std::cout << "Single B+ tree" << std::endl;
+            bp_tree<int, int> tree("tree.dat", config.blocks_in_memory, config.unsorted_tree_split_frac);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
-        case FAST:
-            std::cout << "Fast Append Btree" << std::endl;
-            tree = new FastAppendBeTree<int, int>("manager", root_dir,
-                                                  BeTree_Default_Knobs<int, int>::BLOCK_SIZE,
-                                                  BeTree_Default_Knobs<int, int>::BLOCKS_IN_MEMORY);
+        }
+        case FAST: {
+            std::cout << "Fast Append B+ tree" << std::endl;
+            FastAppendTree<int, int> tree("tree.dat", config.blocks_in_memory, config.sorted_tree_split_frac);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
-        case DUAL:
-            std::cout << "Dual Btree" << std::endl;
-            DUAL_TREE_KNOBS::CONFIG_FILE_PATH = config_file;
-            tree = new dual_tree<int, int>("tree_1", "tree_2", root_dir);
+        }
+        case DUAL: {
+            std::cout << "Dual B+ tree" << std::endl;
+            dual_tree<int, int> tree("tree.dat", "outlier.dat", config);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
+        }
     }
-    workload(tree, data, num_queries, perc_load, seed);
-    delete tree;
     return 0;
 }

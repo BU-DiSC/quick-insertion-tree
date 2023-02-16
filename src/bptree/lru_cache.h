@@ -1,13 +1,16 @@
 #ifndef LRUCache_H
 #define LRUCache_H
 
+#include <cstdint>
+#include <cstdlib>
+#include <unordered_map>
 
 struct Node {
-    uint id;
-    const uint pos;
+    uint32_t id;
+    const uint32_t pos;
     Node *prev, *next;
 
-    Node(uint _id, uint _pos) : id(_id), pos(_pos) {
+    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos) {
         prev = nullptr;
         next = nullptr;
     }
@@ -73,25 +76,25 @@ public:
 };
 
 class LRUCache {
-    // denotes capacity of the cache
-    uint capacity;
-
-    // denotes current size of cache
-    uint size;
-
-    // elements of the cache
+    const uint32_t capacity;
+    uint32_t size;
     LinkedList list;
+    std::unordered_map<uint32_t, Node *> node_hash{};
 
 public:
-    std::unordered_map<uint, Node *> node_hash{};
 
-    LRUCache(uint _cap) : capacity(_cap), size(0) {}
+    explicit LRUCache(uint32_t cap) : capacity(cap), size(0) {}
 
-    uint get(uint id) {
+    /**
+     * Get a node from cache
+     * @param id
+     * @return position in internal memory
+     */
+    uint32_t get(uint32_t id) {
         auto it = node_hash.find(id);
 
         if (it == node_hash.end()) {
-            return capacity + 1;
+            return capacity;
         }
 
         list.moveToFront(it->second);
@@ -99,22 +102,30 @@ public:
         return it->second->pos;
     }
 
-    uint put(uint id, uint *evicted_id) {
+    /**
+     * Put a node in cache evicting the least recently used node if necessary
+     * @param id
+     * @param[out] pos
+     * @param[out] evicted_id
+     * @return true if an eviction occurred
+     */
+    bool put(uint32_t id, uint32_t &pos, uint32_t &evicted_id) {
         Node *node;
-        if (size == capacity) {
+        bool eviction = size == capacity;
+        if (eviction) {
             node = list.removeFromEnd();
-            *evicted_id = node->id;
-            node_hash.erase(node->id);
+            evicted_id = node->id;
+            node_hash.erase(evicted_id);
             node->id = id;
         } else {
-            *evicted_id = 0;
             node = new Node(id, size);
             size++;
         }
+        pos = node->pos;
         list.addToFront(node);
         node_hash[id] = node;
 
-        return node->pos;
+        return eviction;
     }
 };
 

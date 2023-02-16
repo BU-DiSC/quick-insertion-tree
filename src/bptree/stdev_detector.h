@@ -1,18 +1,27 @@
 #ifndef STDEV_DETECTOR_H
 #define STDEV_DETECTOR_H
 
-#include <cmath>
-
 #include "outlier_detector.h"
 
-template<typename key_type, typename value_type>
-class StdevDetector : public OutlierDetector<key_type, value_type> {
+size_t lower_bound(size_t k) {
+    size_t x = k;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x |= x >> 32;
+    return k == x ? k : x >> 1;
+}
+
+template<typename key_type>
+class StdevDetector : public OutlierDetector<key_type> {
     // the number of elements to consider when calculating the standard deviation.
-    size_t s0{};
+    size_t s0;
     // the sum of the s0 elements
-    key_type s1{};
+    key_type s1;
     // the sum of the squares of the s0 elements
-    key_type s2{};
+    key_type s2;
 
     // Stdev of last k nodes
     size_t k;
@@ -33,14 +42,22 @@ class StdevDetector : public OutlierDetector<key_type, value_type> {
 
     key_type prev_key;
 public:
+    void init(const key_type &key) {
+        prev_key = key;
+    }
 
-    StdevDetector(double _num_stdev, int _k) {
-        num_stdev = _num_stdev;
-        k = _k;
-        next_idx = 0;
-        leaf_size = new size_t[k];
-        sums_of_keys = new key_type[k];
-        sums_of_squares = new key_type[k];
+    StdevDetector(double num_stdev, int _k) : num_stdev(num_stdev) {
+        s0 = s1 = s2 = next_idx = 0;
+        if (_k != 0) {
+            k = lower_bound(_k);
+            leaf_size = new size_t[k + 1]{};
+            sums_of_keys = new key_type[k + 1]{};
+            sums_of_squares = new key_type[k + 1]{};
+        } else {
+            leaf_size = nullptr;
+            sums_of_squares = nullptr;
+            sums_of_keys = nullptr;
+        }
     }
 
     ~StdevDetector() {
@@ -50,10 +67,6 @@ public:
     }
 
     bool is_outlier(const key_type &key) {
-        if (prev_key == 0) {
-            prev_key = key;
-            return false;
-        }
         key_type x = key - prev_key;
         size_t _s0 = s0 + 1;
         key_type _s1 = s1 + x;
@@ -70,13 +83,11 @@ public:
         return false;
     }
 
-    void update(BeTree<key_type, value_type> &tree) {
-        if (k == 0)
-            return;
-        long long sum_of_keys = tree.getSumKeys();
-        long long sum_of_squares = tree.getSumSquares();
-        int size = tree.getPrevTailSize();
+    void update(const bp_stats &stats) {
         // update function for last k nodes std outlier
+        if (k == 0) {
+            return;
+        }
 
         // remove the popped node from count, sum, and sum_square
         s0 -= leaf_size[next_idx];
@@ -84,17 +95,17 @@ public:
         s2 -= sums_of_squares[next_idx];
 
         // update buffer
-        leaf_size[next_idx] = size;
-        sums_of_keys[next_idx] = sum_of_keys;
-        sums_of_squares[next_idx] = sum_of_squares;
+        leaf_size[next_idx] = stats.keys_count;
+        sums_of_keys[next_idx] = stats.keys_sum;
+        sums_of_squares[next_idx] = stats.key_squares_sum;
 
         // update the new node to count, sum, and sum_square
-        s0 += size;
-        s1 += sum_of_keys;
-        s2 += sum_of_squares;
+        s0 += stats.keys_count;
+        s1 += stats.keys_sum;
+        s2 += stats.key_squares_sum;
 
         // update the next_idx that indicates the next node to pop
-        next_idx = (next_idx + 1) % k;
+        next_idx = (next_idx + 1) & k;
     }
 };
 

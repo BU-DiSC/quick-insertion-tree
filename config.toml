@@ -1,12 +1,12 @@
-# The split fraction of sorted tree, it represents how many percentage of keys will stay in the 
-#original node after splitting.
-SORTED_TREE_SPLIT_FRAC = 0.8
+# The split fraction of sorted tree, it represents how many percentage of keys will stay in the
+# original node after splitting.
+SORTED_TREE_SPLIT_FRAC = 0.999
 
 # The split fraction of unsorted tree.
 UNSORTED_TREE_SPLIT_FRAC = 0.5
 
-# If enable lazy move, then every time an insertion(instead of appending) happens to the sorted tree, a 
-#key right after the new inserted key will be moved to the unsorted tree.
+# If enable lazy move, then every time an insertion(instead of appending) happens to the sorted tree, a
+# key right after the new inserted key will be moved to the unsorted tree.
 ENABLE_LAZY_MOVE = true
 
 # Knob for heap buffer, if HEAP_SIZE <= 0, heap buffer will be disabled
@@ -20,19 +20,19 @@ INIT_TOLERANCE_FACTOR = 100
 # (of the sorted tree).
 NUM_STDEV = 3
 
-# The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small, 
+# The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small,
 # most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
 # This value should be less than @INIT_TOLERANCE_FACTOR
 MIN_TOLERANCE_FACTOR = 20
 
-# The expected average distance between any two consecutive tuples in the sorted tree. This
-# tuning knob helps to modify the tolerance factor in the outlier detector. If it is less or equal to 
-# 1, then the tolerance factor becomes a constant.
+# The expected average distance between any two consecutive tuples in the sorted tree.
+# This tuning knob helps to modify the tolerance factor in the outlier detector.
+# If it is less or equal to 1, then the tolerance factor becomes a constant.
 EXPECTED_AVG_DISTANCE = 2.5
 
-# Outlier detector type: distance-based=1, stdev-based=2
-OUTLIER_DETECTOR_TYPE = 2
+# Outlier detector type: distance-based=DIST, stdev-based=STDEV
+OUTLIER_DETECTOR_TYPE = "STDEV"
 
 # Calculate the standard deviation using the LAST_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0,
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
-LAST_K_STDEV = 0
+LAST_K_STDEV = 2

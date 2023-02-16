@@ -1,15 +1,17 @@
 #ifndef OUTLIER_DETECTOR_H
 #define OUTLIER_DETECTOR_H
 
-#include "betree.h"
+#include "bp_tree.h"
 
-template<typename key_type, typename value_type>
+template<typename key_type>
 class OutlierDetector {
 public:
 
+    virtual void init(const key_type &key) = 0;
+
     virtual bool is_outlier(const key_type &key) = 0;
 
-    virtual void update(BeTree<key_type, value_type> &tree) = 0;
+    virtual void update(const bp_stats &stats) = 0;
 
     virtual ~OutlierDetector() = default;
 };
