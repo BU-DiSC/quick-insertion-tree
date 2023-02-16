@@ -6,7 +6,9 @@
 #include <unordered_map>
 
 #include "bp_node.h"
+#ifdef DUAL_FILTERS
 #include "bamboofilter.h"
+#endif
 #include "fast_append_tree.h"
 
 template<typename key_type, typename value_type>
