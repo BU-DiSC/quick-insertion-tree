@@ -144,11 +144,11 @@ public:
             return;
         }
 
-        if (lazy_move && key < super::tail_max && super::size == node_t::leaf_capacity) {
+        if (lazy_move && key < super::tail_max && super::size == node_t::leaf_capacity && outlier_detector->is_outlier(super::tail_max)) {
             std::pair<key_type, value_type> max_kv = swap_max(key, value);
 #ifdef DUAL_FILTERS
-            bf1.Insert(&key, sizeof(key_type));
             bf1.Delete(&max_kv.first, sizeof(key_type));
+            bf1.Insert(&key, sizeof(key_type));
             bf2.Insert(&max_kv.first, sizeof(key_type));
 #endif
             outlier_tree.insert(max_kv.first, max_kv.second);
@@ -166,6 +166,7 @@ public:
         super::size--;
         tail.info->size--;
         assert(tail.keys[tail.info->size] == super::tail_max);
+        assert(tail.info->size > 0);
         super::tail_max = tail.keys[tail.info->size - 1];
         const std::pair<key_type, value_type> &max_kv = {tail.keys[tail.info->size], tail.values[tail.info->size]};
         super::leaf_insert(tail, key, value);
