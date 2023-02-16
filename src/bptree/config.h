@@ -22,7 +22,9 @@ struct Config {
     float sorted_tree_split_frac;
     float unsorted_tree_split_frac;
     bool enable_lazy_move;
+#ifdef ENABLE_HEAP
     size_t heap_size;
+#endif
     size_t blocks_in_memory;
     float init_tolerance_factor;
     float num_stdev;
@@ -44,6 +46,7 @@ struct Config {
         return nullptr;
     }
 
+#ifdef ENABLE_HEAP
     template<typename key_type, typename value_type>
     Heap<key_type, value_type> *get_heap_buffer() const {
         if (heap_size == 0) {
@@ -51,12 +54,15 @@ struct Config {
         }
         return new Heap<key_type, value_type>(heap_size);
     }
+#endif
 
     explicit Config(const char *file) {
         sorted_tree_split_frac = 0.8;
         unsorted_tree_split_frac = 0.5;
         enable_lazy_move = true;
+#ifdef ENABLE_HEAP
         heap_size = 0;
+#endif
         init_tolerance_factor = 100;
         num_stdev = 3;
         min_tolerance_factor = 20;
@@ -83,7 +89,11 @@ struct Config {
             } else if (knob_name == "ENABLE_LAZY_MOVE") {
                 enable_lazy_move = str2bool(knob_value);
             } else if (knob_name == "HEAP_SIZE") {
+#ifdef ENABLE_HEAP
                 heap_size = std::stoi(knob_value);
+#else
+                std::cerr << "Heap is not enabled" << std::endl;
+#endif
             } else if (knob_name == "INIT_TOLERANCE_FACTOR") {
                 init_tolerance_factor = std::stof(knob_value);
             } else if (knob_name == "NUM_STDEV") {

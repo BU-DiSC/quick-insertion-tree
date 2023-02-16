@@ -97,11 +97,11 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
-//    for (const auto &item: data) {
-//        if (!store.contains(item)) {
-//            std::cerr << "Error: " << item << " not found\n";
-//        }
-//    }
+    for (const auto &item: data) {
+        if (!store.contains(item)) {
+            std::cerr << "Error: " << item << " not found\n";
+        }
+    }
 }
 
 void display_help(const char *name) {

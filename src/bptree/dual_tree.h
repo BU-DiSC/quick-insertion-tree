@@ -8,6 +8,7 @@
 #ifdef DUAL_FILTERS
 #include "bamboofilter.h"
 #endif
+
 #include "config.h"
 #include "fast_append_tree.h"
 
@@ -23,7 +24,9 @@ class dual_tree : public FastAppendTree<key_type, value_type> {
     BambooFilter bf2;
 #endif
     OutlierDetector<key_type> *outlier_detector;
+#ifdef ENABLE_HEAP
     Heap<key_type, value_type> *heap_buffer;
+#endif
     bool lazy_move;
 
 protected:
@@ -42,7 +45,9 @@ public:
             , bf1(65536, 2), bf2(65536, 2)
 #endif
     {
+#ifdef ENABLE_HEAP
         heap_buffer = config.get_heap_buffer<key_type, value_type>();
+#endif
         outlier_detector = config.get_detector<key_type>();
         lazy_move = config.enable_lazy_move;
 #ifdef DUAL_FILTERS
@@ -51,7 +56,9 @@ public:
     }
 
     ~dual_tree() {
+#ifdef ENABLE_HEAP
         delete heap_buffer;
+#endif
         delete outlier_detector;
     }
 
@@ -74,12 +81,12 @@ public:
             return true;
         }
 #elif DUAL_FILTERS == 2
-        if (bf1.Lookup(&key, sizeof(key_type)) && super::update(key, value)) {
-            bf1.Insert(&key, sizeof(key_type));
+        if (super::size > 0 && super::tree_min <= key && key <= super::tail_max &&
+            bf1.Lookup(&key, sizeof(key_type)) && super::update(key, value)) {
             return true;
         }
-        if (bf2.Lookup(&key, sizeof(key_type)) && outlier_tree.update(key, value)) {
-            bf2.Insert(&key, sizeof(key_type));
+        if (outlier_tree.size > 0 && outlier_tree.tree_min <= key && key <= outlier_tree.tail_max &&
+            bf2.Lookup(&key, sizeof(key_type)) && outlier_tree.update(key, value)) {
             return true;
         }
 #endif
@@ -88,6 +95,7 @@ public:
     }
 
     void sortedness_insert(key_type key, value_type value) {
+#ifdef ENABLE_HEAP
         if (heap_buffer) {
             // push to heap buffer (if it is enabled)
             if (heap_buffer->size() < heap_buffer->max_size) {
@@ -103,7 +111,7 @@ public:
                 value = heap_min.second;
             }
         }
-
+#endif
         if (super::size == 0) {
             // if the tree is empty, insert directly to sorted tree
 #ifdef DUAL_FILTERS
