@@ -66,7 +66,7 @@ public:
         delete[] sums_of_squares;
     }
 
-    bool is_outlier(const key_type &key) {
+    bool is_outlier(const key_type &key) override {
         key_type x = key - prev_key;
         size_t _s0 = s0 + 1;
         key_type _s1 = s1 + x;

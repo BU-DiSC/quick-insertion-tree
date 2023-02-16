@@ -125,6 +125,8 @@ int main(int argc, char **argv) {
 
     const char *input_file = argv[1];
     const char *config_file = "config.toml";
+    const char *tree_dat = "tree.dat";
+    const char *outlier_dat = "outlier.dat";
     TreeType type = TreeType::DUAL;
     int raw_read_perc = 10;
     int raw_write_perc = 10;
@@ -137,6 +139,10 @@ int main(int argc, char **argv) {
             return 0;
         } else if (strcmp(argv[i], "--config") == 0) {
             config_file = argv[++i];
+        } else if (strcmp(argv[i], "--tree") == 0) {
+            tree_dat = argv[++i];
+        } else if (strcmp(argv[i], "--outlier") == 0) {
+            outlier_dat = argv[++i];
         } else if (strcmp(argv[i], "--seed") == 0) {
             seed = argv[++i];
         } else if (strcmp(argv[i], "--raw_write") == 0) {
@@ -171,19 +177,19 @@ int main(int argc, char **argv) {
     switch (type) {
         case SIMPLE: {
             std::cout << "Single B+ tree" << std::endl;
-            bp_tree<int, int> tree("tree.dat", config.blocks_in_memory, config.unsorted_tree_split_frac);
+            bp_tree<int, int> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
             workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
         case FAST: {
             std::cout << "Fast Append B+ tree" << std::endl;
-            FastAppendTree<int, int> tree("tree.dat", config.blocks_in_memory, config.sorted_tree_split_frac);
+            FastAppendTree<int, int> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
             workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
         case DUAL: {
             std::cout << "Dual B+ tree" << std::endl;
-            dual_tree<int, int> tree("tree.dat", "outlier.dat", config);
+            dual_tree<int, int> tree(tree_dat, outlier_dat, config);
             workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
