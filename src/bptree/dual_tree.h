@@ -75,9 +75,11 @@ public:
         }
 #elif DUAL_FILTERS == 2
         if (bf1.Lookup(&key, sizeof(key_type)) && super::update(key, value)) {
+            bf1.Insert(&key, sizeof(key_type));
             return true;
         }
         if (bf2.Lookup(&key, sizeof(key_type)) && outlier_tree.update(key, value)) {
+            bf2.Insert(&key, sizeof(key_type));
             return true;
         }
 #endif
