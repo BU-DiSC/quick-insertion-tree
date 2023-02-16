@@ -78,6 +78,8 @@ struct Config {
                 sorted_tree_split_frac = std::stof(knob_value);
             } else if (knob_name == "UNSORTED_TREE_SPLIT_FRAC") {
                 unsorted_tree_split_frac = std::stof(knob_value);
+            } else if (knob_name == "BLOCKS_IN_MEMORY") {
+                blocks_in_memory = std::stoi(knob_value);
             } else if (knob_name == "ENABLE_LAZY_MOVE") {
                 enable_lazy_move = str2bool(knob_value);
             } else if (knob_name == "HEAP_SIZE") {

@@ -2,14 +2,9 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include "bp_tree.h"
-#include "config.h"
-#include "fast_append_tree.h"
-#include "dual_tree.h"
 
-#ifndef INSERT_TO_QUERY_RATIO
-#define INSERT_TO_QUERY_RATIO 0.5
-#endif
+#include "config.h"
+#include "dual_tree.h"
 
 std::vector<int> read_file(const char *filename) {
     std::vector<int> data;

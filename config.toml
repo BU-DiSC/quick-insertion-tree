@@ -5,6 +5,8 @@ SORTED_TREE_SPLIT_FRAC = 0.999
 # The split fraction of unsorted tree.
 UNSORTED_TREE_SPLIT_FRAC = 0.5
 
+BLOCKS_IN_MEMORY = 1500000
+
 # If enable lazy move, then every time an insertion(instead of appending) happens to the sorted tree, a
 # key right after the new inserted key will be moved to the unsorted tree.
 ENABLE_LAZY_MOVE = true

@@ -1,7 +1,8 @@
 .vscode/settings.json
-input
-results.csv
+input*
+*.csv
 vanillla
-.gitignore
+outofplace
 inplace
-tree.dat
+.gitignore
+*.dat

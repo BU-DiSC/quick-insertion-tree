@@ -5,7 +5,6 @@
 #include <queue>
 #include <unordered_map>
 
-#include "bp_node.h"
 #ifdef DUAL_FILTERS
 #include "bamboofilter.h"
 #endif
