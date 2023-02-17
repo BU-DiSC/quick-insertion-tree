@@ -9,3 +9,4 @@ inplace
 .gitignore
 *.dat
 a.out
+vanilla
