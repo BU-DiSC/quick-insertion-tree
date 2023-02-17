@@ -34,6 +34,8 @@ class dual_tree : public FastAppendTree<key_type, value_type>
     uint32_t ctr_lazymove;
     uint32_t ctr_outlier_global; // counter for the outer outlier detector
     uint32_t ctr_direct;         // counter for direct insert to outlier tree
+    uint32_t ctr_outliertree_update;
+    uint32_t ctr_sortedtree_update;
 
 protected:
     void update_stats(const node_t &leaf) override
@@ -66,6 +68,8 @@ public:
         ctr_lazymove = 0;
         ctr_outlier_global = 0;
         ctr_direct = 0;
+        ctr_outliertree_update = 0;
+        ctr_sortedtree_update = 0;
     }
 
     ~dual_tree()
@@ -81,7 +85,8 @@ public:
         os << "DUAL"
            << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites()
            << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites()
-           << ", " << ctr_lazymove << ", " << ctr_outlier_global << ", " << ctr_direct;
+           << ", " << ctr_lazymove << ", " << ctr_outlier_global << ", " << ctr_direct 
+           << ", " << ctr_sortedtree_update << ", " << ctr_outliertree_update;
         return os;
     }
 
@@ -97,17 +102,20 @@ public:
         {
             bf2.Insert(&key, sizeof(key_type));
             outlier_tree.insert(key, value);
+            ctr_outliertree_update++;
             return true;
         }
 #elif DUAL_FILTERS == 2
         if (super::size > 0 && super::tree_min <= key && key <= super::tail_max &&
             bf1.Lookup(&key, sizeof(key_type)) && super::update(key, value))
         {
+            ctr_sortedtree_update++;
             return true;
         }
         if (outlier_tree.size > 0 && outlier_tree.tree_min <= key && key <= outlier_tree.tail_max &&
             bf2.Lookup(&key, sizeof(key_type)) && outlier_tree.update(key, value))
         {
+            ctr_outliertree_update++;
             return true;
         }
 #endif
