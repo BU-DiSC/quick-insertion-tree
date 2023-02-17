@@ -181,7 +181,7 @@ public:
             outlier_tree.insert(key, value);
 
             // we caught an outlier using the global outlier detector, so increment its counter
-            std::cout << "outlier detector used" << std::endl;
+            // std::cout << "outlier detector used" << std::endl;
             ctr_outlier_global++;
             return;
         }
@@ -198,7 +198,7 @@ public:
 
             // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
             ctr_lazymove++;
-            std::cout << "lazy move used" << std::endl;
+            // std::cout << "lazy move used" << std::endl;
             return;
         }
 
