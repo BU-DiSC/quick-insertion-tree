@@ -43,7 +43,7 @@ protected:
     {
         if (outlier_detector)
         {
-            outlier_detector->update(leaf.keys, leaf.info->size);
+            // outlier_detector->update(leaf.keys, leaf.info->size);
         }
     }
 
@@ -61,7 +61,7 @@ public:
 #endif
         obvious_outlier_detector = config.get_detector<key_type>();
         outlier_detector = config.get_detector<key_type>();
-        lazy_move = config.enable_lazy_move;
+        lazy_move = config.enable_lazy_move && outlier_detector; // right now we want the outlier detector always if we are using lazy move (which is actually lazy swap)
 #ifdef DUAL_FILTERS
         std::cout << "DUAL FILTERS STRATEGY " << DUAL_FILTERS << std::endl;
 #endif
@@ -177,6 +177,8 @@ public:
             return;
         }
 
+        outlier_detector &&key > super::tree_max && outlier_detector->is_outlier(key);
+
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
         if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key))
@@ -192,8 +194,9 @@ public:
             ctr_outlier_global++;
             return;
         }
-        if (lazy_move && outlier_detector && super::get_tail_leaf_size() == node_t::leaf_capacity)
+        if (lazy_move && super::get_tail_leaf_size() == node_t::leaf_capacity)
         {
+
             if (key < super::tree_max && outlier_detector->is_outlier(super::tree_max))
             {
                 std::pair<key_type, value_type> max_kv = swap_max(key, value);

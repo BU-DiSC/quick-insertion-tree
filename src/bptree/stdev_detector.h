@@ -49,8 +49,8 @@ public:
     {
         prev_key = key;
         s0 = 1;
-        s1 = key;
-        s2 = key * key;
+        // s1 = 0;
+        // s2 = 0;
     }
 
     StdevDetector(double num_stdev, int _k) : num_stdev(num_stdev)
@@ -83,6 +83,14 @@ public:
     {
         key_type x = key - prev_key;
         size_t _s0 = s0 + 1;
+        if (s0 == 1)
+        {
+            prev_key = key;
+            s0 = _s0;
+            s1 = x;
+            s2 = x * x;
+            return false;
+        }
         key_type _s1 = s1 + x;
         double mean = _s1 / (double)_s0;
         key_type _s2 = s2 + x * x;
@@ -91,6 +99,10 @@ public:
         // we ideally want to use old mean and old std_dev to compare
         double old_mean = s1 / s0;
         double old_std_dev = sqrt((s2 - s1 * old_mean) / s0);
+        if (old_mean <= 1 && old_std_dev < 1)
+        {
+            return false;
+        }
         if (x > old_mean + num_stdev * old_std_dev)
         // if (x > mean + num_stdev * std_dev)
         {
@@ -105,11 +117,6 @@ public:
 
     void update(const key_type *keys, uint32_t size) override
     {
-        // update function for last k nodes std outlier
-        if (k == 0)
-        {
-            return;
-        }
 
         size_t keys_count = size;
         key_type keys_sum = 0;
@@ -120,7 +127,14 @@ public:
             keys_sum += key;
             key_squares_sum += key * key;
         }
-
+        // update function for last k nodes std outlier
+        if (k == 0)
+        {
+            s0 = keys_count;
+            s1 = keys_sum;
+            s2 = key_squares_sum;
+            return;
+        }
         // remove the popped node from count, sum, and sum_square
         s0 -= leaf_size[next_idx];
         s1 -= sums_of_keys[next_idx];

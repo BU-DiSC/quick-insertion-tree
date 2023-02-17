@@ -37,4 +37,4 @@ OUTLIER_DETECTOR_TYPE = "STDEV"
 
 # Calculate the standard deviation using the LAST_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0,
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
-LAST_K_STDEV = 2
+LAST_K_STDEV = 0
