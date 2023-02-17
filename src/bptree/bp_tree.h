@@ -28,8 +28,8 @@ protected:
     uint32_t size;
     uint32_t depth;
     key_type tree_min;
-    key_type tail_min;
-    key_type tail_max;
+    key_type tail_atleast;
+    key_type tree_max;
     BlockManager manager;
 
     void create_new_root(key_type key, node_t &node, node_t &new_node) {
@@ -157,9 +157,8 @@ protected:
             if (head_id == leaf.info->id) { // && index == 0
                 tree_min = leaf.keys[0];
             }
-            if (tail_id == leaf.info->id) { // && index == 0
-                tail_min = leaf.keys[0];
-                tail_max = leaf.keys[leaf.info->size - 1];
+            if (tail_id == leaf.info->id) { // && index == leaf.info->size - 1
+                tree_max = leaf.keys[leaf.info->size - 1];
             }
             return true;
         }
@@ -198,8 +197,8 @@ protected:
         }
         if (tail_id == leaf.info->id) {
             tail_id = new_leaf_id;
-            tail_min = new_leaf.keys[0];
-            tail_max = new_leaf.keys[new_leaf.info->size - 1];
+            tail_atleast = leaf.keys[node_t::leaf_capacity - 1] + 1;
+            tree_max = new_leaf.keys[new_leaf.info->size - 1];
             update_stats(leaf);
         }
 
@@ -209,7 +208,7 @@ protected:
         }
 
         // insert new key to parent
-        internal_insert(new_leaf.info->parent_id, new_leaf.keys[0], new_leaf_id);
+        internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id);
         return true;
     }
 
@@ -241,8 +240,7 @@ public:
     }
 
     bool update(const key_type &key, const value_type &value) override {
-        node_t leaf(manager.open_block(root_id));
-        assert(leaf.info->id == root_id);
+        node_t leaf;
         find_leaf(leaf, key);
         return leaf_update(leaf, key, value);
     }
@@ -254,8 +252,7 @@ public:
     }
 
     std::optional<value_type> get(const key_type &key) override {
-        node_t leaf(manager.open_block(root_id));
-        assert(leaf.info->id == root_id);
+        node_t leaf;
         find_leaf(leaf, key);
         uint32_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {

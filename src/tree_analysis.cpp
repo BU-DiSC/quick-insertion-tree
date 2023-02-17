@@ -71,8 +71,8 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
             bool res = store.contains(query_index);
             auto stop_q = std::chrono::high_resolution_clock::now();
             query_time += stop_q - start_q;
-            mix_queries++;
             empty_queries += !res;
+            mix_queries++;
         }
     }
     duration = (insert_time - start);
@@ -97,11 +97,14 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
+    int count = 0;
+    std::cerr << "\n";
     for (const auto &item: data) {
         if (!store.contains(item)) {
-            std::cerr << "Error: " << item << " not found\n";
+            count++;
         }
     }
+    std::cerr << "Error: " << count << " not found\n";
 }
 
 void display_help(const char *name) {

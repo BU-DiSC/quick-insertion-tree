@@ -20,7 +20,7 @@ public:
 
     bool insert(const key_type &key, const value_type &value) override
     {
-        if (super::size > 0 && key >= super::tail_min)
+        if (super::root_id != super::tail_id && key >= super::tail_atleast)
         {
             node_t tail(super::manager.open_block(super::tail_id));
             return super::leaf_insert(tail, key, value);
@@ -30,7 +30,7 @@ public:
 
     bool update(const key_type &key, const value_type &value) override
     {
-        if (super::size > 0 && key >= super::tail_min)
+        if (super::root_id != super::tail_id && key >= super::tail_atleast)
         {
             node_t tail(super::manager.open_block(super::tail_id));
             return super::leaf_update(tail, key, value);

@@ -54,6 +54,7 @@ public:
             sums_of_keys = new key_type[k + 1]{};
             sums_of_squares = new key_type[k + 1]{};
         } else {
+            k = 0;
             leaf_size = nullptr;
             sums_of_squares = nullptr;
             sums_of_keys = nullptr;

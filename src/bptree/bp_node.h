@@ -1,10 +1,11 @@
 #ifndef BP_NODE_H
 #define BP_NODE_H
 
-#include "block_manager.h"
-#include "kv_store.h"
 #include <algorithm>
 #include <ostream>
+
+#include "block_manager.h"
+#include "kv_store.h"
 
 struct bp_node_info {
     uint32_t id;
@@ -73,7 +74,7 @@ public:
 
     uint32_t child_slot(const key_type &key) const {
         assert(info->type == bp_node_info::INTERNAL);
-        return std::upper_bound(keys, keys + info->size, key) - keys;
+        return std::lower_bound(keys, keys + info->size, key) - keys;
     }
 
 };
