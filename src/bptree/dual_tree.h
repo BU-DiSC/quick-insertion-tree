@@ -185,8 +185,7 @@ public:
             ctr_outlier_global++;
             return;
         }
-
-        if (lazy_move && key < super::tail_max && super::size == node_t::leaf_capacity && outlier_detector->is_outlier(super::tail_max))
+        if (lazy_move && key < super::tail_max && super::get_tail_leaf_size() == node_t::leaf_capacity && outlier_detector->is_outlier(super::tail_max))
         {
             std::pair<key_type, value_type> max_kv = swap_max(key, value);
 #ifdef DUAL_FILTERS
