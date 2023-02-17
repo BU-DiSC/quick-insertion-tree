@@ -17,6 +17,8 @@ public:
 
     virtual void update(const key_type *keys, uint32_t size) = 0;
 
+    virtual void remove(const key_type &rem_key, const key_type &add_key) = 0;
+
     virtual ~OutlierDetector() = default;
 };
 

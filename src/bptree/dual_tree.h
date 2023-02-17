@@ -177,10 +177,13 @@ public:
             return;
         }
 
-        outlier_detector &&key > super::tree_max && outlier_detector->is_outlier(key);
+        // here we make sure we update outlier detector for every key
+        // I removed key > super::tree_max condition as we need to update otherwise also 
+        outlier_detector && outlier_detector->is_outlier(key);
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
+        // obvious_outlier_detector->is_outlier(key)
         if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key))
         {
             // insert outlier key to unsorted tree
@@ -206,6 +209,9 @@ public:
                 bf2.Insert(&max_kv.first, sizeof(key_type));
 #endif
                 outlier_tree.insert(max_kv.first, max_kv.second);
+
+                // we have to remove tree_max from outlier_detector and add key to outlier_detector
+                outlier_detector->remove(super::tree_max, key);
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
                 ctr_lazymove++;

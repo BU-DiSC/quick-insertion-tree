@@ -21,9 +21,9 @@ class StdevDetector : public OutlierDetector<key_type>
     // the number of elements to consider when calculating the standard deviation.
     size_t s0;
     // the sum of the s0 elements
-    key_type s1;
+    long long s1;
     // the sum of the squares of the s0 elements
-    key_type s2;
+    long long s2;
 
     // Stdev of last k nodes
     size_t k;
@@ -91,9 +91,9 @@ public:
             s2 = x * x;
             return false;
         }
-        key_type _s1 = s1 + x;
+        long long _s1 = s1 + x;
         double mean = _s1 / (double)_s0;
-        key_type _s2 = s2 + x * x;
+        long long _s2 = s2 + x * x;
         double std_dev = sqrt((_s2 - _s1 * mean) / _s0);
 
         // we ideally want to use old mean and old std_dev to compare
@@ -101,18 +101,34 @@ public:
         double old_std_dev = sqrt((s2 - s1 * old_mean) / s0);
         if (old_mean <= 1 && old_std_dev < 1)
         {
+            prev_key = key;
+            s0 = _s0;
+            s1 = _s1;
+            s2 = _s2;
             return false;
         }
         if (x > old_mean + num_stdev * old_std_dev)
-        // if (x > mean + num_stdev * std_dev)
         {
             return true;
         }
+        // if (x > mean + num_stdev * std_dev)
         prev_key = key;
         s0 = _s0;
         s1 = _s1;
         s2 = _s2;
         return false;
+    }
+
+    void remove(const key_type &rem_key, const key_type &add_key) override
+    {
+        s1 -= rem_key;
+        s2 -= (rem_key * rem_key);
+
+        s1 += add_key;
+        s2 += (add_key * add_key);
+
+        // set prev_key to add_key
+        prev_key = add_key;
     }
 
     void update(const key_type *keys, uint32_t size) override
