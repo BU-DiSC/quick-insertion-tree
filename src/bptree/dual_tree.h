@@ -12,8 +12,9 @@
 #include "config.h"
 #include "fast_append_tree.h"
 
-template<typename key_type, typename value_type>
-class dual_tree : public FastAppendTree<key_type, value_type> {
+template <typename key_type, typename value_type>
+class dual_tree : public FastAppendTree<key_type, value_type>
+{
     using super = FastAppendTree<key_type, value_type>;
     using node_t = bp_node<key_type, value_type>;
 
@@ -38,25 +39,27 @@ class dual_tree : public FastAppendTree<key_type, value_type> {
     uint32_t ctr_sortedtree_update;
 
 protected:
-    void update_stats(const node_t &leaf) override {
-        if (outlier_detector) {
+    void update_stats(const node_t &leaf) override
+    {
+        if (outlier_detector)
+        {
             outlier_detector->update(leaf.keys, leaf.info->size);
         }
     }
 
 public:
     // Default constructor, disable the buffer.
-    dual_tree(const char *sorted_file, const char *outlier_file, const Config &config) :
-            super(sorted_file, config.blocks_in_memory / 2, config.sorted_tree_split_frac),
-            outlier_tree(outlier_file, config.blocks_in_memory / 2, config.unsorted_tree_split_frac)
+    dual_tree(const char *sorted_file, const char *outlier_file, const Config &config) : super(sorted_file, config.blocks_in_memory / 2, config.sorted_tree_split_frac),
+                                                                                         outlier_tree(outlier_file, config.blocks_in_memory / 2, config.unsorted_tree_split_frac)
 #ifdef DUAL_FILTERS
-            , bf1(65536, 2), bf2(65536, 2)
+                                                                                         ,
+                                                                                         bf1(65536, 2), bf2(65536, 2)
 #endif
     {
 #ifdef ENABLE_HEAP
         heap_buffer = config.get_heap_buffer<key_type, value_type>();
 #endif
-        obvious_outlier_detector = nullptr;
+        obvious_outlier_detector = config.get_detector<key_type>();
         outlier_detector = config.get_detector<key_type>();
         lazy_move = config.enable_lazy_move;
 #ifdef DUAL_FILTERS
@@ -71,7 +74,8 @@ public:
         ctr_sortedtree_update = 0;
     }
 
-    ~dual_tree() {
+    ~dual_tree()
+    {
 #ifdef ENABLE_HEAP
         delete heap_buffer;
 #endif
@@ -79,7 +83,8 @@ public:
         delete obvious_outlier_detector;
     }
 
-    std::ostream &get_stats(std::ostream &os) const override {
+    std::ostream &get_stats(std::ostream &os) const override
+    {
         os << "DUAL"
            << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites()
            << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites()
@@ -93,7 +98,8 @@ public:
      * @param value
      * @return true
      */
-    bool insert(const key_type &key, const value_type &value) override {
+    bool insert(const key_type &key, const value_type &value) override
+    {
 #if DUAL_FILTERS == 1
         if (bf1.Lookup(&key, sizeof(key_type)) || bf2.Lookup(&key, sizeof(key_type)))
         {
@@ -120,7 +126,8 @@ public:
         return true;
     }
 
-    void sortedness_insert(key_type key, value_type value) {
+    void sortedness_insert(key_type key, value_type value)
+    {
 #ifdef ENABLE_HEAP
         if (heap_buffer)
         {
@@ -141,19 +148,26 @@ public:
             }
         }
 #endif
-        if (super::size == 0) {
+        if (super::size == 0)
+        {
             // if the tree is empty, insert directly to sorted tree
 #ifdef DUAL_FILTERS
             bf1.Insert(&key, sizeof(key_type));
 #endif
             super::insert(key, value);
-            if (outlier_detector) {
+            if (outlier_detector)
+            {
                 outlier_detector->init(key);
+            }
+            if (obvious_outlier_detector)
+            {
+                obvious_outlier_detector->init(key);
             }
             return;
         }
 
-        if (super::root_id != super::tail_id && key < super::tail_atleast) {
+        if (super::root_id != super::tail_id && key < super::tail_atleast)
+        {
             // when key is smaller than tail_atleast, insert directly to unsorted tree
 #ifdef DUAL_FILTERS
             bf2.Insert(&key, sizeof(key_type));
@@ -165,7 +179,8 @@ public:
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
-        if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key)) {
+        if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key))
+        {
             // insert outlier key to unsorted tree
 #ifdef DUAL_FILTERS
             bf2.Insert(&key, sizeof(key_type));
@@ -177,8 +192,10 @@ public:
             ctr_outlier_global++;
             return;
         }
-        if (lazy_move && outlier_detector && super::get_tail_leaf_size() == node_t::leaf_capacity) {
-            if (key < super::tree_max && outlier_detector->is_outlier(super::tree_max)) {
+        if (lazy_move && outlier_detector && super::get_tail_leaf_size() == node_t::leaf_capacity)
+        {
+            if (key < super::tree_max && outlier_detector->is_outlier(super::tree_max))
+            {
                 std::pair<key_type, value_type> max_kv = swap_max(key, value);
 #ifdef DUAL_FILTERS
                 bf1.Delete(&max_kv.first, sizeof(key_type));
@@ -191,7 +208,9 @@ public:
                 ctr_lazymove++;
                 // std::cout << "lazy move used" << std::endl;
                 return;
-            } else if (key > super::tree_max && outlier_detector->is_outlier(key)) {
+            }
+            else if (key > super::tree_max && outlier_detector->is_outlier(key))
+            {
                 outlier_tree.insert(key, value);
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
@@ -207,7 +226,8 @@ public:
         super::insert(key, value);
     }
 
-    std::pair<key_type, value_type> swap_max(const key_type &key, const value_type &value) {
+    std::pair<key_type, value_type> swap_max(const key_type &key, const value_type &value)
+    {
         node_t tail(super::manager.open_block(super::tail_id));
         super::size--;
         tail.info->size--;
@@ -219,11 +239,13 @@ public:
         return max_kv;
     }
 
-    bool update(const key_type &key, const value_type &value) override {
+    bool update(const key_type &key, const value_type &value) override
+    {
         throw std::runtime_error("Dual update not implemented");
     }
 
-    std::optional<value_type> get(const key_type &key) override {
+    std::optional<value_type> get(const key_type &key) override
+    {
 #ifdef DUAL_FILTERS
         if (bf2.Lookup(&key, sizeof(key_type)))
         {
@@ -239,15 +261,18 @@ public:
         }
         return std::nullopt;
 #else
-        if (super::size > outlier_tree.size) {
+        if (super::size > outlier_tree.size)
+        {
             std::optional<value_type> result = super::get(key);
-            if (result.has_value()) {
+            if (result.has_value())
+            {
                 return result;
             }
             return outlier_tree.get(key);
         }
         std::optional<value_type> result = outlier_tree.get(key);
-        if (result.has_value()) {
+        if (result.has_value())
+        {
             return result;
         }
         return super::get(key);

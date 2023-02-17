@@ -3,7 +3,8 @@
 
 #include "outlier_detector.h"
 
-size_t lower_bound(size_t k) {
+size_t lower_bound(size_t k)
+{
     size_t x = k;
     x |= x >> 1;
     x |= x >> 2;
@@ -14,8 +15,9 @@ size_t lower_bound(size_t k) {
     return k == x ? k : x >> 1;
 }
 
-template<typename key_type>
-class StdevDetector : public OutlierDetector<key_type> {
+template <typename key_type>
+class StdevDetector : public OutlierDetector<key_type>
+{
     // the number of elements to consider when calculating the standard deviation.
     size_t s0;
     // the sum of the s0 elements
@@ -41,19 +43,28 @@ class StdevDetector : public OutlierDetector<key_type> {
     key_type *sums_of_squares;
 
     key_type prev_key;
+
 public:
-    void init(const key_type &key) override {
+    void init(const key_type &key) override
+    {
         prev_key = key;
+        s0 = 1;
+        s1 = key;
+        s2 = key * key;
     }
 
-    StdevDetector(double num_stdev, int _k) : num_stdev(num_stdev) {
+    StdevDetector(double num_stdev, int _k) : num_stdev(num_stdev)
+    {
         s0 = s1 = s2 = next_idx = 0;
-        if (_k != 0) {
+        if (_k != 0)
+        {
             k = lower_bound(_k);
             leaf_size = new size_t[k + 1]{};
             sums_of_keys = new key_type[k + 1]{};
             sums_of_squares = new key_type[k + 1]{};
-        } else {
+        }
+        else
+        {
             k = 0;
             leaf_size = nullptr;
             sums_of_squares = nullptr;
@@ -61,20 +72,28 @@ public:
         }
     }
 
-    ~StdevDetector() {
+    ~StdevDetector()
+    {
         delete[] leaf_size;
         delete[] sums_of_keys;
         delete[] sums_of_squares;
     }
 
-    bool is_outlier(const key_type &key) override {
+    bool is_outlier(const key_type &key) override
+    {
         key_type x = key - prev_key;
         size_t _s0 = s0 + 1;
         key_type _s1 = s1 + x;
-        double mean = _s1 / (double) _s0;
+        double mean = _s1 / (double)_s0;
         key_type _s2 = s2 + x * x;
         double std_dev = sqrt((_s2 - _s1 * mean) / _s0);
-        if (x > mean + num_stdev * std_dev) {
+
+        // we ideally want to use old mean and old std_dev to compare
+        double old_mean = s1 / s0;
+        double old_std_dev = sqrt((s2 - s1 * old_mean) / s0);
+        if (x > old_mean + num_stdev * old_std_dev)
+        // if (x > mean + num_stdev * std_dev)
+        {
             return true;
         }
         prev_key = key;
@@ -84,16 +103,19 @@ public:
         return false;
     }
 
-    void update(const key_type *keys, uint32_t size) override {
+    void update(const key_type *keys, uint32_t size) override
+    {
         // update function for last k nodes std outlier
-        if (k == 0) {
+        if (k == 0)
+        {
             return;
         }
 
         size_t keys_count = size;
         key_type keys_sum = 0;
         key_type key_squares_sum = 0;
-        for (int i = 0; i < size; ++i) {
+        for (int i = 0; i < size; ++i)
+        {
             const key_type &key = keys[i];
             keys_sum += key;
             key_squares_sum += key * key;
