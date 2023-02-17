@@ -203,7 +203,7 @@ protected:
         }
 
         if (leaf.info->id == root_id) {
-            create_new_root(new_leaf.keys[0], leaf, new_leaf);
+            create_new_root(leaf.keys[leaf.info->size - 1], leaf, new_leaf);
             return true;
         }
 
