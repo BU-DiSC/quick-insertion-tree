@@ -98,13 +98,14 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
     int count = 0;
-    std::cerr << "\n";
     for (const auto &item: data) {
         if (!store.contains(item)) {
             count++;
         }
     }
-    std::cerr << "Error: " << count << " not found\n";
+    if (count) {
+        std::cerr << "Error: " << count << " not found\n";
+    }
 }
 
 void display_help(const char *name) {
