@@ -166,9 +166,9 @@ public:
             return;
         }
 
-        if (super::root_id != super::tail_id && key < super::tail_atleast)
+        if (super::root_id != super::tail_id && key <= super::tail_not_less_than)
         {
-            // when key is smaller than tail_atleast, insert directly to unsorted tree
+            // when key is smaller than tail_not_less_than, insert directly to unsorted tree
 #ifdef DUAL_FILTERS
             bf2.Insert(&key, sizeof(key_type));
 #endif
