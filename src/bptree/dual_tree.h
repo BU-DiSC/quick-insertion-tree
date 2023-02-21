@@ -181,7 +181,7 @@ public:
 
         // here we make sure we update outlier detector for every key
         // I removed key > super::tree_max condition as we need to update otherwise also
-        outlier_detector && outlier_detector->is_outlier(key) && !lazy_move;
+        bool detected = outlier_detector && outlier_detector->is_outlier(key);
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
@@ -222,7 +222,7 @@ public:
                 // std::cout << "lazy move used" << std::endl;
                 return;
             }
-            else if (key > super::tree_max && outlier_detector->is_outlier(key))
+            else if (key > super::tree_max && detected)
             {
 #ifdef DUAL_FILTERS
                 bf2.Insert(&key, sizeof(key_type));
