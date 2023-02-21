@@ -181,7 +181,7 @@ public:
 
         // here we make sure we update outlier detector for every key
         // I removed key > super::tree_max condition as we need to update otherwise also
-        outlier_detector && outlier_detector->is_outlier(key);
+        outlier_detector && outlier_detector->is_outlier(key) && !lazy_move;
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
@@ -224,6 +224,9 @@ public:
             }
             else if (key > super::tree_max && outlier_detector->is_outlier(key))
             {
+#ifdef DUAL_FILTERS
+                bf2.Insert(&key, sizeof(key_type));
+#endif
                 outlier_tree.insert(key, value);
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
