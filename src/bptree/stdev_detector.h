@@ -112,7 +112,7 @@ public:
         if (is_outlier(key))
             return;
         key_type delta = key - prev_key;
-
+        prev_key = key;
         if (k == 0 || s0 < k)
         {
             s0++;
@@ -128,7 +128,6 @@ public:
         sums_of_squares[next_idx] = delta * delta;
 
         // update the new node to count, sum, and sum_square
-        prev_key = key;
         s1 += delta;
         s2 += delta * delta;
     }
