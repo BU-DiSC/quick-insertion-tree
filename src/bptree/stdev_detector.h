@@ -107,7 +107,8 @@ public:
             s2 = _s2;
             return false;
         }
-        if (x > old_mean + num_stdev * old_std_dev)
+        // if (x > old_mean + num_stdev * old_std_dev)
+        if (x > mean + num_stdev * std_dev)
         {
             return true;
         }
