@@ -40,13 +40,13 @@ class dual_tree : public FastAppendTree<key_type, value_type>
     uint32_t ctr_sortedtree_update;
 
 protected:
-    void update_stats(const node_t &leaf) override
-    {
-        if (outlier_detector)
-        {
-            // outlier_detector->update(leaf.keys, leaf.info->size);
-        }
-    }
+//    void update_stats(const node_t &leaf) override
+//    {
+//        if (outlier_detector)
+//        {
+//            // outlier_detector->update(leaf.keys, leaf.info->size);
+//        }
+//    }
 
 public:
     // Default constructor, disable the buffer.
@@ -181,7 +181,9 @@ public:
 
         // here we make sure we update outlier detector for every key
         // I removed key > super::tree_max condition as we need to update otherwise also
-        bool detected = outlier_detector && outlier_detector->is_outlier(key);
+        if (outlier_detector) {
+            outlier_detector->insert(key);
+        }
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
@@ -222,7 +224,7 @@ public:
                 // std::cout << "lazy move used" << std::endl;
                 return;
             }
-            else if (key > super::tree_max && detected)
+            else if (key > super::tree_max && outlier_detector->is_outlier(key))
             {
 #ifdef DUAL_FILTERS
                 bf2.Insert(&key, sizeof(key_type));

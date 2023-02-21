@@ -112,7 +112,7 @@ public:
         return false;
     }
 
-    void update(const key_type *keys, uint32_t size) override
+    void insert(const key_type &key) override
     {
     }
 };

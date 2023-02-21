@@ -81,43 +81,18 @@ public:
 
     bool is_outlier(const key_type &key) override
     {
-        key_type x = key - prev_key;
-        size_t _s0 = s0 + 1;
         if (s0 == 1)
         {
-            prev_key = key;
-            s0 = _s0;
-            s1 = x;
-            s2 = x * x;
             return false;
         }
-        long long _s1 = s1 + x;
-        double mean = _s1 / (double)_s0;
-        long long _s2 = s2 + x * x;
-        double std_dev = sqrt((_s2 - _s1 * mean) / _s0);
 
-        // we ideally want to use old mean and old std_dev to compare
-        double old_mean = s1 / s0;
-        double old_std_dev = sqrt((s2 - s1 * old_mean) / s0);
-        if (old_mean <= 1 && old_std_dev < 1)
+        double mean = s1 / (double) s0;
+        double std_dev = sqrt((s2 - s1 * mean) / (double) s0);
+        if (mean <= 1 && std_dev < 1)
         {
-            prev_key = key;
-            s0 = _s0;
-            s1 = _s1;
-            s2 = _s2;
             return false;
         }
-        // if (x > old_mean + num_stdev * old_std_dev)
-        if (x > mean + num_stdev * std_dev)
-        {
-            return true;
-        }
-        // if (x > mean + num_stdev * std_dev)
-        prev_key = key;
-        s0 = _s0;
-        s1 = _s1;
-        s2 = _s2;
-        return false;
+        return key - prev_key > mean + num_stdev * std_dev;
     }
 
     void remove(const key_type &rem_key, const key_type &add_key) override
@@ -132,43 +107,25 @@ public:
         prev_key = add_key;
     }
 
-    void update(const key_type *keys, uint32_t size) override
+    void insert(const key_type &key) override
     {
-
-        size_t keys_count = size;
-        key_type keys_sum = 0;
-        key_type key_squares_sum = 0;
-        for (int i = 0; i < size; ++i)
-        {
-            const key_type &key = keys[i];
-            keys_sum += key;
-            key_squares_sum += key * key;
-        }
-        // update function for last k nodes std outlier
-        if (k == 0)
-        {
-            s0 = keys_count;
-            s1 = keys_sum;
-            s2 = key_squares_sum;
+        if (is_outlier(key)) return;
+        if (k == 0 || s0 < k) {
+            s0++;
+            s1 += key;
+            s2 += key * key;
             return;
         }
-        // remove the popped node from count, sum, and sum_square
-        s0 -= leaf_size[next_idx];
         s1 -= sums_of_keys[next_idx];
         s2 -= sums_of_squares[next_idx];
 
         // update buffer
-        leaf_size[next_idx] = keys_count;
-        sums_of_keys[next_idx] = keys_sum;
-        sums_of_squares[next_idx] = key_squares_sum;
+        sums_of_keys[next_idx] = key;
+        sums_of_squares[next_idx] = key * key;
 
         // update the new node to count, sum, and sum_square
-        s0 += keys_count;
-        s1 += keys_sum;
-        s2 += key_squares_sum;
-
-        // update the next_idx that indicates the next node to pop
-        next_idx = (next_idx + 1) & k;
+        s1 += key;
+        s2 += key * key;
     }
 };
 
