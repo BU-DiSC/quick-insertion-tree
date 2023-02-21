@@ -7,6 +7,7 @@
 
 #include "dist_detector.h"
 #include "stdev_detector.h"
+#include "obvious_detector.h"
 #include "heap.h"
 
 void str2lower(std::string &str) {

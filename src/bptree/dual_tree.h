@@ -34,7 +34,8 @@ class dual_tree : public FastAppendTree<key_type, value_type>
     // meta data for keeping counters of lazy moves and delta redirects
     uint32_t ctr_lazymove;
     uint32_t ctr_outlier_global; // counter for the outer outlier detector
-    uint32_t ctr_direct;         // counter for direct insert to outlier tree
+    uint32_t ctr_outlier_local;
+    uint32_t ctr_direct; // counter for direct insert to outlier tree
     uint32_t ctr_outliertree_update;
     uint32_t ctr_sortedtree_update;
 
@@ -59,7 +60,7 @@ public:
 #ifdef ENABLE_HEAP
         heap_buffer = config.get_heap_buffer<key_type, value_type>();
 #endif
-        obvious_outlier_detector = config.get_detector<key_type>();
+        obvious_outlier_detector = new ObviousDetector<key_type>(3);
         outlier_detector = config.get_detector<key_type>();
         lazy_move = config.enable_lazy_move && outlier_detector; // right now we want the outlier detector always if we are using lazy move (which is actually lazy swap)
 #ifdef DUAL_FILTERS
@@ -72,6 +73,7 @@ public:
         ctr_direct = 0;
         ctr_outliertree_update = 0;
         ctr_sortedtree_update = 0;
+        ctr_outlier_local = 0;
     }
 
     ~dual_tree()
@@ -88,7 +90,7 @@ public:
         os << "DUAL"
            << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites()
            << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites()
-           << ", " << ctr_lazymove << ", " << ctr_outlier_global << ", " << ctr_direct
+           << ", " << ctr_lazymove << ", " << ctr_outlier_global << ", " << ctr_outlier_local << ", " << ctr_direct
            << ", " << ctr_sortedtree_update << ", " << ctr_outliertree_update;
         return os;
     }
@@ -178,7 +180,7 @@ public:
         }
 
         // here we make sure we update outlier detector for every key
-        // I removed key > super::tree_max condition as we need to update otherwise also 
+        // I removed key > super::tree_max condition as we need to update otherwise also
         outlier_detector && outlier_detector->is_outlier(key);
 
         // insert current key to sorted tree if it passes outlier check
@@ -213,6 +215,8 @@ public:
                 // we have to remove tree_max from outlier_detector and add key to outlier_detector
                 outlier_detector->remove(super::tree_max, key);
 
+                obvious_outlier_detector->remove(super::tree_max, key);
+
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
                 ctr_lazymove++;
                 // std::cout << "lazy move used" << std::endl;
@@ -223,7 +227,7 @@ public:
                 outlier_tree.insert(key, value);
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
-                ctr_outlier_global++;
+                ctr_outlier_local++;
                 // std::cout << "lazy move used" << std::endl;
                 return;
             }
