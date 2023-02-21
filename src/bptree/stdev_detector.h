@@ -86,8 +86,8 @@ public:
             return false;
         }
 
-        double mean = s1 / (double) s0;
-        double std_dev = sqrt((s2 - s1 * mean) / (double) s0);
+        double mean = s1 / (double)s0;
+        double std_dev = sqrt((s2 - s1 * mean) / (double)s0);
         if (mean <= 1 && std_dev < 1)
         {
             return false;
@@ -109,23 +109,27 @@ public:
 
     void insert(const key_type &key) override
     {
-        if (is_outlier(key)) return;
-        if (k == 0 || s0 < k) {
+        if (is_outlier(key))
+            return;
+        key_type delta = key - prev_key;
+        prev_key = key;
+        if (k == 0 || s0 < k)
+        {
             s0++;
-            s1 += key;
-            s2 += key * key;
+            s1 += delta;
+            s2 += delta * delta;
             return;
         }
         s1 -= sums_of_keys[next_idx];
         s2 -= sums_of_squares[next_idx];
 
         // update buffer
-        sums_of_keys[next_idx] = key;
-        sums_of_squares[next_idx] = key * key;
+        sums_of_keys[next_idx] = delta;
+        sums_of_squares[next_idx] = delta * delta;
 
         // update the new node to count, sum, and sum_square
-        s1 += key;
-        s2 += key * key;
+        s1 += delta;
+        s2 += delta * delta;
     }
 };
 
