@@ -43,12 +43,14 @@ class StdevDetector : public OutlierDetector<key_type>
     key_type *sums_of_squares;
 
     key_type prev_key;
+    int epsilon;
 
 public:
     void init(const key_type &key) override
     {
         prev_key = key;
         s0 = 1;
+        epsilon = 2;
         // s1 = 0;
         // s2 = 0;
     }
@@ -81,36 +83,61 @@ public:
 
     bool is_outlier(const key_type &key) override
     {
-        if (s0 <= 50)
-        {
-            return false;
-        }
+        // if (s0 <= 50)
+        // {
+        //     return false;
+        // }
 
         double mean = s1 / (double)s0;
         double std_dev = sqrt((s2 - s1 * mean) / (double)s0);
-        if (mean <= 1 && std_dev < 1)
+        // if (mean <= 1 && std_dev < 1)
+        // {
+        //     return false;
+        // }
+        int _epsilon = 0;
+        if (mean <= 1 || std_dev < 1)
         {
-            return false;
+            _epsilon = epsilon;
         }
-        return key - prev_key > mean + num_stdev * std_dev;
+        return key - prev_key > mean + num_stdev * (std_dev + _epsilon);
     }
 
     void remove(const key_type &rem_key) override
     {
         s1 -= rem_key;
         s2 -= (rem_key * rem_key);
-
-        s1 += add_key;
-        s2 += (add_key * add_key);
-
-        // set prev_key to add_key
-        prev_key = add_key;
+        s0--;
     }
 
-    void insert(const key_type &key) override
+    bool insert(const key_type &key) override
     {
         if (is_outlier(key))
-            return;
+            return false;
+        key_type delta = key - prev_key;
+        prev_key = key;
+        if (k == 0 || s0 < k)
+        {
+            s0++;
+            s1 += delta;
+            s2 += delta * delta;
+            return true;
+        }
+        s1 -= sums_of_keys[next_idx];
+        s2 -= sums_of_squares[next_idx];
+
+        // update buffer
+        sums_of_keys[next_idx] = delta;
+        sums_of_squares[next_idx] = delta * delta;
+
+        // update the new node to count, sum, and sum_square
+        s1 += delta;
+        s2 += delta * delta;
+
+        return true;
+    }
+
+    void force_insert(const key_type &key)
+    {
         key_type delta = key - prev_key;
         prev_key = key;
         if (k == 0 || s0 < k)

@@ -15,7 +15,8 @@ public:
 
     virtual bool is_outlier(const key_type &key) = 0;
 
-    virtual void insert(const key_type &key) = 0;
+    virtual bool insert(const key_type &key) = 0;
+    virtual void force_insert(const key_type &key) = 0;
 
     virtual void remove(const key_type &rem_key) = 0;
 

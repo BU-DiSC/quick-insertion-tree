@@ -112,7 +112,12 @@ public:
         return false;
     }
 
-    void insert(const key_type &key) override
+    bool insert(const key_type &key) override
+    {
+        return false;
+    }
+
+    void force_insert(const key_type &key)
     {
     }
 };
