@@ -29,21 +29,31 @@ struct Config {
     size_t blocks_in_memory;
     float init_tolerance_factor;
     float num_stdev;
+    float num_obvious; 
     float min_tolerance_factor;
     float expected_avg_distance;
     enum {
-        DIST, STDEV, NONE
-    } outlier_detector_type;
+        DIST, STDEV, BASIC, NONE
+    } outlier_detector_type, obvious_detector_type;
     int last_k_stdev;
+    int min_stdev_ct; 
 
     template<typename key_type>
-    OutlierDetector<key_type> *get_detector() const {
+    OutlierDetector<key_type> *get_outlier_detector() const {
         if (outlier_detector_type == DIST) {
             return new DistDetector<key_type>(init_tolerance_factor, min_tolerance_factor, expected_avg_distance);
         }
         if (outlier_detector_type == STDEV) {
             return new StdevDetector<key_type>(num_stdev, last_k_stdev);
-        }
+        }       
+        return nullptr;
+    }
+
+    template<typename key_type>
+    OutlierDetector<key_type> *get_obvious_detector() const {
+        if (obvious_detector_type == BASIC) {
+            return new ObviousDetector<key_type>(num_obvious);
+        }       
         return nullptr;
     }
 
@@ -66,10 +76,12 @@ struct Config {
 #endif
         init_tolerance_factor = 100;
         num_stdev = 3;
+        num_obvious = 3;
         min_tolerance_factor = 20;
         expected_avg_distance = 2.5;
         outlier_detector_type = NONE;
         last_k_stdev = 0;
+        min_stdev_ct = 30;
         blocks_in_memory = 15000;
         if (file == nullptr) return;
 
@@ -99,6 +111,8 @@ struct Config {
                 init_tolerance_factor = std::stof(knob_value);
             } else if (knob_name == "NUM_STDEV") {
                 num_stdev = std::stof(knob_value);
+            } else if (knob_name == "NUM_OBVIOUS") {
+                num_obvious = std::stof(knob_value);
             } else if (knob_name == "MIN_TOLERANCE_FACTOR") {
                 min_tolerance_factor = std::stof(knob_value);
             } else if (knob_name == "EXPECTED_AVG_DISTANCE") {
@@ -111,8 +125,16 @@ struct Config {
                 } else {
                     std::cerr << "Invalid OUTLIER_DETECTOR_TYPE: " << knob_value << std::endl;
                 }
+            } else if (knob_name == "OBVIOUS_DETECTOR_TYPE") {
+                if (knob_value == "\"BASIC\"") {
+                    obvious_detector_type = BASIC;
+                } else {
+                    std::cerr << "Invalid OBVIOUS_DETECTOR_TYPE: " << knob_value << std::endl;
+                }
             } else if (knob_name == "LAST_K_STDEV") {
                 last_k_stdev = std::stoi(knob_value);
+            } else if (knob_name == "MIN_STDEV_CT") {
+                min_stdev_ct = std::stoi(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }

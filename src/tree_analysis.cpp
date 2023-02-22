@@ -19,7 +19,7 @@ std::vector<int> read_file(const char *filename) {
 }
 
 void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned raw_read_perc, unsigned raw_write_perc,
-              unsigned mix_load_perc, unsigned updates_perc, const std::string &seed) {
+              unsigned mix_load_perc, unsigned updates_perc, const std::string &seed, const int K_init, const int L_init) {
     unsigned num_inserts = data.size();
 
     unsigned raw_queries = raw_read_perc / 100.0 * num_inserts;
@@ -95,7 +95,8 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
         store.insert(data[range_distribution(generator) % data.size()], 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
+    results << ", " << duration.count() << ", " << empty_queries << ", " << store 
+    <<", " << K_init << ", " << L_init << "\n";
 
     int count = 0;
     for (const auto &item: data) {
@@ -128,6 +129,7 @@ int main(int argc, char **argv) {
     }
 
     const char *input_file = argv[1];
+    float K_init = 0.0, L_init = 0.0;
     const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
     const char *outlier_dat = "outlier.dat";
@@ -163,6 +165,10 @@ int main(int argc, char **argv) {
             type = TreeType::FAST;
         } else if (strcmp(argv[i], "--dual") == 0) {
             type = TreeType::DUAL;
+        } else if (strcmp(argv[i], "--K") == 0) {
+            K_init = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--L") == 0) {
+            L_init = atof(argv[++i]);
         } else {
             std::cerr << "Discarding option: " << argv[i] << std::endl;
         }
@@ -182,19 +188,19 @@ int main(int argc, char **argv) {
         case SIMPLE: {
             std::cout << "Single B+ tree" << std::endl;
             bp_tree<int, int> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
             break;
         }
         case FAST: {
             std::cout << "Fast Append B+ tree" << std::endl;
             FastAppendTree<int, int> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
             break;
         }
         case DUAL: {
             std::cout << "Dual B+ tree" << std::endl;
             dual_tree<int, int> tree(tree_dat, outlier_dat, config);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
+            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
             break;
         }
     }

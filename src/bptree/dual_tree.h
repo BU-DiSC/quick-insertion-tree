@@ -60,8 +60,8 @@ public:
 #ifdef ENABLE_HEAP
         heap_buffer = config.get_heap_buffer<key_type, value_type>();
 #endif
-        obvious_outlier_detector = new ObviousDetector<key_type>(3);
-        outlier_detector = config.get_detector<key_type>();
+        obvious_outlier_detector = config.get_obvious_detector<key_type>();
+        outlier_detector = config.get_outlier_detector<key_type>();
         lazy_move = config.enable_lazy_move && outlier_detector; // right now we want the outlier detector always if we are using lazy move (which is actually lazy swap)
 #ifdef DUAL_FILTERS
         std::cout << "DUAL FILTERS STRATEGY " << DUAL_FILTERS << std::endl;

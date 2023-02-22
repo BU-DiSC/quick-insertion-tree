@@ -81,7 +81,7 @@ public:
 
     bool is_outlier(const key_type &key) override
     {
-        if (s0 == 1)
+        if (s0 <= 50)
         {
             return false;
         }

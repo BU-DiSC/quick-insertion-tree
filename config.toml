@@ -22,6 +22,8 @@ INIT_TOLERANCE_FACTOR = 100
 # (of the sorted tree).
 NUM_STDEV = 3
 
+NUM_OBVIOUS = 3
+
 # The minimum value of the TOLERANCE_FACTOR, when the value of tolerance factor is too small,
 # most tuples will be inserted to the unsorted tree, thus we need to keep the value from too small.
 # This value should be less than @INIT_TOLERANCE_FACTOR
@@ -35,6 +37,10 @@ EXPECTED_AVG_DISTANCE = 2.5
 # Outlier detector type: distance-based=DIST, stdev-based=STDEV
 OUTLIER_DETECTOR_TYPE = "STDEV"
 
+OBVIOUS_DETECTOR_TYPE = "BASIC"
+
 # Calculate the standard deviation using the LAST_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0,
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
 LAST_K_STDEV = 0
+
+MIN_STDEV_CT = 250
