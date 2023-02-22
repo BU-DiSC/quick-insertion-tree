@@ -43,4 +43,4 @@ OBVIOUS_DETECTOR_TYPE = "BASIC"
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
 LAST_K_STDEV = 0
 
-MIN_STDEV_CT = 250
+MIN_STDEV_CT = 50

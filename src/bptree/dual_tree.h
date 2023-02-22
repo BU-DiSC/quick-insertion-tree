@@ -39,15 +39,6 @@ class dual_tree : public FastAppendTree<key_type, value_type>
     uint32_t ctr_outliertree_update;
     uint32_t ctr_sortedtree_update;
 
-protected:
-//    void update_stats(const node_t &leaf) override
-//    {
-//        if (outlier_detector)
-//        {
-//            // outlier_detector->update(leaf.keys, leaf.info->size);
-//        }
-//    }
-
 public:
     // Default constructor, disable the buffer.
     dual_tree(const char *sorted_file, const char *outlier_file, const Config &config) : super(sorted_file, config.blocks_in_memory / 2, config.sorted_tree_split_frac),
@@ -168,9 +159,9 @@ public:
             return;
         }
 
-        if (super::root_id != super::tail_id && key <= super::tail_not_less_than)
+        if (super::root_id != super::tail_id && key <= super::tail_greater_than)
         {
-            // when key is smaller than tail_not_less_than, insert directly to unsorted tree
+            // when key is smaller than tail_greater_than, insert directly to unsorted tree
 #ifdef DUAL_FILTERS
             bf2.Insert(&key, sizeof(key_type));
 #endif
@@ -183,6 +174,9 @@ public:
         // I removed key > super::tree_max condition as we need to update otherwise also
         if (outlier_detector) {
             outlier_detector->insert(key);
+        }
+        if (obvious_outlier_detector) {
+            obvious_outlier_detector->insert(key);
         }
 
         // insert current key to sorted tree if it passes outlier check

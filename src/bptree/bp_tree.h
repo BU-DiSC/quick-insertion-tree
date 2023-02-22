@@ -28,7 +28,7 @@ protected:
     uint32_t size;
     uint32_t depth;
     key_type tree_min;
-    key_type tail_not_less_than;
+    key_type tail_greater_than;
     key_type tree_max;
     BlockManager manager;
 
@@ -135,9 +135,6 @@ protected:
         }
     }
 
-    virtual void update_stats(const node_t &leaf) {
-    }
-
     bool leaf_insert(node_t &leaf, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
         uint32_t index = leaf.value_slot(key);
@@ -197,9 +194,8 @@ protected:
         }
         if (tail_id == leaf.info->id) {
             tail_id = new_leaf_id;
-            tail_not_less_than = leaf.keys[leaf.info->size - 1];
+            tail_greater_than = leaf.keys[leaf.info->size - 1];
             tree_max = new_leaf.keys[new_leaf.info->size - 1];
-            update_stats(leaf);
         }
 
         if (leaf.info->id == root_id) {

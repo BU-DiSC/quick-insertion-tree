@@ -18,7 +18,7 @@ class ObviousDetector : public OutlierDetector<key_type>
     double threshold = 3;
 
 public:
-    ObviousDetector(double _threshold) : threshold(_threshold)
+    explicit ObviousDetector(double _threshold) : threshold(_threshold)
     {
         counter = 0;
     }
@@ -31,15 +31,13 @@ public:
 
     void remove(const key_type &rem_key, const key_type &add_key)
     {
-
         previous_key = add_key;
-        // return;
     }
 
     bool is_outlier(const key_type &key) override
     {
         key_type delta = key - previous_key;
-        if (delta > threshold * (previous_key + 1)) // do +1 because prev_key can be 0 and shit goes crazy 
+        if (delta > threshold * (previous_key + 1)) // do +1 because prev_key can be 0 and shit goes crazy
             return true;
 
         previous_key = key;
