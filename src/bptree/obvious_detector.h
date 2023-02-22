@@ -29,7 +29,7 @@ public:
         counter = 1;
     }
 
-    void remove(const key_type &rem_key, const key_type &add_key)
+    void remove(const key_type &rem_key)
     {
         previous_key = add_key;
     }

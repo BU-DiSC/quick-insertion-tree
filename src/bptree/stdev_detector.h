@@ -95,7 +95,7 @@ public:
         return key - prev_key > mean + num_stdev * std_dev;
     }
 
-    void remove(const key_type &rem_key, const key_type &add_key) override
+    void remove(const key_type &rem_key) override
     {
         s1 -= rem_key;
         s2 -= (rem_key * rem_key);

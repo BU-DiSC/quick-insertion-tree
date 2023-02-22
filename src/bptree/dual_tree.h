@@ -195,30 +195,28 @@ public:
             ctr_outlier_global++;
             return;
         }
+        bool add_it_back = false;
         if (lazy_move && super::get_tail_leaf_size() == node_t::leaf_capacity)
         {
-
-            if (key < super::tree_max && outlier_detector->is_outlier(super::tree_max))
+            if (key < super::tree_max)
             {
                 std::pair<key_type, value_type> max_kv = swap_max(key, value);
 #ifdef DUAL_FILTERS
                 bf1.Delete(&max_kv.first, sizeof(key_type));
                 bf1.Insert(&key, sizeof(key_type));
-                bf2.Insert(&max_kv.first, sizeof(key_type));
 #endif
-                outlier_tree.insert(max_kv.first, max_kv.second);
-
+                key = max_kv.first;
+                value = max_kv.second;
                 // we have to remove tree_max from outlier_detector and add key to outlier_detector
-                outlier_detector->remove(super::tree_max, key);
-
-                obvious_outlier_detector->remove(super::tree_max, key);
+                outlier_detector->remove(max_kv.first);
+                obvious_outlier_detector->remove(max_kv.first);
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
                 ctr_lazymove++;
+                add_it_back = true;
                 // std::cout << "lazy move used" << std::endl;
-                return;
             }
-            else if (key > super::tree_max && outlier_detector->is_outlier(key))
+            if (outlier_detector->is_outlier(super::tree_max))
             {
 #ifdef DUAL_FILTERS
                 bf2.Insert(&key, sizeof(key_type));
@@ -235,6 +233,10 @@ public:
 #ifdef DUAL_FILTERS
         bf1.Insert(&key, sizeof(key_type));
 #endif
+        if (add_it_back) {
+            outlier_detector->insert(key);
+            obvious_outlier_detector->insert(key);
+        }
         super::insert(key, value);
     }
 

@@ -17,7 +17,7 @@ public:
 
     virtual void insert(const key_type &key) = 0;
 
-    virtual void remove(const key_type &rem_key, const key_type &add_key) = 0;
+    virtual void remove(const key_type &rem_key) = 0;
 
     virtual ~OutlierDetector() = default;
 };
