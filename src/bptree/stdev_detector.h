@@ -81,12 +81,52 @@ public:
         delete[] sums_of_squares;
     }
 
+    bool _is_outlier(key_type *keys, uint32_t size, const key_type &key)
+    {
+        key_type deltas = 0;
+        key_type deltas_sq = 0;
+        key_type something = 0;
+        for (size_t i = 1; i < size; i++)
+        {
+            key_type delta = keys[i] - keys[i - 1];
+            deltas += delta;
+            // deltas_sq += delta * delta;
+        }
+        double mean = deltas / (double)(size - 1);
+
+        for (size_t i = 1; i < size; i++)
+        {
+            key_type delta = keys[i] - keys[i - 1];
+            something += (delta - mean) * (delta - mean);
+        }
+
+        // double std_dev = sqrt((deltas_sq - deltas * mean) / (double)(size - 1));
+        double std_dev = sqrt(something / (double)(size - 1));
+
+        int _epsilon = 0;
+        if (mean <= 1 || std_dev < 1)
+        {
+            _epsilon = epsilon;
+        }
+        return key - keys[size - 1] > mean + num_stdev * (std_dev + _epsilon);
+    }
+
+    bool is_outlier(key_type *keys, uint32_t size, const key_type &key) override
+    {
+
+        for (size_t i = size / 2; i < size; i++)
+        {
+            if (_is_outlier(keys, i - 1, keys[i]))
+            {
+                return true;
+            }
+            // deltas_sq += delta * delta;
+        }
+        return _is_outlier(keys, size, key);
+    }
+
     bool is_outlier(const key_type &key) override
     {
-        // if (s0 <= 50)
-        // {
-        //     return false;
-        // }
 
         double mean = s1 / (double)s0;
         double std_dev = sqrt((s2 - s1 * mean) / (double)s0);
@@ -100,6 +140,23 @@ public:
             _epsilon = epsilon;
         }
         return key - prev_key > mean + num_stdev * (std_dev + _epsilon);
+    }
+
+    bool is_outlier(const key_type &key, const key_type &prev) override
+    {
+
+        double mean = s1 / (double)s0;
+        double std_dev = sqrt((s2 - s1 * mean) / (double)s0);
+        // if (mean <= 1 && std_dev < 1)
+        // {
+        //     return false;
+        // }
+        int _epsilon = 0;
+        if (mean <= 1 || std_dev < 1)
+        {
+            _epsilon = epsilon;
+        }
+        return key - prev > mean + num_stdev * (std_dev + _epsilon);
     }
 
     void remove(const key_type &rem_key) override

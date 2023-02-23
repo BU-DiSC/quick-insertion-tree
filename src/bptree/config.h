@@ -53,6 +53,9 @@ struct Config {
     OutlierDetector<key_type> *get_obvious_detector() const {
         if (obvious_detector_type == BASIC) {
             return new ObviousDetector<key_type>(num_obvious);
+        }     
+         if (obvious_detector_type == STDEV) {
+            return new StdevDetector<key_type>(num_stdev, last_k_stdev);
         }       
         return nullptr;
     }
@@ -128,6 +131,9 @@ struct Config {
             } else if (knob_name == "OBVIOUS_DETECTOR_TYPE") {
                 if (knob_value == "\"BASIC\"") {
                     obvious_detector_type = BASIC;
+                } 
+                else if (knob_value == "\"STDEV\"") {
+                    obvious_detector_type = STDEV;
                 } else {
                     std::cerr << "Invalid OBVIOUS_DETECTOR_TYPE: " << knob_value << std::endl;
                 }
