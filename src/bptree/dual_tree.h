@@ -225,7 +225,7 @@ public:
                 add_it_back = true; // this is for the max_kv that could be a split key or redirected to outlier
             }
             node_t tail(super::manager.open_block(super::tail_id));
-            if (outlier_detector && outlier_detector->is_outlier(tail.keys, tail.info->size - 1, super::tree_max))
+            if (outlier_detector && outlier_detector->has_outlier(tail.keys, tail.info->size))
             {
 #ifdef DUAL_FILTERS
                 bf2.Insert(&key, sizeof(key_type));
