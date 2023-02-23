@@ -174,14 +174,6 @@ public:
         // here we make sure we update outlier detector for every key
         // I removed key > super::tree_max condition as we need to update otherwise also
         bool outlier_added = false, obvious_added = false;
-        // if (outlier_detector)
-        // {
-        //     outlier_added = outlier_detector->insert(key);
-        // }
-        // if (obvious_outlier_detector)
-        // {
-        //     obvious_added = obvious_outlier_detector->insert(key);
-        // }
 
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
@@ -200,6 +192,13 @@ public:
             return;
         }
 
+        // by this point we are sure that if it was an outlier, we would have returned
+        // now add the key to the obvious detector
+        if (obvious_outlier_detector)
+        {
+            obvious_added = obvious_outlier_detector->insert(key);
+        }
+
         bool add_it_back = false;
         if (lazy_move && super::get_tail_leaf_size() == node_t::leaf_capacity)
         {
@@ -211,22 +210,11 @@ public:
                 bf1.Insert(&key, sizeof(key_type));
 #endif
 
-                // we have to remove tree_max from outlier_detector
-                // we may also have to add key to both the detectors as we have inserted key to sorted tree
-                // however, if these were already added before, we don't need to do so again
-                // if (outlier_detector)
-                // {
-                //     outlier_detector->remove(max_kv.first);
-                //     if (!outlier_added)
-                //         outlier_detector->force_insert(key); // I don't care if this is an outlier
-                // }
 
-                // if (obvious_outlier_detector)
-                // {
-                //     obvious_outlier_detector->remove(max_kv.first);
-                //     if (!obvious_added)
-                //         obvious_outlier_detector->force_insert(key); // I don't care if this is an outlier
-                // }
+                if (obvious_outlier_detector)
+                {
+                    obvious_outlier_detector->remove(max_kv.first);
+                }
 
                 // make life easy by re-assigning key to the max swapped
                 key = max_kv.first;
@@ -235,7 +223,6 @@ public:
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
                 ctr_lazymove++;
                 add_it_back = true; // this is for the max_kv that could be a split key or redirected to outlier
-                // std::cout << "lazy move used" << std::endl;
             }
             node_t tail(super::manager.open_block(super::tail_id));
             if (outlier_detector && outlier_detector->is_outlier(tail.keys, tail.info->size - 1, super::tree_max))
@@ -247,7 +234,6 @@ public:
 
                 // this was a lazy swap so increment that counter; this counter also signifies number of local outlier detector catches
                 ctr_outlier_local++;
-                // std::cout << "lazy move used" << std::endl;
                 return;
             }
         }
@@ -255,15 +241,11 @@ public:
 #ifdef DUAL_FILTERS
         bf1.Insert(&key, sizeof(key_type));
 #endif
-        // if (add_it_back)
-        // {
-        //     // this meant we didn't redirect the key (if we swapped) to the outlier tree
-        //     // since we removed it, add it back
-        //     if (outlier_detector)
-        //         outlier_detector->insert(key);
-        //     if (obvious_outlier_detector)
-        //         obvious_outlier_detector->insert(key);
-        // }
+        if (add_it_back)
+        {
+            if (obvious_outlier_detector)
+                obvious_outlier_detector->force_insert(key);
+        }
         super::insert(key, value);
     }
 
