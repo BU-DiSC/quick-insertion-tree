@@ -50,7 +50,7 @@ public:
     {
         prev_key = key;
         s0 = 1;
-        epsilon = 2;
+        epsilon = 5;
         // s1 = 0;
         // s2 = 0;
     }
@@ -105,13 +105,15 @@ public:
 
     bool has_outlier(key_type *keys, const uint32_t &size) override
     {
-        for (size_t i = size / 2; i < size; i++)
-        {
-            if (_is_outlier(keys, i - 1, keys[i]))
-            {
-                return true;
-            }
-        }
+//        for (size_t i = size / 2; i < size; i++)
+//        {
+//            if (_is_outlier(keys, i - 1, keys[i]))
+//            {
+//                return true;
+//            }
+//        }
+//        return false;
+        return keys[size * 2 / 3] + (keys[size * 2 / 3] - keys[0]) * 1.5 < keys[size - 1];
     }
 
     bool is_outlier(const key_type &key) override
