@@ -178,7 +178,8 @@ public:
         // insert current key to sorted tree if it passes outlier check
         // note that we only set outlier check for key > tree_max
         // obvious_outlier_detector->is_outlier(key)
-        if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key, super::tree_max))
+
+        if (obvious_outlier_detector && key > super::tree_max && obvious_outlier_detector->is_outlier(key, super::tail_greater_than))
         {
             // insert outlier key to unsorted tree
 #ifdef DUAL_FILTERS
@@ -194,10 +195,10 @@ public:
 
         // by this point we are sure that if it was an outlier, we would have returned
         // now add the key to the obvious detector
-        if (obvious_outlier_detector)
-        {
-            obvious_added = obvious_outlier_detector->insert(key);
-        }
+        // if (obvious_outlier_detector)
+        // {
+        //     obvious_added = obvious_outlier_detector->insert(key);
+        // }
 
         bool add_it_back = false;
         if (lazy_move && super::get_tail_leaf_size() == node_t::leaf_capacity)
@@ -209,7 +210,6 @@ public:
                 bf1.Delete(&max_kv.first, sizeof(key_type));
                 bf1.Insert(&key, sizeof(key_type));
 #endif
-
 
                 if (obvious_outlier_detector)
                 {
@@ -236,16 +236,19 @@ public:
                 ctr_outlier_local++;
                 return;
             }
+            // we know if we reach here, there will be a split
+            if (obvious_outlier_detector)
+                obvious_outlier_detector->insert(super::tree_max - tail.keys[0]);
         }
 
 #ifdef DUAL_FILTERS
         bf1.Insert(&key, sizeof(key_type));
 #endif
-        if (add_it_back)
-        {
-            if (obvious_outlier_detector)
-                obvious_outlier_detector->force_insert(key);
-        }
+        // if (add_it_back)
+        // {
+        //     if (obvious_outlier_detector)
+        //         obvious_outlier_detector->force_insert(key);
+        // }
         super::insert(key, value);
     }
 
