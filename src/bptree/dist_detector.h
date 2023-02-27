@@ -8,9 +8,6 @@
 template <typename key_type>
 class DistDetector : public OutlierDetector<key_type>
 {
-    // The default value of @average_distance.
-    static constexpr float INIT_AVG_DIST = -1;
-
     // The acceptable error that @avg_distance is greater than @expected_avg_distance. This
     // error cannot be guaranteed, but it will help outlier detector to control the tolerance factor
     // when abs(@expected_avg_distance - @avg_distance) > the error
@@ -61,19 +58,7 @@ public:
                                                  tolerance_factor(_tolerance_factor),
                                                  init_tolerance_factor(_tolerance_factor)
     {
-        avg_dist = INIT_AVG_DIST;
         counter = 0;
-    }
-
-    void init(const key_type &key) override
-    {
-        previous_key = key;
-        counter = 1;
-    }
-
-    void remove(const key_type &rem_key)
-    {
-        return;
     }
 
     bool is_outlier(const key_type &key) override
@@ -87,7 +72,7 @@ public:
         }
         key_type dist = key - previous_key;
         dist = dist > 0 ? dist : 0;
-        if (avg_dist == INIT_AVG_DIST)
+        if (counter == 1)
         {
             // sorted tree is empty, counter = 1
             avg_dist = dist;
@@ -110,15 +95,6 @@ public:
         counter++;
 
         return false;
-    }
-
-    bool insert(const key_type &key) override
-    {
-        return false;
-    }
-
-    void force_insert(const key_type &key)
-    {
     }
 };
 

@@ -1,19 +1,17 @@
-CC=g++
-CFLAGS=-g -std=c++17
-BASE_INDEX_FILE=-Isrc/bptree
-BASE_INDEX_TARGET=src/tree_analysis.cpp
-FILTER_FLAGS=-Isrc/bamboofilters -mavx2
+CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g
+AVX2FLAGS=-mavx2
+TARGET=src/tree_analysis.cpp
 
-all: vanilla outofplace inplace
+all: clean vanilla outofplace inplace
 
-vanilla: 
-	$(CC) $(CFLAGS) $(BASE_INDEX_TARGET) $(BASE_INDEX_FILE) -o vanilla 
+vanilla:
+	$(CXX) $(CXXFLAGS) $(TARGET) -o $@
 
-outofplace: 
-	$(CC) $(CFLAGS) $(BASE_INDEX_TARGET) $(BASE_INDEX_FILE) $(FILTER_FLAGS) -DDUAL_FILTERS=1 -o outofplace
+outofplace:
+	$(CXX) -DDUAL_FILTERS=1 $(CXXFLAGS) $(AVX2FLAGS) $(TARGET) -o $@
 
 inplace:
-	$(CC) $(CFLAGS) $(BASE_INDEX_TARGET) $(BASE_INDEX_FILE) $(FILTER_FLAGS) -DDUAL_FILTERS=2 -o inplace
+	$(CXX) -DDUAL_FILTERS=2 $(CXXFLAGS) $(AVX2FLAGS) $(TARGET) -o $@
 
-clean: 
+clean:
 	rm -rf vanilla outofplace inplace

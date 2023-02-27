@@ -6,20 +6,32 @@
 #include "config.h"
 #include "dual_tree.h"
 
-std::vector<int> read_file(const char *filename) {
-    std::vector<int> data;
+std::vector<unsigned> read_file(const char *filename) {
+    std::vector<unsigned> data;
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
-        int key = std::stoi(line);
+        unsigned key = std::stoi(line);
         data.push_back(key);
     }
     ifs.close();
     return data;
 }
 
-void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned raw_read_perc, unsigned raw_write_perc,
-              unsigned mix_load_perc, unsigned updates_perc, const std::string &seed, const int K_init, const int L_init) {
+void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsigned raw_read_perc, unsigned raw_write_perc,
+              unsigned mix_load_perc, unsigned updates_perc, unsigned seed) {
+
+    std::vector<unsigned> data = read_file(input_file);
+
+#ifdef DEBUG
+    int idx = 0;
+    int cnt = 0;
+    for (const auto &i: data) {
+        cnt += idx++ == i;
+    }
+    std::cout << "Number of keys in sorted position: " << cnt << std::endl;
+#endif
+
     unsigned num_inserts = data.size();
 
     unsigned raw_queries = raw_read_perc / 100.0 * num_inserts;
@@ -28,8 +40,7 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     unsigned updates = updates_perc / 100.0 * num_inserts;
     unsigned num_load = num_inserts - raw_writes - mixed_size;
 
-    std::seed_seq seq(seed.begin(), seed.end());
-    std::mt19937 generator{seq};
+    std::mt19937 generator(seed);
     std::uniform_int_distribution<int> distribution(0, 1);
 
     std::ofstream results("results.csv", std::ofstream::app);
@@ -37,7 +48,7 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     unsigned mix_queries = 0;
     unsigned empty_queries = 0;
 
-    int idx = 0;
+    unsigned idx = 0;
     auto it = data.cbegin();
     std::cout << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -95,10 +106,10 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
         store.insert(data[range_distribution(generator) % data.size()], 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << empty_queries << ", " << store 
-    <<", " << K_init << ", " << L_init << "\n";
+    results << ", " << duration.count() << ", " << empty_queries << ", " << store <<", " << input_file << "\n";
 
-    int count = 0;
+#ifdef DEBUG
+    unsigned count = 0;
     for (const auto &item: data) {
         if (!store.contains(item)) {
             count++;
@@ -107,15 +118,23 @@ void workload(kv_store<int, int> &store, const std::vector<int> &data, unsigned 
     if (count) {
         std::cerr << "Error: " << count << " not found\n";
     }
+#endif
 }
 
 void display_help(const char *name) {
     std::cout << "Usage: " << name << " <input_file> [OPTION...]\n"
                                       "  --help                       Display this information.\n"
-                                      "  --seed                       Seed used by the random generator.\n"
-                                      "  --config <config_file>       Use a Dual B+ tree. If not provided a simple B+ tree will be used.\n"
-                                      "  --perc_load <perc_load>      The percentage of input file that should be loaded initially [0-100]. Default value 100.\n"
-                                      "  --num_queries <num_queries>  The number of queries to be executed after the initial load. Default value 0.\n";
+                                      "  --tree <tree_file>           Tree data will be written to tree_file.\n"
+                                      "  --outlier <tree_file>        Outlier data will be written to tree_file.\n"
+                                      "  --seed <seed>                Seed used by the random generator.\n"
+                                      "  --config <config_file>       Experiment configurations.\n"
+                                      "  --raw_write <perc>           The percentage of input file that should be used for raw writes [0-100]. Default value 0.\n"
+                                      "  --raw_read <perc>            The percentage of input file that should be used for raw reads [0-100]. Default value 0.\n"
+                                      "  --mixed <perc>               The percentage of input file that should be used for mixed [0-100]. Default value 0.\n"
+                                      "  --updates <perc>             The percentage of input file that should be used for updates [0-100]. Default value 0.\n"
+                                      "  --simple                     Use a simple B+ tree\n"
+                                      "  --fast                       Use a fast append B+ tree\n"
+                                      "  --dual                       Use a dual B+ tree\n";
 }
 
 enum TreeType {
@@ -129,16 +148,15 @@ int main(int argc, char **argv) {
     }
 
     const char *input_file = argv[1];
-    float K_init = 0.0, L_init = 0.0;
     const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
     const char *outlier_dat = "outlier.dat";
     TreeType type = TreeType::DUAL;
-    int raw_read_perc = 10;
-    int raw_write_perc = 10;
-    int mix_load_perc = 10;
-    int updates_perc = 10;
-    const char *seed = "1234";
+    unsigned raw_read_perc = 10;
+    unsigned raw_write_perc = 10;
+    unsigned mix_load_perc = 10;
+    unsigned updates_perc = 10;
+    unsigned seed = 1234;
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
             display_help(argv[0]);
@@ -150,7 +168,7 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--outlier") == 0) {
             outlier_dat = argv[++i];
         } else if (strcmp(argv[i], "--seed") == 0) {
-            seed = argv[++i];
+            seed = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--raw_write") == 0) {
             raw_write_perc = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--raw_read") == 0) {
@@ -165,42 +183,29 @@ int main(int argc, char **argv) {
             type = TreeType::FAST;
         } else if (strcmp(argv[i], "--dual") == 0) {
             type = TreeType::DUAL;
-        } else if (strcmp(argv[i], "--K") == 0) {
-            K_init = atof(argv[++i]);
-        } else if (strcmp(argv[i], "--L") == 0) {
-            L_init = atof(argv[++i]);
         } else {
             std::cerr << "Discarding option: " << argv[i] << std::endl;
         }
     }
 
-    srand(std::stoi(seed));
-    std::vector<int> data = read_file(input_file);
-    int idx = 0;
-    int cnt = 0;
-    for (const auto &i: data) {
-        cnt += idx++ == i;
-    }
-    std::cout << "Number of keys in sorted position: " << cnt << std::endl;
-
     Config config(config_file);
     switch (type) {
         case SIMPLE: {
-            std::cout << "Single B+ tree" << std::endl;
-            bp_tree<int, int> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
+            std::cout << "Simple B+ tree" << std::endl;
+            bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
+            workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
         case FAST: {
             std::cout << "Fast Append B+ tree" << std::endl;
-            FastAppendTree<int, int> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
+            FastAppendTree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
+            workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
         case DUAL: {
             std::cout << "Dual B+ tree" << std::endl;
-            dual_tree<int, int> tree(tree_dat, outlier_dat, config);
-            workload(tree, data, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed, K_init, L_init);
+            dual_tree<unsigned, unsigned> tree(tree_dat, outlier_dat, config);
+            workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
             break;
         }
     }

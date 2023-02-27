@@ -34,13 +34,11 @@ MIN_TOLERANCE_FACTOR = 20
 # If it is less or equal to 1, then the tolerance factor becomes a constant.
 EXPECTED_AVG_DISTANCE = 2.5
 
-# Outlier detector type: distance-based=DIST, stdev-based=STDEV
-OUTLIER_DETECTOR_TYPE = "STDEV"
+# Outlier detector type: DIST, STDEV, IQR, RANGE, NONE
+OUTLIER_DETECTOR_TYPE = "IQR"
 
-OBVIOUS_DETECTOR_TYPE = "BASIC"
+OBVIOUS_DETECTOR_TYPE = "RANGE"
 
 # Calculate the standard deviation using the LAST_K_STDEV leaves in the sorted tree. When LAST_K_STDEV > 0,
 # a comparably large NUM_STDEV (e.g. NUM_STDEV = 12) could result in better insert performance.
 LAST_K_STDEV = 0
-
-MIN_STDEV_CT = 50
