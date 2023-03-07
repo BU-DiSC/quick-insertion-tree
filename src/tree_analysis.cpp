@@ -56,7 +56,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
         store.insert(*it++, idx++);
     }
     auto duration = std::chrono::high_resolution_clock::now() - start;
-    results << duration.count();
+    results << input_file <<", " << duration.count();
 
     std::cout << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
@@ -106,7 +106,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
         store.insert(data[range_distribution(generator) % data.size()], 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << empty_queries << ", " << store <<", " << input_file << "\n";
+    results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
 #ifdef DEBUG
     unsigned count = 0;
