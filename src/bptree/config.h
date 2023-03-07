@@ -53,7 +53,6 @@ struct Config {
     float min_tolerance_factor;
     float expected_avg_distance;
     detector_type outlier_detector_type, obvious_detector_type;
-    int last_k_stdev;
 
     template<typename key_type>
     OutlierDetector<key_type> *get_outlier_detector() const {
@@ -63,7 +62,7 @@ struct Config {
         if (outlier_detector_type == STDEV) {
             return new StdevDetector<key_type>(num_stdev);
         }
-        if (obvious_detector_type == IQR) {
+        if (outlier_detector_type == IQR) {
             return new IQRDetector<key_type>();
         }
         return nullptr;
@@ -103,7 +102,6 @@ struct Config {
         min_tolerance_factor = 20;
         expected_avg_distance = 2.5;
         outlier_detector_type = NONE;
-        last_k_stdev = 0;
         blocks_in_memory = 15000;
         if (file == nullptr) return;
 
@@ -143,8 +141,6 @@ struct Config {
                 outlier_detector_type = fromString(knob_value);
             } else if (knob_name == "OBVIOUS_DETECTOR_TYPE") {
                 obvious_detector_type = fromString(knob_value);
-            } else if (knob_name == "LAST_K_STDEV") {
-                last_k_stdev = std::stoi(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }
