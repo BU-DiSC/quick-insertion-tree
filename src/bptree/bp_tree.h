@@ -19,8 +19,7 @@ class bp_tree : public kv_store<key_type, value_type> {
 protected:
     using node_t = bp_node<key_type, value_type>;
 
-    const uint32_t split_internal_pos;
-    const uint32_t split_leaf_pos;
+    const float tail_split_ratio;
 
     uint32_t root_id;
     uint32_t head_id;
@@ -58,7 +57,7 @@ protected:
         }
     }
 
-    void internal_insert(uint32_t node_id, key_type key, uint32_t child_id) {
+    void internal_insert(uint32_t node_id, key_type key, uint32_t child_id, float split_ratio) {
         while (true) {
             node_t node(manager.open_block(node_id));
             assert(node.info->id == node_id);
@@ -82,7 +81,7 @@ protected:
             node_t new_node(manager.open_block(new_node_id), bp_node_info::INTERNAL);
             manager.mark_dirty(new_node_id);
 
-            node.info->size = split_internal_pos;
+            node.info->size = node_t::internal_capacity * split_ratio;
             new_node.info->id = new_node_id;
             new_node.info->parent_id = node.info->parent_id; // same parent?
             new_node.info->size = node_t::internal_capacity - node.info->size;
@@ -164,7 +163,8 @@ protected:
         node_t new_leaf(manager.open_block(new_leaf_id), bp_node_info::LEAF);
         manager.mark_dirty(new_leaf_id);
 
-        leaf.info->size = split_leaf_pos;
+        float split_ratio = tail_id == leaf.info->id ? tail_split_ratio : 0.5;
+        leaf.info->size = (node_t::leaf_capacity + 1) * split_ratio;
         new_leaf.info->id = new_leaf_id;
         new_leaf.info->parent_id = leaf.info->parent_id; // same parent?
         new_leaf.info->next_id = leaf.info->next_id;
@@ -204,7 +204,7 @@ protected:
         }
 
         // insert new key to parent
-        internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id);
+        internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id, split_ratio);
         return true;
     }
 
@@ -222,12 +222,10 @@ protected:
     friend class dual_tree<key_type, value_type>;
 
 public:
-    bp_tree(const char *filepath, uint32_t blocks_in_memory, float split_frac = 0.8) :
-            manager(filepath, blocks_in_memory), size(0), depth(1),
-            split_internal_pos(node_t::internal_capacity * split_frac),
-            split_leaf_pos((node_t::leaf_capacity + 1) * split_frac) {
-        assert(split_leaf_pos < node_t::leaf_capacity + 1);
-        assert(split_internal_pos < node_t::internal_capacity);
+    bp_tree(const char *filepath, uint32_t blocks_in_memory, float split_ratio = 0.8) :
+            manager(filepath, blocks_in_memory), size(0), depth(1), tail_split_ratio(split_ratio) {
+        assert((node_t::leaf_capacity + 1) * split_ratio < node_t::leaf_capacity + 1);
+        assert(node_t::internal_capacity * split_ratio < node_t::internal_capacity);
         head_id = tail_id = root_id = manager.allocate();
         node_t root(manager.open_block(root_id), bp_node_info::LEAF);
         manager.mark_dirty(root_id);
