@@ -10,7 +10,12 @@ class FastAppendTree : public bp_tree<key_type, value_type>
     using node_t = bp_node<key_type, value_type>;
 
 public:
-    FastAppendTree(const char *filepath, uint32_t blocks_in_memory, float split_frac = 0.8) : super(filepath, blocks_in_memory, split_frac) {}
+    uint32_t ctr_tailappends;
+    FastAppendTree(const char *filepath, uint32_t blocks_in_memory, float split_frac = 0.8) : super(filepath, blocks_in_memory, split_frac)
+    {
+        ctr_tailappends = 0;
+        ctr_everything = 0;
+    }
 
     std::ostream &get_stats(std::ostream &os) const override
     {
@@ -23,6 +28,7 @@ public:
         if (super::root_id != super::tail_id && key > super::tail_greater_than)
         {
             node_t tail(super::manager.open_block(super::tail_id));
+            ctr_tailappends++;
             return super::leaf_insert(tail, key, value);
         }
         return super::insert(key, value);
