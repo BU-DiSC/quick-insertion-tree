@@ -201,7 +201,6 @@ int main(int argc, char **argv) {
             std::cout <<" Split factor = "<<config.sorted_tree_split_frac<<std::endl;
             FastAppendTree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
             workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
-            std::cout<<"Number of tail leaf appends = "<<tree.ctr_tailappends<<std::endl;
             break;
         }
         case DUAL: {
