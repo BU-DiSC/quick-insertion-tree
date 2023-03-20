@@ -1,6 +1,6 @@
 #ifndef FAST_APPEND_TREE_H
 #define FAST_APPEND_TREE_H
-
+#define LIL_FAT
 #include "bp_tree.h"
 
 template <typename key_type, typename value_type>
@@ -24,24 +24,30 @@ public:
 
     bool insert(const key_type &key, const value_type &value) override
     {
-        if (super::root_id != super::tail_id && key > super::tail_greater_than)
+        if (super::size > 0)
         {
-            node_t tail(super::manager.open_block(super::tail_id));
-            ctr_tail_appends++;
-            return super::leaf_insert(tail, key, value);
+            node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
+            if (last_insert_leaf.keys[0] <= key && key <= last_insert_leaf.keys[last_insert_leaf.info->size - 1])
+            {
+                ctr_tail_appends++;
+                return super::leaf_insert(last_insert_leaf, key, value);
+            }
         }
         return super::insert(key, value);
     }
 
     bool update(const key_type &key, const value_type &value) override
     {
-        if (super::root_id != super::tail_id && key > super::tail_greater_than)
+        if (super::size > 0)
         {
-            node_t tail(super::manager.open_block(super::tail_id));
-            return super::leaf_update(tail, key, value);
+            node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
+            if (last_insert_leaf.keys[0] <= key && key <= last_insert_leaf.keys[last_insert_leaf.info->size - 1])
+            {
+                return super::leaf_update(last_insert_leaf, key, value);
+            }
         }
         return super::update(key, value);
     }
 };
-
+#undef LIL_FAT
 #endif
