@@ -24,30 +24,25 @@ public:
 
     bool insert(const key_type &key, const value_type &value) override
     {
-        if (super::size > 0)
+        if ((super::leaf_min.has_value() && super::leaf_min > key) || (super::leaf_max.has_value() && key >= super::leaf_max))
         {
-            node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
-            if (last_insert_leaf.keys[0] <= key && key <= last_insert_leaf.keys[last_insert_leaf.info->size - 1])
-            {
-                ctr_tail_appends++;
-                return super::leaf_insert(last_insert_leaf, key, value);
-            }
+            return super::insert(key, value);
         }
-        return super::insert(key, value);
+        node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
+        ctr_tail_appends++;
+        return super::leaf_insert(last_insert_leaf, key, value);
     }
 
     bool update(const key_type &key, const value_type &value) override
     {
-        if (super::size > 0)
+        if (super::leaf_min.has_value() && super::leaf_min > key || super::leaf_max.has_value() && key > super::leaf_max)
         {
-            node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
-            if (last_insert_leaf.keys[0] <= key && key <= last_insert_leaf.keys[last_insert_leaf.info->size - 1])
-            {
-                return super::leaf_update(last_insert_leaf, key, value);
-            }
+            return super::update(key, value);
         }
-        return super::update(key, value);
+        node_t last_insert_leaf(super::manager.open_block(super::last_insert_id));
+        return super::leaf_update(last_insert_leaf, key, value);
     }
 };
+
 #undef LIL_FAT
 #endif

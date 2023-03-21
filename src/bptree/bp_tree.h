@@ -28,6 +28,9 @@ protected:
     uint32_t tail_id;
 #ifdef LIL_FAT
     uint32_t last_insert_id;
+    std::optional<key_type> leaf_min;
+    std::optional<key_type>
+        leaf_max;
 #endif
     uint32_t size;
     uint32_t depth;
@@ -53,8 +56,10 @@ protected:
         new_node.info->parent_id = root_id;
     }
 
-    void find_leaf(node_t &node, const key_type &key)
+    std::optional<key_type> find_leaf(node_t &node, const key_type &key)
     {
+
+        std::optional<key_type> current_max = std::nullopt;
         uint32_t child_id = root_id;
         while (true)
         {
@@ -62,8 +67,16 @@ protected:
             assert(child_id == node.info->id);
             if (node.info->type == bp_node_info::LEAF)
                 break;
-            child_id = node.children[node.child_slot(key)];
+
+            uint32_t slot = node.child_slot(key);
+            if (slot != node.info->size - 1)
+            {
+                current_max = node.keys[slot + 1];
+            }
+            child_id = node.children[slot];
         }
+
+        return current_max;
     }
 
     void internal_insert(uint32_t node_id, key_type key, uint32_t child_id, float split_ratio)
@@ -207,6 +220,15 @@ protected:
             std::copy(leaf.values + leaf.info->size - 1, leaf.values + node_t::leaf_capacity, new_leaf.values);
             std::copy_backward(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
             leaf.values[index] = value;
+
+#ifdef LIL_FAT
+            // if we insert to left node of split, we set the leaf max
+            leaf_max = new_leaf.keys[0];
+            if (leaf.info->id == head_id)
+            {
+                leaf_min = std::nullopt;
+            }
+#endif
         }
         else
         {
@@ -220,6 +242,8 @@ protected:
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
             last_insert_id = new_leaf.info->id;
+            // if we insert to right split node, we set leaf min
+            leaf_min = new_leaf.keys[0];
 #endif
         }
 
@@ -270,6 +294,11 @@ public:
         assert((node_t::leaf_capacity + 1) * split_ratio < node_t::leaf_capacity + 1);
         assert(node_t::internal_capacity * split_ratio < node_t::internal_capacity);
         head_id = tail_id = root_id = manager.allocate();
+#ifdef LIL_FAT
+        last_insert_id = head_id;
+        leaf_min = std::nullopt;
+        leaf_max = std::nullopt;
+#endif
         node_t root(manager.open_block(root_id), bp_node_info::LEAF);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
@@ -286,7 +315,20 @@ public:
     bool insert(const key_type &key, const value_type &value) override
     {
         node_t leaf;
-        find_leaf(leaf, key);
+        std::optional<key_type> current_max;
+        current_max = find_leaf(leaf, key);
+#ifdef LIL_FAT
+        if (size == 0)
+            leaf_max = std::nullopt;
+        else
+            leaf_max = current_max;
+
+        if (head_id != leaf.info->id)
+            leaf_min = leaf.keys[0];
+        else
+            leaf_min = std::nullopt;
+#endif
+        // leaf_min = head_id == leaf.info->id ? std::nullopt : leaf.keys[0];
         return leaf_insert(leaf, key, value);
     }
 
