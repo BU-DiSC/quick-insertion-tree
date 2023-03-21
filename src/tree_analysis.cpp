@@ -23,15 +23,6 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
 
     std::vector<unsigned> data = read_file(input_file);
 
-#ifdef DEBUG
-    int idx = 0;
-    int cnt = 0;
-    for (const auto &i: data) {
-        cnt += idx++ == i;
-    }
-    std::cout << "Number of keys in sorted position: " << cnt << std::endl;
-#endif
-
     unsigned num_inserts = data.size();
 
     unsigned raw_queries = raw_read_perc / 100.0 * num_inserts;

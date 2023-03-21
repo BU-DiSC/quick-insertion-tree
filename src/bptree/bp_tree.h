@@ -111,6 +111,7 @@ protected:
                 node.children[index + 1] = child_id;
 
                 key = node.keys[node.info->size];
+                // key = new_node.keys[0];
             }
             else if (index == node.info->size)
             {
@@ -235,12 +236,13 @@ protected:
 
         if (leaf.info->id == root_id)
         {
-            create_new_root(leaf.keys[leaf.info->size - 1], leaf, new_leaf);
+            create_new_root(new_leaf.keys[0], leaf, new_leaf);
             return true;
         }
 
         // insert new key to parent
-        internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id, split_ratio);
+        // internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id, split_ratio);
+        internal_insert(new_leaf.info->parent_id, new_leaf.keys[0], new_leaf_id, split_ratio);
         return true;
     }
 

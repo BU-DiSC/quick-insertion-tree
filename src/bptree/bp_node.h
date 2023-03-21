@@ -74,7 +74,7 @@ public:
 
     uint32_t child_slot(const key_type &key) const {
         assert(info->type == bp_node_info::INTERNAL);
-        return std::lower_bound(keys, keys + info->size, key) - keys;
+        return std::upper_bound(keys, keys + info->size, key) - keys;
     }
 
 };

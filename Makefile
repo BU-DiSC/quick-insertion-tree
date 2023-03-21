@@ -1,4 +1,4 @@
-CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g
+CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g -DDEBUG
 AVX2FLAGS=-mavx2
 TARGET=src/tree_analysis.cpp
 
