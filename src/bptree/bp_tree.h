@@ -14,7 +14,7 @@ class bp_tree : public kv_store<key_type, value_type>
 
     std::ostream &get_stats(std::ostream &os) const override
     {
-        os << "SIMPLE, " << size << ", " << depth << ", " << manager.getNumWrites();
+        os << "SIMPLE, " << size << ", " << depth << ", " << manager.getNumWrites() << ", " << num_internal << ", " << num_leaves;
         return os;
     }
 
@@ -39,6 +39,9 @@ protected:
     key_type tree_max;
     BlockManager manager;
 
+    uint32_t num_internal;
+    uint32_t num_leaves;
+
     void create_new_root(key_type key, node_t &node, node_t &new_node)
     {
         assert(root_id == node.info->id);
@@ -54,6 +57,7 @@ protected:
         root.children[1] = new_node.info->id;
         node.info->parent_id = root_id;
         new_node.info->parent_id = root_id;
+        num_internal++;
     }
 
     std::optional<key_type> find_leaf(node_t &node, const key_type &key)
@@ -105,6 +109,7 @@ protected:
             uint32_t new_node_id = manager.allocate();
             node_t new_node(manager.open_block(new_node_id), bp_node_info::INTERNAL);
             manager.mark_dirty(new_node_id);
+            num_internal++;
 
             node.info->size = node_t::internal_capacity * split_ratio;
             new_node.info->id = new_node_id;
@@ -203,6 +208,7 @@ protected:
         uint32_t new_leaf_id = manager.allocate();
         node_t new_leaf(manager.open_block(new_leaf_id), bp_node_info::LEAF);
         manager.mark_dirty(new_leaf_id);
+        num_leaves++;
 
         float split_ratio = tail_id == leaf.info->id ? tail_split_ratio : 0.5;
         leaf.info->size = (node_t::leaf_capacity + 1) * split_ratio;
@@ -303,6 +309,9 @@ public:
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->size = 0;
+
+        num_internal = 0;
+        num_leaves = 1;
     }
 
     bool update(const key_type &key, const value_type &value) override

@@ -18,7 +18,7 @@ public:
 
     std::ostream &get_stats(std::ostream &os) const override
     {
-        os << "FAST, " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ", " << ctr_fast_inserts;
+        os << "FAST, " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ", " << super::num_internal << ", " << super::num_leaves<<  ", " << ctr_fast_inserts;
         return os;
     }
 
