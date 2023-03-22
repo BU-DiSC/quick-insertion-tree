@@ -18,4 +18,4 @@ inplace:
 	$(CXX) -DDUAL_FILTERS=2 $(CXXFLAGS) $(AVX2FLAGS) $(TARGET) -o $@
 
 clean:
-	rm -rf vanilla outofplace inplace
+	rm -rf vanilla outofplace inplace vanilla_profile
