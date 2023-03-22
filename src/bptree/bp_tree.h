@@ -35,7 +35,7 @@ protected:
     uint32_t size;
     uint32_t depth;
     key_type tree_min;
-    key_type tail_greater_than;
+    key_type tail_min;
     key_type tree_max;
     BlockManager manager;
 
@@ -254,7 +254,7 @@ protected:
         if (tail_id == leaf.info->id)
         {
             tail_id = new_leaf_id;
-            tail_greater_than = leaf.keys[leaf.info->size - 1];
+            tail_min = new_leaf.keys[0];
             tree_max = new_leaf.keys[new_leaf.info->size - 1];
         }
 

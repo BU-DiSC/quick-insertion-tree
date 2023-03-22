@@ -150,9 +150,9 @@ public:
             return;
         }
 
-        if (super::root_id != super::tail_id && key <= super::tail_greater_than)
+        if (super::root_id != super::tail_id && key < super::tail_min)
         {
-            // when key is smaller than tail_greater_than, insert directly to unsorted tree
+            // when key is smaller than tail_min, insert directly to unsorted tree
 #ifdef DUAL_FILTERS
             bf2.Insert(&key, sizeof(key_type));
 #endif
@@ -161,7 +161,7 @@ public:
             return;
         }
 
-        if (obvious_detector && key > super::tree_max && obvious_detector->is_outlier(key, super::tail_greater_than))
+        if (obvious_detector && key > super::tree_max && obvious_detector->is_outlier(key, super::tail_min))
         {
             // insert outlier key to unsorted tree
 #ifdef DUAL_FILTERS
