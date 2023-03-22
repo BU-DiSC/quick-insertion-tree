@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(vanilla src/tree_analysis.cpp)
 target_include_directories(vanilla PUBLIC src/bptree)
+target_compile_definitions(vanilla PRIVATE DEBUG)
 
 add_executable(outofplace src/tree_analysis.cpp)
 target_include_directories(outofplace PUBLIC src/bamboofilters src/bptree)

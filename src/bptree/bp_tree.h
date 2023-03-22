@@ -45,8 +45,8 @@ protected:
         depth++;
         root_id = manager.allocate();
         node_t root(manager.open_block(root_id), bp_node_info::INTERNAL);
-        //        It is expected that the root is already marked dirty, so we don't need to mark it again
-        //        manager.mark_dirty(root_id);
+        // It is expected that the root is already marked dirty, so we don't need to mark it again
+        // manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->size = 1;
         root.keys[0] = key;
@@ -69,9 +69,9 @@ protected:
                 break;
 
             uint32_t slot = node.child_slot(key);
-            if (slot != node.info->size - 1)
+            if (slot != node.info->size)
             {
-                current_max = node.keys[slot + 1];
+                current_max = node.keys[slot];
             }
             child_id = node.children[slot];
         }

@@ -116,7 +116,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     {
         if (!store.contains(item))
         {
-            // std::cout << item << " not found" << data[0] << std::endl;
+            // std::cout << item << " not found" << std::endl;
             // break;
             count++;
         }
@@ -124,6 +124,8 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     if (count)
     {
         std::cerr << "Error: " << count << " not found\n";
+    } else {
+        std::cerr << "All good\n";
     }
 #endif
 }
@@ -240,7 +242,6 @@ int main(int argc, char **argv)
     case FAST:
     {
         std::cout << "Fast Append B+ tree" << std::endl;
-        std::cout << " Split factor = " << config.sorted_tree_split_frac << std::endl;
         FastAppendTree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
         workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
         break;

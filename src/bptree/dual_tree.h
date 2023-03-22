@@ -78,8 +78,8 @@ public:
     std::ostream &get_stats(std::ostream &os) const override
     {
         os << "DUAL"
-           << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ", " << super::ctr_tail_appends
-           << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites() << ", " << outlier_tree.ctr_tail_appends
+           << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ", " << super::ctr_fast_inserts
+           << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites() << ", " << outlier_tree.ctr_fast_inserts
            << ", " << ctr_lazy_move << ", " << ctr_obvious << ", " << ctr_outlier << ", " << ctr_direct
            << ", " << ctr_sorted_tree_update << ", " << ctr_outlier_tree_update;
         return os;
