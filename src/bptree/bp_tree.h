@@ -60,6 +60,25 @@ protected:
         num_internal++;
     }
 
+    void copy_backward_keys(key_type* first, key_type* last, key_type* d_last){
+        while (first != last){
+            *(--d_last) = *(--last);
+        }
+    }
+
+    void copy_backward_children(uint32_t* first, uint32_t* last, uint32_t* d_last){
+        while (first != last){
+            *(--d_last) = *(--last);
+        }
+    }
+
+    void copy_backward_values(value_type* first, value_type* last, value_type* d_last){
+        while (first != last){
+            *(--d_last) = *(--last);
+        }
+    }
+
+
     std::optional<key_type> find_leaf(node_t &node, const key_type &key)
     {
 
@@ -96,8 +115,8 @@ protected:
             if (node.info->size < node_t::internal_capacity)
             {
                 // insert new key
-                std::copy_backward(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
-                std::copy_backward(node.children + index + 1, node.children + node.info->size + 1,
+                copy_backward_keys(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
+                copy_backward_children(node.children + index + 1, node.children + node.info->size + 1,
                                    node.children + node.info->size + 2);
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
@@ -119,12 +138,12 @@ protected:
             if (index < node.info->size)
             {
                 std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
-                std::copy_backward(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
+                copy_backward_keys(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
                 node.keys[index] = key;
 
                 std::copy(node.children + node.info->size, node.children + 1 + node_t::internal_capacity,
                           new_node.children);
-                std::copy_backward(node.children + index + 1, node.children + node.info->size + 1,
+                copy_backward_children(node.children + index + 1, node.children + node.info->size + 1,
                                    node.children + node.info->size + 2);
                 node.children[index + 1] = child_id;
 
@@ -189,8 +208,8 @@ protected:
         if (leaf.info->size < node_t::leaf_capacity)
         {
             // insert new key
-            std::copy_backward(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
-            std::copy_backward(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            copy_backward_keys(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
+            copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
@@ -221,10 +240,10 @@ protected:
         if (index < leaf.info->size)
         {
             std::copy(leaf.keys + leaf.info->size - 1, leaf.keys + node_t::leaf_capacity, new_leaf.keys);
-            std::copy_backward(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
+            copy_backward_keys(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
             leaf.keys[index] = key;
             std::copy(leaf.values + leaf.info->size - 1, leaf.values + node_t::leaf_capacity, new_leaf.values);
-            std::copy_backward(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
             leaf.values[index] = value;
 
 #ifdef LIL_FAT
