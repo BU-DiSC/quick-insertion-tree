@@ -14,7 +14,7 @@ class bp_tree : public kv_store<key_type, value_type>
 
     std::ostream &get_stats(std::ostream &os) const override
     {
-        os << "SIMPLE, " << size << ", " << depth << ", " << manager.getNumWrites() << ", " << num_internal << ", " << num_leaves;
+        os << "SIMPLE, " << size << ", " << depth << ", " << manager.getNumWrites() << ", " << num_internal << ", " << num_leaves << ", " << manager.getMarkDirty();
         return os;
     }
 

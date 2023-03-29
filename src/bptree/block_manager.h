@@ -25,6 +25,7 @@ class BlockManager {
     int fd;
     std::unordered_set<uint32_t> dirty_nodes;
     uint32_t num_writes;
+    uint32_t num_mark_dirty;
 
     /**
      * Write a block to disk
@@ -92,6 +93,7 @@ public:
     void mark_dirty(uint32_t id) {
         assert(cache.get(id) != capacity);
         dirty_nodes.insert(id);
+        num_mark_dirty++;
     }
 
     /**
@@ -120,6 +122,10 @@ public:
 
     uint32_t getNumWrites() const {
         return num_writes;
+    }
+
+    uint32_t getMarkDirty() const {
+        return num_mark_dirty;
     }
 };
 
