@@ -1,4 +1,5 @@
-CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g -DDEBUG
+CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g -DDEBUG 
+OPTFLAGS=-O3
 AVX2FLAGS=-mavx2
 TARGET=src/tree_analysis.cpp
 PROFILE=-O2 -fopenmp -shared-libgcc

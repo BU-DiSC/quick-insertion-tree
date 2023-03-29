@@ -63,7 +63,7 @@ public:
     }
 
     ~BlockManager() {
-        flush();
+        // flush();
         delete[] internal_memory;
         close(fd);
     }

@@ -60,24 +60,29 @@ protected:
         num_internal++;
     }
 
-    void copy_backward_keys(key_type* first, key_type* last, key_type* d_last){
-        while (first != last){
+    void copy_backward_keys(key_type *first, key_type *last, key_type *d_last)
+    {
+        while (first != last)
+        {
             *(--d_last) = *(--last);
         }
     }
 
-    void copy_backward_children(uint32_t* first, uint32_t* last, uint32_t* d_last){
-        while (first != last){
+    void copy_backward_children(uint32_t *first, uint32_t *last, uint32_t *d_last)
+    {
+        while (first != last)
+        {
             *(--d_last) = *(--last);
         }
     }
 
-    void copy_backward_values(value_type* first, value_type* last, value_type* d_last){
-        while (first != last){
+    void copy_backward_values(value_type *first, value_type *last, value_type *d_last)
+    {
+        while (first != last)
+        {
             *(--d_last) = *(--last);
         }
     }
-
 
     std::optional<key_type> find_leaf(node_t &node, const key_type &key)
     {
@@ -117,7 +122,7 @@ protected:
                 // insert new key
                 copy_backward_keys(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
                 copy_backward_children(node.children + index + 1, node.children + node.info->size + 1,
-                                   node.children + node.info->size + 2);
+                                       node.children + node.info->size + 2);
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
                 node.info->size++;
@@ -137,14 +142,18 @@ protected:
 
             if (index < node.info->size)
             {
-                std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
-                copy_backward_keys(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
+                // std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
+                memcpy(new_node.keys, node.keys + node.info->size, (node_t::internal_capacity - node.info->size) * sizeof(key_type));
+                // copy_backward_keys(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
+                memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
                 node.keys[index] = key;
 
-                std::copy(node.children + node.info->size, node.children + 1 + node_t::internal_capacity,
-                          new_node.children);
-                copy_backward_children(node.children + index + 1, node.children + node.info->size + 1,
-                                   node.children + node.info->size + 2);
+                // std::copy(node.children + node.info->size, node.children + 1 + node_t::internal_capacity,
+                //   new_node.children);
+                memcpy(new_node.children, node.children + node.info->size, (1 + node_t::internal_capacity - node.info->size) * sizeof(uint32_t));
+                // copy_backward_children(node.children + index + 1, node.children + node.info->size + 1,
+                //                        node.children + node.info->size + 2);
+                memmove(node.children + index + 2, node.children + index + 1, (node.info->size - index + 1) * sizeof(uint32_t));
                 node.children[index + 1] = child_id;
 
                 key = node.keys[node.info->size];
@@ -152,21 +161,27 @@ protected:
             }
             else if (index == node.info->size)
             {
-                std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
-                std::copy(node.children + 1 + node.info->size, node.children + 1 + node_t::internal_capacity,
-                          new_node.children + 1);
+                // std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
+                memcpy(new_node.keys, node.keys + node.info->size, (node_t::internal_capacity - node.info->size) * sizeof(key_type));
+                // std::copy(node.children + 1 + node.info->size, node.children + 1 + node_t::internal_capacity,
+                //           new_node.children + 1);
+                memcpy(new_node.children + 1, node.children + 1 + node.info->size, (node_t::internal_capacity - node.info->size + 1) * sizeof(uint32_t));
                 new_node.children[0] = child_id;
             }
             else
             {
-                std::copy(node.keys + node.info->size + 1, node.keys + index, new_node.keys);
-                std::copy(node.keys + index, node.keys + node_t::internal_capacity,
-                          new_node.keys + index - node.info->size);
+                // std::copy(node.keys + node.info->size + 1, node.keys + index, new_node.keys);
+                memcpy(new_node.keys, node.keys + node.info->size + 1, (index - node.info->size - 1) * sizeof(key_type));
+                // std::copy(node.keys + index, node.keys + node_t::internal_capacity,
+                //           new_node.keys + index - node.info->size);
+                memcpy(new_node.keys + index - node.info->size, node.keys + index, (node_t::internal_capacity - index) * sizeof(key_type));
                 new_node.keys[index - node.info->size - 1] = key;
 
-                std::copy(node.children + 1 + node.info->size, node.children + 1 + index, new_node.children);
-                std::copy(node.children + 1 + index, node.children + 1 + node_t::internal_capacity,
-                          new_node.children + 1 + index - node.info->size);
+                // std::copy(node.children + 1 + node.info->size, node.children + 1 + index, new_node.children);
+                memcpy(new_node.children, node.children + 1 + node.info->size, (index - node.info->size) * sizeof(uint32_t));
+                // std::copy(node.children + 1 + index, node.children + 1 + node_t::internal_capacity,
+                //           new_node.children + 1 + index - node.info->size);
+                memcpy(new_node.children + 1 + index - node.info->size, node.children + 1 + index, (node_t::internal_capacity - index) * sizeof(uint32_t));
                 new_node.children[index - node.info->size] = child_id;
 
                 key = node.keys[node.info->size];
@@ -208,8 +223,10 @@ protected:
         if (leaf.info->size < node_t::leaf_capacity)
         {
             // insert new key
-            copy_backward_keys(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
-            copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            // copy_backward_keys(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
+            memmove(leaf.keys + index+1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
+            // copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            memmove(leaf.values + index+1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
@@ -239,11 +256,15 @@ protected:
 
         if (index < leaf.info->size)
         {
-            std::copy(leaf.keys + leaf.info->size - 1, leaf.keys + node_t::leaf_capacity, new_leaf.keys);
+            // std::copy(leaf.keys + leaf.info->size - 1, leaf.keys + node_t::leaf_capacity, new_leaf.keys);
+            memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1, (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(key_type));
             copy_backward_keys(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
+            // memmove(leaf.keys + leaf.info->size + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             leaf.keys[index] = key;
-            std::copy(leaf.values + leaf.info->size - 1, leaf.values + node_t::leaf_capacity, new_leaf.values);
-            copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            // std::copy(leaf.values + leaf.info->size - 1, leaf.values + node_t::leaf_capacity, new_leaf.values);
+            memcpy(new_leaf.values, leaf.values + leaf.info->size - 1, (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(value_type));
+            // copy_backward_values(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
+            memmove(leaf.values + leaf.info->size + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
             leaf.values[index] = value;
 
 #ifdef LIL_FAT
@@ -257,13 +278,17 @@ protected:
         }
         else
         {
-            std::copy(leaf.keys + leaf.info->size, leaf.keys + index, new_leaf.keys);
-            std::copy(leaf.keys + index, leaf.keys + node_t::leaf_capacity,
-                      new_leaf.keys + index - leaf.info->size + 1);
+            // std::copy(leaf.keys + leaf.info->size, leaf.keys + index, new_leaf.keys);
+            memcpy(new_leaf.keys, leaf.keys + leaf.info->size, (index - leaf.info->size) * sizeof(key_type));
+            // std::copy(leaf.keys + index, leaf.keys + node_t::leaf_capacity,
+            //           new_leaf.keys + index - leaf.info->size + 1);
+            memcpy(new_leaf.keys + index - leaf.info->size + 1, leaf.keys + index, (node_t::leaf_capacity - index) * sizeof(key_type));
             new_leaf.keys[index - leaf.info->size] = key;
-            std::copy(leaf.values + leaf.info->size, leaf.values + index, new_leaf.values);
-            std::copy(leaf.values + index, leaf.values + node_t::leaf_capacity,
-                      new_leaf.values + index - leaf.info->size + 1);
+            // std::copy(leaf.values + leaf.info->size, leaf.values + index, new_leaf.values);
+            memcpy(new_leaf.values, leaf.values + leaf.info->size, (index - leaf.info->size) * sizeof(value_type));
+            // std::copy(leaf.values + index, leaf.values + node_t::leaf_capacity,
+            //           new_leaf.values + index - leaf.info->size + 1);
+            memcpy(new_leaf.values + index - leaf.info->size + 1, leaf.values + index, (node_t::leaf_capacity - index) * sizeof(value_type));
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
             last_insert_id = new_leaf.info->id;
