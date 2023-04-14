@@ -46,9 +46,6 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     auto it = data.cbegin();
     std::cout << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
-    int something; 
-    std::cout<<"Press something:"<<std::endl;
-    // std::cin>>something; 
     while (idx < num_load)
     {
         store.insert(*it++, idx++);
@@ -113,7 +110,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
 
-#ifdef DEBUG
+#ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data)
     {

@@ -1,22 +1,14 @@
-CXXFLAGS=-Isrc/bptree -Isrc/bamboofilters -std=c++17 -g -DDEBUG 
-OPTFLAGS=-O3
-AVX2FLAGS=-mavx2
+CXXFLAGS=-Isrc/bptree -std=c++17
 TARGET=src/tree_analysis.cpp
-PROFILE=-O2 -fopenmp -shared-libgcc
+PROFILE=-O2 -DBENCHMARK -fopenmp -shared-libgcc
 
-all: clean vanilla outofplace inplace
+all: clean vanilla profile
 
 vanilla:
-	$(CXX) $(CXXFLAGS) $(TARGET) -o $@
+	$(CXX) $(CXXFLAGS) -g $(TARGET) -o $@
 
-vanilla_profile:
+profile:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(PROFILE) -o $@
 
-outofplace:
-	$(CXX) -DDUAL_FILTERS=1 $(CXXFLAGS) $(AVX2FLAGS) $(TARGET) -o $@
-
-inplace:
-	$(CXX) -DDUAL_FILTERS=2 $(CXXFLAGS) $(AVX2FLAGS) $(TARGET) -o $@
-
 clean:
-	rm -rf vanilla outofplace inplace vanilla_profile
+	rm -rf vanilla profile

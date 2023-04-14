@@ -77,11 +77,13 @@ public:
 
     std::ostream &get_stats(std::ostream &os) const override
     {
-        os << "DUAL"
-           << ", " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ", " << super::ctr_fast_inserts
-           << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", " << outlier_tree.manager.getNumWrites() << ", " << outlier_tree.ctr_fast_inserts
-           << ", " << ctr_lazy_move << ", " << ctr_obvious << ", " << ctr_outlier << ", " << ctr_direct
-           << ", " << ctr_sorted_tree_update << ", " << ctr_outlier_tree_update;
+        os << "DUAL, " << super::size << ", " << super::depth << ", " << super::manager.getNumWrites() << ","
+           << super::manager.getMarkDirty() << ", " << super::num_internal << ", " << super::num_leaves << ", "
+           << super::ctr_fast_inserts << ", " << outlier_tree.size << ", " << outlier_tree.depth << ", "
+           << outlier_tree.manager.getNumWrites() << "," << outlier_tree.manager.getMarkDirty() << ", "
+           << outlier_tree.num_internal << ", " << outlier_tree.num_leaves << ", " << outlier_tree.ctr_fast_inserts
+           << ctr_lazy_move << ", " << ctr_obvious << ", " << ctr_outlier << ", " << ctr_direct << ", "
+           << ctr_sorted_tree_update << ", " << ctr_outlier_tree_update;
         return os;
     }
 

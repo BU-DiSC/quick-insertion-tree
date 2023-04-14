@@ -11,7 +11,7 @@ struct bp_node_info {
     uint32_t id;
     uint32_t parent_id;
     uint32_t next_id;
-    uint32_t size;
+    uint16_t size;
     enum bp_node_type {
         LEAF, INTERNAL
     } type;

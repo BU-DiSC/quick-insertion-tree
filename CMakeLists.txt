@@ -1,18 +1,11 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.20)
 project(tree_analysis)
 
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(vanilla src/tree_analysis.cpp)
 target_include_directories(vanilla PUBLIC src/bptree)
-target_compile_definitions(vanilla PRIVATE DEBUG)
 
-add_executable(outofplace src/tree_analysis.cpp)
-target_include_directories(outofplace PUBLIC src/bamboofilters src/bptree)
-target_compile_options(outofplace PUBLIC "-mavx2")
-target_compile_definitions(outofplace PRIVATE DUAL_FILTERS=1)
-
-add_executable(inplace src/tree_analysis.cpp)
-target_include_directories(inplace PUBLIC src/bamboofilters src/bptree)
-target_compile_options(inplace PUBLIC "-mavx2")
-target_compile_definitions(inplace PRIVATE DUAL_FILTERS=2)
+add_executable(profile src/tree_analysis.cpp)
+target_include_directories(profile PUBLIC src/bptree)
+target_compile_definitions(profile PRIVATE BENCHMARK)

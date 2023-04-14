@@ -35,7 +35,7 @@ class BlockManager {
     void write_block(uint32_t id, uint32_t pos) {
         assert(pos < capacity);
         off_t offset = id * block_size;
-        pwrite(fd, internal_memory[pos].block_buf, block_size, offset);
+        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
         num_writes++;
     }
 
@@ -46,11 +46,11 @@ class BlockManager {
      */
     void read_block(uint32_t id, uint32_t pos) {
         off_t offset = id * block_size;
-        pread(fd, internal_memory[pos].block_buf, block_size, offset);
+        assert(pread(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
     }
 
 public:
-    static const uint32_t block_size = BLOCK_SIZE_BYTES;
+    static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
     BlockManager(const char *filepath, uint32_t capacity) :
             capacity(capacity),
@@ -64,7 +64,9 @@ public:
     }
 
     ~BlockManager() {
-        // flush();
+#ifndef BENCHMARK
+        flush();
+#endif
         delete[] internal_memory;
         close(fd);
     }
