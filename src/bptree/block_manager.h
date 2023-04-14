@@ -35,7 +35,8 @@ class BlockManager {
     void write_block(uint32_t id, uint32_t pos) {
         assert(pos < capacity);
         off_t offset = id * block_size;
-        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+//        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+        pwrite(fd, internal_memory[pos].block_buf, block_size, offset);
         num_writes++;
     }
 
@@ -46,7 +47,8 @@ class BlockManager {
      */
     void read_block(uint32_t id, uint32_t pos) {
         off_t offset = id * block_size;
-        assert(pread(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+//        assert(pread(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+        pread(fd, internal_memory[pos].block_buf, block_size, offset);
     }
 
 public:
