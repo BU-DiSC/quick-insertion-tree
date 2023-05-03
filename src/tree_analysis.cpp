@@ -4,7 +4,7 @@
 #include <fstream>
 
 #include "config.h"
-#include "dual_tree.h"
+#include "bp_tree.h"
 
 std::vector<unsigned> read_file(const char *filename)
 {
@@ -20,10 +20,9 @@ std::vector<unsigned> read_file(const char *filename)
     return data;
 }
 
-void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsigned raw_read_perc, unsigned raw_write_perc,
+void workload(bp_tree<unsigned, unsigned> &tree, const char *input_file, unsigned raw_read_perc, unsigned raw_write_perc,
               unsigned mix_load_perc, unsigned updates_perc, unsigned seed)
 {
-
     std::vector<unsigned> data = read_file(input_file);
 
     unsigned num_inserts = data.size();
@@ -38,6 +37,18 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     std::uniform_int_distribution<int> distribution(0, 1);
 
     std::ofstream results("results.csv", std::ofstream::app);
+#if defined(LIL_FAT) or defined(LOL_FAT)
+    #ifdef LOL_FAT
+    results << "LOL";
+    #endif
+    #ifdef LIL_FAT
+    results << "LIL";
+    #endif
+    results << ", ";
+#else
+    results << "SIMPLE, ";
+#endif
+
     unsigned mix_inserts = 0;
     unsigned mix_queries = 0;
     unsigned empty_queries = 0;
@@ -48,7 +59,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     auto start = std::chrono::high_resolution_clock::now();
     while (idx < num_load)
     {
-        store.insert(*it++, idx++);
+        tree.insert(*it++, idx++);
     }
     auto duration = std::chrono::high_resolution_clock::now() - start;
     results << input_file << ", " << duration.count();
@@ -57,7 +68,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     start = std::chrono::high_resolution_clock::now();
     while (idx < num_load + raw_writes)
     {
-        store.insert(*it++, idx++);
+        tree.insert(*it++, idx++);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -70,7 +81,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
         if (mix_queries >= mixed_size || (mix_inserts < mixed_size && distribution(generator)))
         {
             auto start_ins = std::chrono::high_resolution_clock::now();
-            store.insert(*it++, idx++);
+            tree.insert(*it++, idx++);
             auto stop_ins = std::chrono::high_resolution_clock::now();
             insert_time += stop_ins - start_ins;
             mix_inserts++;
@@ -79,7 +90,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
         {
             int query_index = (int)(generator() % idx);
             auto start_q = std::chrono::high_resolution_clock::now();
-            bool res = store.contains(query_index);
+            bool res = tree.contains(query_index);
             auto stop_q = std::chrono::high_resolution_clock::now();
             query_time += stop_q - start_q;
             empty_queries += !res;
@@ -96,7 +107,7 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < raw_queries; i++)
     {
-        store.contains(data[range_distribution(generator) % data.size()]);
+        tree.contains(data[range_distribution(generator) % data.size()]);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -105,16 +116,17 @@ void workload(kv_store<unsigned, unsigned> &store, const char *input_file, unsig
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < updates; i++)
     {
-        store.insert(data[range_distribution(generator) % data.size()], 0);
+        tree.insert(data[range_distribution(generator) % data.size()], 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << empty_queries << ", " << store << "\n";
+    results << ", " << duration.count() << ", " << empty_queries << ", " << tree << "\n";
+    results.close();
 
 #ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data)
     {
-        if (!store.contains(item))
+        if (!tree.contains(item))
         {
             // std::cout << item << " not found" << std::endl;
             // break;
@@ -147,13 +159,6 @@ void display_help(const char *name)
                                       "  --dual                       Use a dual B+ tree\n";
 }
 
-enum TreeType
-{
-    SIMPLE,
-    FAST,
-    DUAL
-};
-
 int main(int argc, char **argv)
 {
     if (argc < 2)
@@ -165,8 +170,6 @@ int main(int argc, char **argv)
     const char *input_file = argv[1];
     const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
-    const char *outlier_dat = "outlier.dat";
-    TreeType type = TreeType::DUAL;
     unsigned raw_read_perc = 10;
     unsigned raw_write_perc = 10;
     unsigned mix_load_perc = 10;
@@ -186,10 +189,6 @@ int main(int argc, char **argv)
         else if (strcmp(argv[i], "--tree") == 0)
         {
             tree_dat = argv[++i];
-        }
-        else if (strcmp(argv[i], "--outlier") == 0)
-        {
-            outlier_dat = argv[++i];
         }
         else if (strcmp(argv[i], "--seed") == 0)
         {
@@ -211,18 +210,6 @@ int main(int argc, char **argv)
         {
             updates_perc = std::stoi(argv[++i]);
         }
-        else if (strcmp(argv[i], "--simple") == 0)
-        {
-            type = TreeType::SIMPLE;
-        }
-        else if (strcmp(argv[i], "--fast") == 0)
-        {
-            type = TreeType::FAST;
-        }
-        else if (strcmp(argv[i], "--dual") == 0)
-        {
-            type = TreeType::DUAL;
-        }
         else
         {
             std::cerr << "Discarding option: " << argv[i] << std::endl;
@@ -230,29 +217,15 @@ int main(int argc, char **argv)
     }
 
     Config config(config_file);
-    switch (type)
-    {
-    case SIMPLE:
-    {
-        std::cout << "Simple B+ tree" << std::endl;
-        bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
-        workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
-        break;
-    }
-    case FAST:
-    {
-        std::cout << "Fast Append B+ tree" << std::endl;
-        FastAppendTree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.sorted_tree_split_frac);
-        workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
-        break;
-    }
-    case DUAL:
-    {
-        std::cout << "Dual B+ tree" << std::endl;
-        dual_tree<unsigned, unsigned> tree(tree_dat, outlier_dat, config);
-        workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
-        break;
-    }
-    }
+
+#ifdef LOL_FAT
+    std::cout << "LOL" << std::endl;
+#endif
+#ifdef LIL_FAT
+    std::cout << "LIL" << std::endl;
+#endif
+    bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, config.unsorted_tree_split_frac);
+    workload(tree, input_file, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc, seed);
+
     return 0;
 }

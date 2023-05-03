@@ -59,7 +59,8 @@ public:
             next_block_id(0),
             cache(capacity),
             dirty_nodes(),
-            num_writes(0) {
+            num_writes(0),
+            num_mark_dirty(0) {
         internal_memory = new Block[capacity];
         fd = open(filepath, O_RDWR | O_CREAT | O_TRUNC, 0600);
         assert(fd != -1);

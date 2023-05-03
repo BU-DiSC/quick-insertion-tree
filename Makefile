@@ -1,14 +1,20 @@
 CXXFLAGS=-Isrc/bptree -std=c++17
 TARGET=src/tree_analysis.cpp
-PROFILE=-O2 -DBENCHMARK -fopenmp -shared-libgcc
+PROFILE=-O2 -DBENCHMARK
 
-all: clean vanilla profile
+all: clean simple lil lol fast
 
-vanilla:
+simple:
 	$(CXX) $(CXXFLAGS) -g $(TARGET) -o $@
 
-profile:
-	$(CXX) $(CXXFLAGS) $(TARGET) $(PROFILE) -o $@
+lil:
+	$(CXX) $(CXXFLAGS) -DLIL_FAT -g $(TARGET) -o $@
+
+lol:
+	$(CXX) $(CXXFLAGS) -DLOL_FAT -g $(TARGET) -o $@
+
+fast:
+	$(CXX) $(CXXFLAGS) -DLIL_FAT -DLOL_FAT -g $(TARGET) -o $@
 
 clean:
-	rm -rf vanilla profile
+	rm -rf simple lil lol fast

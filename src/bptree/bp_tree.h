@@ -1,46 +1,59 @@
 #ifndef BP_TREE_H
 #define BP_TREE_H
 
-#include "kv_store.h"
+#include <optional>
 #include "block_manager.h"
 #include "bp_node.h"
+#ifdef LOL_FAT
+#include "iqr_detector.h"
+#endif
 
 template <typename key_type, typename value_type>
-class dual_tree;
-
-template <typename key_type, typename value_type>
-class bp_tree : public kv_store<key_type, value_type>
+class bp_tree
 {
-
-    std::ostream &get_stats(std::ostream &os) const override
+    friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree)
     {
-        os << "SIMPLE, " << size << ", " << depth << ", " << manager.getNumWrites() << ", " << manager.getMarkDirty() << ", " << num_internal << ", " << num_leaves;
+        os << tree.size << ", " << tree.depth << ", " <<
+           tree.manager.getNumWrites() << ", " << tree.manager.getMarkDirty() << ", " <<
+           tree.num_internal << ", " << tree.num_leaves << ", "
+#ifdef LIL_FAT
+           << tree.ctr_lil
+#endif
+           << ", "
+#ifdef LOL_FAT
+           << tree.ctr_lol
+#endif
+        ;
         return os;
     }
 
 protected:
     using node_t = bp_node<key_type, value_type>;
 
-    const float tail_split_ratio;
-
     uint32_t root_id;
     uint32_t head_id;
-    uint32_t tail_id;
 #ifdef LIL_FAT
-    uint32_t last_insert_id;
-    std::optional<key_type> leaf_min;
-    std::optional<key_type>
-        leaf_max;
+    uint32_t lil_id;
+    std::optional<key_type> lil_min;
+    std::optional<key_type> lil_max;
+#endif
+#ifdef LOL_FAT
+    uint32_t lol_id;
+    std::optional<key_type> lol_min;
+    std::optional<key_type> lol_max;
 #endif
     uint32_t size;
     uint32_t depth;
-    key_type tree_min;
-    key_type tail_min;
-    key_type tree_max;
     BlockManager manager;
 
     uint32_t num_internal;
     uint32_t num_leaves;
+#ifdef LIL_FAT
+    uint32_t ctr_lil;
+#endif
+#ifdef LOL_FAT
+    uint32_t ctr_lol;
+#endif
 
     void create_new_root(key_type key, node_t &node, node_t &new_node)
     {
@@ -213,9 +226,6 @@ protected:
 
     bool leaf_insert(node_t &leaf, const key_type &key, const value_type &value)
     {
-#ifdef LIL_FAT
-        last_insert_id = leaf.info->id;
-#endif
         manager.mark_dirty(leaf.info->id);
         uint32_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key)
@@ -238,14 +248,6 @@ protected:
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
-            if (head_id == leaf.info->id)
-            { // && index == 0
-                tree_min = leaf.keys[0];
-            }
-            if (tail_id == leaf.info->id)
-            { // && index == leaf.info->size - 1
-                tree_max = leaf.keys[leaf.info->size - 1];
-            }
             return true;
         }
         // split the leaf
@@ -254,7 +256,7 @@ protected:
         manager.mark_dirty(new_leaf_id);
         num_leaves++;
 
-        float split_ratio = tail_id == leaf.info->id ? tail_split_ratio : 0.5;
+        float split_ratio = 0.5;
         leaf.info->size = (node_t::leaf_capacity + 1) * split_ratio;
         new_leaf.info->id = new_leaf_id;
         new_leaf.info->parent_id = leaf.info->parent_id; // same parent?
@@ -285,11 +287,10 @@ protected:
 
 #ifdef LIL_FAT
             // if we insert to left node of split, we set the leaf max
-            leaf_max = new_leaf.keys[0];
-            if (leaf.info->id == head_id)
-            {
-                leaf_min = std::nullopt;
-            }
+#ifdef LOL_FAT
+            if (lil_id == leaf.info->id)
+#endif
+                lil_max = new_leaf.keys[0];
 #endif
         }
         else
@@ -315,22 +316,26 @@ protected:
 #endif
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
-            last_insert_id = new_leaf.info->id;
-            // if we insert to right split node, we set leaf min
-            leaf_min = new_leaf.keys[0];
+#ifdef LOL_FAT
+            if (lil_id == leaf.info->id)
+#endif
+            {
+                lil_id = new_leaf.info->id;
+                // if we insert to right split node, we set leaf min
+                lil_min = new_leaf.keys[0];
+            }
 #endif
         }
-
-        if (head_id == leaf.info->id)
-        { // && index == 0
-            tree_min = leaf.keys[0];
+#ifdef LOL_FAT
+        if (lol_id == leaf.info->id) {
+            if (IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size, new_leaf.keys[0])) {
+                lol_max = new_leaf.keys[0];
+            } else {
+                lol_id = new_leaf.info->id;
+                lol_min = new_leaf.keys[0];
+            }
         }
-        if (tail_id == leaf.info->id)
-        {
-            tail_id = new_leaf_id;
-            tail_min = new_leaf.keys[0];
-            tree_max = new_leaf.keys[new_leaf.info->size - 1];
-        }
+#endif
 
         if (leaf.info->id == root_id)
         {
@@ -339,39 +344,27 @@ protected:
         }
 
         // insert new key to parent
-        // internal_insert(new_leaf.info->parent_id, leaf.keys[leaf.info->size - 1], new_leaf_id, split_ratio);
         internal_insert(new_leaf.info->parent_id, new_leaf.keys[0], new_leaf_id, split_ratio);
         return true;
     }
 
-    bool leaf_update(node_t &leaf, const key_type &key, const value_type &value)
-    {
-        uint32_t index = leaf.value_slot(key);
-        if (index < leaf.info->size && leaf.keys[index] == key)
-        {
-#ifdef LIL_FAT
-            last_insert_id = leaf.info->id;
-#endif
-            // update value
-            manager.mark_dirty(leaf.info->id);
-            leaf.values[index] = value;
-            return true;
-        }
-        return false;
-    }
-
-    friend class dual_tree<key_type, value_type>;
-
 public:
-    bp_tree(const char *filepath, uint32_t blocks_in_memory, float split_ratio = 0.8) : manager(filepath, blocks_in_memory), size(0), depth(1), tail_split_ratio(split_ratio)
+    bp_tree(const char *filepath, uint32_t blocks_in_memory, float split_ratio = 0.8) : manager(filepath, blocks_in_memory), size(0), depth(1)
     {
         assert((node_t::leaf_capacity + 1) * split_ratio < node_t::leaf_capacity + 1);
         assert(node_t::internal_capacity * split_ratio < node_t::internal_capacity);
-        head_id = tail_id = root_id = manager.allocate();
+        head_id = root_id = manager.allocate();
 #ifdef LIL_FAT
-        last_insert_id = head_id;
-        leaf_min = std::nullopt;
-        leaf_max = std::nullopt;
+        lil_id = head_id;
+        lil_min = std::nullopt;
+        lil_max = std::nullopt;
+        ctr_lil = 0;
+#endif
+#ifdef LOL_FAT
+        lol_id = head_id;
+        lol_min = std::nullopt;
+        lol_max = std::nullopt;
+        ctr_lol = 0;
 #endif
         node_t root(manager.open_block(root_id), bp_node_info::LEAF);
         manager.mark_dirty(root_id);
@@ -382,28 +375,42 @@ public:
         num_leaves = 1;
     }
 
-    bool update(const key_type &key, const value_type &value) override
+    bool insert(const key_type &key, const value_type &value)
     {
-        node_t leaf;
-        find_leaf(leaf, key);
-        return leaf_update(leaf, key, value);
-    }
-
-    bool insert(const key_type &key, const value_type &value) override
-    {
-        node_t leaf;
-        std::optional<key_type> current_max = find_leaf(leaf, key);
+#ifdef LOL_FAT
 #ifdef LIL_FAT
-        leaf_max = current_max;
+        assert(lil_id != lol_id || (lil_min == lol_min && lil_max == lol_max));
+#endif
+#endif
+        node_t leaf;
+#ifdef LOL_FAT
+        if ((!lol_min.has_value() || lol_min <= key) && (!lol_max.has_value() || key < lol_max)) {
+            ctr_lol++;
+            leaf.load(manager.open_block(lol_id));
+            return leaf_insert(leaf, key, value);
+        }
+#endif
+#ifdef LIL_FAT
+        if ((!lil_min.has_value() || lil_min <= key) && (!lil_max.has_value() || key < lil_max)) {
+            ctr_lil++;
+            leaf.load(manager.open_block(lil_id));
+            return leaf_insert(leaf, key, value);
+        }
+        std::optional<key_type> current_max =
+#endif
+        find_leaf(leaf, key);
+#ifdef LIL_FAT
+        lil_id = leaf.info->id;
+        lil_max = current_max;
         if (head_id != leaf.info->id)
-            leaf_min = leaf.keys[0];
+            lil_min = leaf.keys[0];
         else
-            leaf_min = std::nullopt;
+            lil_min = std::nullopt;
 #endif
         return leaf_insert(leaf, key, value);
     }
 
-    std::optional<value_type> get(const key_type &key) override
+    std::optional<value_type> get(const key_type &key)
     {
         node_t leaf;
         find_leaf(leaf, key);
@@ -413,6 +420,10 @@ public:
             return leaf.values[index];
         }
         return std::nullopt;
+    }
+
+    bool contains(const key_type &key) {
+        return get(key).has_value();
     }
 };
 
