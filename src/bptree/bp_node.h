@@ -54,8 +54,8 @@ namespace reversed {
 
 namespace interpolation {
     template<typename key_type>
-    _GLIBCXX20_CONSTEXPR
-    inline key_type *lower_bound(key_type *first, key_type *last, const key_type &val) {
+    
+     key_type *lower_bound(key_type *first, key_type *last, const key_type &val) {
         auto len = std::distance(first, last);
         while (len > 0) {
             if (val <= *first) return first;
@@ -147,14 +147,14 @@ public:
      */
     uint32_t value_slot(const key_type &key) const {
         assert(info->type == bp_node_info::LEAF);
-        auto it = interpolation::lower_bound(keys, keys + info->size, key);
+        auto it = std::lower_bound(keys, keys + info->size, key);
  //       assert(it == std::lower_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }
 
     uint32_t child_slot(const key_type &key) const {
         assert(info->type == bp_node_info::INTERNAL);
-        auto it = interpolation::upper_bound(keys, keys + info->size, key);
+        auto it = std::upper_bound(keys, keys + info->size, key);
 //        assert(it == std::upper_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }

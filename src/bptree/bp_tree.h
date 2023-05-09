@@ -13,9 +13,7 @@ class bp_tree
 {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree)
     {
-        os << tree.size << ", " << tree.depth << ", " <<
-           tree.manager.getNumWrites() << ", " << tree.manager.getMarkDirty() << ", " <<
-           tree.num_internal << ", " << tree.num_leaves << ", "
+        os << tree.size << ", " << tree.depth << ", " << tree.manager.getNumWrites() << ", " << tree.manager.getMarkDirty() << ", " << tree.num_internal << ", " << tree.num_leaves << ", "
 #ifdef LIL_FAT
            << tree.ctr_lil
 #endif
@@ -23,7 +21,7 @@ class bp_tree
 #ifdef LOL_FAT
            << tree.ctr_lol
 #endif
-        ;
+            ;
         return os;
     }
 
@@ -244,7 +242,7 @@ protected:
 #else
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
-#endif
+#endif    
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
@@ -327,12 +325,17 @@ protected:
 #endif
         }
 #ifdef LOL_FAT
-        if (lol_id == leaf.info->id) {
-            if (IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size, new_leaf.keys[0])) {
-                lol_max = new_leaf.keys[0];
-            } else {
+        if (lol_id == leaf.info->id)
+        {
+            if (IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size, new_leaf.keys[0]) == NO)
+            {
+                // lol_max = new_leaf.keys[0];
                 lol_id = new_leaf.info->id;
                 lol_min = new_leaf.keys[0];
+            }
+            else
+            {
+                lol_max = new_leaf.keys[0];
             }
         }
 #endif
@@ -384,21 +387,23 @@ public:
 #endif
         node_t leaf;
 #ifdef LOL_FAT
-        if ((!lol_min.has_value() || lol_min <= key) && (!lol_max.has_value() || key < lol_max)) {
+        if ((!lol_min.has_value() || lol_min <= key) && (!lol_max.has_value() || key < lol_max))
+        {
             ctr_lol++;
             leaf.load(manager.open_block(lol_id));
             return leaf_insert(leaf, key, value);
         }
 #endif
 #ifdef LIL_FAT
-        if ((!lil_min.has_value() || lil_min <= key) && (!lil_max.has_value() || key < lil_max)) {
+        if ((!lil_min.has_value() || lil_min <= key) && (!lil_max.has_value() || key < lil_max))
+        {
             ctr_lil++;
             leaf.load(manager.open_block(lil_id));
             return leaf_insert(leaf, key, value);
         }
         std::optional<key_type> current_max =
 #endif
-        find_leaf(leaf, key);
+            find_leaf(leaf, key);
 #ifdef LIL_FAT
         lil_id = leaf.info->id;
         lil_max = current_max;
@@ -422,7 +427,8 @@ public:
         return std::nullopt;
     }
 
-    bool contains(const key_type &key) {
+    bool contains(const key_type &key)
+    {
         return get(key).has_value();
     }
 };

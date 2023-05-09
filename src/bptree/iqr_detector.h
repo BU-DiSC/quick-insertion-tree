@@ -3,6 +3,13 @@
 
 #include "outlier_detector.h"
 
+enum OUTLIER
+{
+    LEFT,
+    NO,
+    RIGHT
+};
+
 template <typename key_type>
 class IQRDetector : public OutlierDetector<key_type>
 {
@@ -12,10 +19,16 @@ public:
         return keys[size * 2 / 3] + (keys[size * 2 / 3] - keys[0]) * 1.5 < keys[size - 1];
     }
 
-    static bool is_outlier(key_type *keys, const uint32_t &size, key_type &key) {
-        return true;
-        key_type &iqr = keys[size - 1];
-        return iqr + (iqr - keys[0]) * 10 < key;
+    static OUTLIER is_outlier(key_type *keys, const uint32_t &size, key_type &key)
+    {
+        // return true;
+        // key_type &iqr = keys[size - 1];
+        // return iqr + (iqr - keys[0]) * 1.5 < key;
+        if (keys[size * 1 / 4] - (keys[size * 3 / 4] - keys[size * 1 / 4]) * 1.5 > key)
+            return LEFT;
+        if (keys[size * 3 / 4] + (keys[size * 3 / 4] - keys[size * 1 / 4]) * 1.5 < key)
+            return RIGHT;
+        return NO;
     }
 };
 
