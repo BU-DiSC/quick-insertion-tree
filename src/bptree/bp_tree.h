@@ -21,7 +21,7 @@ class bp_tree
 #ifdef LOL_FAT
            << tree.ctr_lol
 #endif
-            ;
+           << ", " << tree.ctr_1 << ", " << tree.ctr_2;
         return os;
     }
 
@@ -52,6 +52,8 @@ protected:
 #ifdef LOL_FAT
     uint32_t ctr_lol;
 #endif
+
+    uint32_t ctr_1, ctr_2;
 
     void create_new_root(key_type key, node_t &node, node_t &new_node)
     {
@@ -242,7 +244,7 @@ protected:
 #else
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
-#endif    
+#endif
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
@@ -376,6 +378,7 @@ public:
 
         num_internal = 0;
         num_leaves = 1;
+        ctr_1 = ctr_2 = 0;
     }
 
     bool insert(const key_type &key, const value_type &value)
@@ -401,9 +404,9 @@ public:
             leaf.load(manager.open_block(lil_id));
             return leaf_insert(leaf, key, value);
         }
-        std::optional<key_type> current_max =
+
 #endif
-            find_leaf(leaf, key);
+        std::optional<key_type> current_max = find_leaf(leaf, key);
 #ifdef LIL_FAT
         lil_id = leaf.info->id;
         lil_max = current_max;
@@ -411,6 +414,25 @@ public:
             lil_min = leaf.keys[0];
         else
             lil_min = std::nullopt;
+#endif
+#ifdef LOL_FAT
+        // if the new inserted key will not be an outlier according to current lol
+        // and if we make this a top-insert to lol->next, then update lol.
+        node_t lol_leaf;
+        lol_leaf.load(manager.open_block(lol_id));
+        if (leaf.info->id == lol_leaf.info->next_id)
+            ctr_1++;
+        if (leaf.info->id == lol_leaf.info->next_id &&
+            IQRDetector<key_type>::is_outlier(lol_leaf.keys,
+                                              lol_leaf.info->size - 1,
+                                              lol_leaf.keys[lol_leaf.info->size - 1]) == NO &&
+            IQRDetector<key_type>::is_outlier(lol_leaf.keys, lol_leaf.info->size, key) == NO)
+        {
+            lol_id = leaf.info->id;
+            lol_max = current_max;
+            lol_min = leaf.keys[0];
+            ctr_2++;
+        }
 #endif
         return leaf_insert(leaf, key, value);
     }

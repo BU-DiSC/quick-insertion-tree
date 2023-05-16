@@ -19,7 +19,12 @@ public:
         return keys[size * 2 / 3] + (keys[size * 2 / 3] - keys[0]) * 1.5 < keys[size - 1];
     }
 
-    static OUTLIER is_outlier(key_type *keys, const uint32_t &size, key_type &key)
+    static bool is_extreme_outlier(key_type *keys, const uint32_t &size, const key_type &key) 
+    {
+        return keys[size * 2 / 3] + (keys[size * 2 / 3] - keys[0]) * 1.5 < key || keys;
+    }
+
+    static OUTLIER is_outlier(key_type *keys, const uint32_t &size, const key_type &key)
     {
         // return true;
         // key_type &iqr = keys[size - 1];
