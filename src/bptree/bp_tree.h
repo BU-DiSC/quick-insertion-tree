@@ -329,7 +329,8 @@ protected:
 #ifdef LOL_FAT
         if (lol_id == leaf.info->id)
         {
-            if (IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size, new_leaf.keys[0]) == NO)
+            if (IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size - 1, leaf.keys[leaf.info->size - 1]) == NO &&
+                IQRDetector<key_type>::is_outlier(leaf.keys, leaf.info->size, new_leaf.keys[0]) == NO)
             {
                 // lol_max = new_leaf.keys[0];
                 lol_id = new_leaf.info->id;
