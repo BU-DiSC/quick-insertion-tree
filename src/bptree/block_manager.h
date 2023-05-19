@@ -18,14 +18,19 @@ struct Block {
 };
 
 class BlockManager {
+    friend std::ostream &operator<<(std::ostream &os, const BlockManager &manager) {
+        os << manager.ctr_writes << ", " << manager.ctr_mark_dirty;
+        return os;
+    }
+
     const uint32_t capacity;
     uint32_t next_block_id;
     Block *internal_memory;
     LRUCache cache;
     int fd;
     std::unordered_set<uint32_t> dirty_nodes;
-    uint32_t num_writes;
-    uint32_t num_mark_dirty;
+    uint32_t ctr_writes;
+    uint32_t ctr_mark_dirty;
 
     /**
      * Write a block to disk
@@ -37,7 +42,7 @@ class BlockManager {
         off_t offset = id * block_size;
 //        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
         pwrite(fd, internal_memory[pos].block_buf, block_size, offset);
-        num_writes++;
+        ctr_writes++;
     }
 
     /**
@@ -59,8 +64,8 @@ public:
             next_block_id(0),
             cache(capacity),
             dirty_nodes(),
-            num_writes(0),
-            num_mark_dirty(0) {
+            ctr_writes(0),
+            ctr_mark_dirty(0) {
         internal_memory = new Block[capacity];
         fd = open(filepath, O_RDWR | O_CREAT | O_TRUNC, 0600);
         assert(fd != -1);
@@ -98,7 +103,7 @@ public:
     void mark_dirty(uint32_t id) {
         assert(cache.get(id) != capacity);
         dirty_nodes.insert(id);
-        num_mark_dirty++;
+        ctr_mark_dirty++;
     }
 
     /**
@@ -123,14 +128,6 @@ public:
             read_block(id, pos);
         }
         return internal_memory[pos].block_buf;
-    }
-
-    uint32_t getNumWrites() const {
-        return num_writes;
-    }
-
-    uint32_t getMarkDirty() const {
-        return num_mark_dirty;
     }
 };
 

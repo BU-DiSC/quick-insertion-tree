@@ -8,98 +8,19 @@
 
 struct bp_node_info {
     uint32_t id;
-    uint32_t parent_id;
+    uint32_t parent_id; // not needed?
     uint32_t next_id;
     uint16_t size;
     enum bp_node_type {
         LEAF, INTERNAL
-    } type;
+    } type; // not needed? use 1 bit from id
 };
-
-namespace linear {
-    template<typename key_type>
-    key_type *lower_bound(key_type *low, key_type *high, const key_type &value) {
-        while (low < high && *low < value) {
-            low++;
-        }
-        return low;
-    }
-
-    template<typename key_type>
-    key_type *upper_bound(key_type *low, key_type *high, const key_type &value) {
-        while (low < high && *low <= value) {
-            low++;
-        }
-        return low;
-    }
-}
-
-namespace reversed {
-    template<typename key_type>
-    key_type *lower_bound(key_type *low, key_type *high, const key_type &value) {
-        while (low < high && value <= *(high - 1)) {
-            high--;
-        }
-        return high;
-    }
-
-    template<typename key_type>
-    key_type *upper_bound(key_type *low, key_type *high, const key_type &value) {
-        while (low < high && value < *(high - 1)) {
-            high--;
-        }
-        return high;
-    }
-}
-
-namespace interpolation {
-    template<typename key_type>
-    
-     key_type *lower_bound(key_type *first, key_type *last, const key_type &val) {
-        auto len = std::distance(first, last);
-        while (len > 0) {
-            if (val <= *first) return first;
-            if (val > *(last - 1)) return last;
-            auto half = (len - 1) * (val - *first) / (*(last - 1) - *first);
-            auto middle = first;
-            std::advance(middle, half);
-            if (*middle < val) {
-                first = middle;
-                ++first;
-                len = len - half - 1;
-            } else
-                len = half;
-        }
-        return first;
-    }
-
-    template<typename key_type>
-    key_type *upper_bound(key_type *first, key_type *last, const key_type &val) {
-        auto len = std::distance(first, last);
-
-        while (len > 0) {
-            if (val < *first) return first;
-            if (val > *(last - 1)) return last;
-            auto half = (len - 1) * (val - *first) / (*(last - 1) - *first);
-            auto middle = first;
-            std::advance(middle, half);
-            if (val < *middle)
-                len = half;
-            else {
-                first = middle;
-                ++first;
-                len = len - half - 1;
-            }
-        }
-        return first;
-    }
-}
 
 template<typename key_type, typename value_type>
 class bp_node {
 public:
-    static constexpr uint32_t leaf_capacity =
-            (BlockManager::block_size - sizeof(bp_node_info)) / (sizeof(key_type) + sizeof(value_type));
+    static constexpr uint32_t leaf_capacity = (BlockManager::block_size - sizeof(bp_node_info)) /
+                                              (sizeof(key_type) + sizeof(value_type));
     static constexpr uint32_t internal_capacity = (BlockManager::block_size - sizeof(bp_node_info) - sizeof(uint32_t)) /
                                                   (sizeof(key_type) + sizeof(uint32_t));
     bp_node_info *info;
@@ -148,7 +69,7 @@ public:
     uint32_t value_slot(const key_type &key) const {
         assert(info->type == bp_node_info::LEAF);
         auto it = std::lower_bound(keys, keys + info->size, key);
- //       assert(it == std::lower_bound(keys, keys + info->size, key));
+//       assert(it == std::lower_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }
 

@@ -1,8 +1,7 @@
 CXXFLAGS=-Isrc/bptree -std=c++17
 TARGET=src/tree_analysis.cpp
-PROFILE=-O2 -DBENCHMARK
 
-all: clean simple lil lol fast
+all: clean simple lil lol lollipop
 
 simple:
 	$(CXX) $(CXXFLAGS) -g $(TARGET) -o $@
@@ -13,8 +12,8 @@ lil:
 lol:
 	$(CXX) $(CXXFLAGS) -DLOL_FAT -g $(TARGET) -o $@
 
-fast:
+lollipop:
 	$(CXX) $(CXXFLAGS) -DLIL_FAT -DLOL_FAT -g $(TARGET) -o $@
 
 clean:
-	rm -rf simple lil lol fast
+	rm -rf simple lil lol lollipop
