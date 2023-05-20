@@ -1,4 +1,4 @@
-CXXFLAGS=-Isrc/bptree -std=c++17
+CXXFLAGS=-Isrc/bptree -std=c++17 -DINMEMORY
 TARGET=src/tree_analysis.cpp
 
 all: clean simple lil lol lollipop

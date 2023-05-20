@@ -11,14 +11,63 @@
 
 #include "lru_cache.h"
 
+#ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
+#endif
 
 struct Block {
     uint8_t block_buf[BLOCK_SIZE_BYTES]{};
 };
 
-class BlockManager {
-    friend std::ostream &operator<<(std::ostream &os, const BlockManager &manager) {
+class InMemoryBlockManager {
+    friend std::ostream &operator<<(std::ostream &os, const InMemoryBlockManager &manager) {
+        os << ", ";
+        return os;
+    }
+
+    const uint32_t capacity;
+    uint32_t next_block_id;
+    Block *internal_memory;
+public:
+    static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
+
+    InMemoryBlockManager(const char *filepath, uint32_t capacity) :
+            capacity(capacity),
+            next_block_id(0) {
+        std::cout << "IN MEMORY" << std::endl;
+        internal_memory = new Block[capacity];
+    }
+
+    ~InMemoryBlockManager() {
+        delete[] internal_memory;
+    }
+
+    void flush() {
+    }
+
+    /**
+     * Allocate a block id
+     * @return block id for the new block
+     */
+    uint32_t allocate() {
+        assert(next_block_id < capacity);
+        return next_block_id++;
+    }
+
+    /**
+     * Mark a block as dirty
+     * @param id block id
+     */
+    void mark_dirty(uint32_t id) {
+    }
+
+    void *open_block(uint32_t id) {
+        return internal_memory[id].block_buf;
+    }
+};
+
+class DiskBlockManager {
+    friend std::ostream &operator<<(std::ostream &os, const DiskBlockManager &manager) {
         os << manager.ctr_writes << ", " << manager.ctr_mark_dirty;
         return os;
     }
@@ -59,7 +108,7 @@ class BlockManager {
 public:
     static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
-    BlockManager(const char *filepath, uint32_t capacity) :
+    DiskBlockManager(const char *filepath, uint32_t capacity) :
             capacity(capacity),
             next_block_id(0),
             cache(capacity),
@@ -71,7 +120,7 @@ public:
         assert(fd != -1);
     }
 
-    ~BlockManager() {
+    ~DiskBlockManager() {
 #ifndef BENCHMARK
         flush();
 #endif
@@ -130,6 +179,12 @@ public:
         return internal_memory[pos].block_buf;
     }
 };
+
+#ifdef INMEMORY
+typedef InMemoryBlockManager BlockManager;
+#else
+typedef DiskBlockManager BlockManager;
+#endif
 
 #undef BLOCK_SIZE_BYTES
 
