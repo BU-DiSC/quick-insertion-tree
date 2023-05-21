@@ -2,7 +2,13 @@
 #define BP_TREE_H
 
 #include <optional>
-#include "block_manager.h"
+#ifdef INMEMORY
+#include "memory_block_manager.h"
+typedef InMemoryBlockManager BlockManager;
+#else
+#include "disk_block_manager.h"
+typedef DiskBlockManager BlockManager;
+#endif
 #include "bp_node.h"
 
 #ifdef LOL_FAT
@@ -16,11 +22,11 @@ class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
         os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
-#ifdef LIL_FAT
+           #ifdef LIL_FAT
            << tree.ctr_lil
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_lol
 #endif
                 ;
@@ -32,20 +38,23 @@ class bp_tree {
     BlockManager manager;
     uint32_t root_id;
     uint32_t head_id;  // not really needed
+    uint32_t tail_id;  // not really needed
 #ifdef LIL_FAT
     uint32_t lil_id;
-    std::optional<key_type> lil_min;
-    std::optional<key_type> lil_max;
+    key_type lil_min;
+    key_type lil_max;
     uint32_t ctr_lil;
 #endif
 #ifdef LOL_FAT
-    key_type lol_q1;
     uint32_t lol_id;
-    std::optional<key_type> lol_min;
-    std::optional<key_type> lol_max;
+    key_type lol_min;
+    key_type lol_max;
     uint32_t ctr_lol;
+    // iqr
+    key_type lol_prev_min;
+    uint16_t lol_prev_size;
+    uint16_t lol_size;
 #endif
-
     uint32_t ctr_size;
     uint32_t ctr_depth;
     uint32_t ctr_internal;
@@ -68,8 +77,8 @@ class bp_tree {
         ctr_internal++;
     }
 
-    std::optional<key_type> find_leaf(node_t &node, const key_type &key) {
-        std::optional<key_type> current_max = std::nullopt;
+    key_type find_leaf(node_t &node, const key_type &key) {
+        key_type current_max = -1;
         uint32_t child_id = root_id;
         while (true) {
             node.load(manager.open_block(child_id));
@@ -133,7 +142,6 @@ class bp_tree {
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
 #endif
                 node.keys[index] = key;
-
 #ifdef COPY
                 std::copy(node.children + node.info->size, node.children + 1 + node_t::internal_capacity,
                           new_node.children);
@@ -228,8 +236,11 @@ class bp_tree {
             leaf.values[index] = value;
             leaf.info->size++;
 #ifdef LOL_FAT
-            if (leaf.info->next_id != head_id && leaf.info->next_id == lol_id) {
-                lol_q1 = leaf.keys[leaf.info->size - 250];
+            if (leaf.info->id == lol_id) {
+                lol_size++;
+            }
+            if (leaf.info->id != tail_id && leaf.info->next_id == lol_id) {
+                lol_prev_size++;
             }
 #endif
             return true;
@@ -247,6 +258,9 @@ class bp_tree {
         new_leaf.info->next_id = leaf.info->next_id;
         leaf.info->next_id = new_leaf_id;
         new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
+        if (leaf.info->id == tail_id) {
+            tail_id = new_leaf_id;
+        }
 
         if (index < leaf.info->size) {
 #ifdef COPY
@@ -298,7 +312,7 @@ class bp_tree {
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
 #ifdef LOL_FAT
-            if (lil_id == leaf.info->id)
+            if (leaf.info->id == lil_id)
 #endif
             {
                 lil_id = new_leaf.info->id;
@@ -309,13 +323,21 @@ class bp_tree {
         }
 #ifdef LOL_FAT
         if (leaf.info->id == lol_id) {
-            if (!lol_min.has_value() || new_leaf.keys[0] < IQRDetector::max_outlier(lol_q1, lol_min.value())) {
-                lol_q1 = leaf.keys[leaf.info->size - 250];
-                lol_id = new_leaf.info->id;
+            if (lol_id == head_id ||
+                new_leaf.keys[0] < IQRDetector::max_outlier(lol_prev_min, lol_min, lol_prev_size, leaf.info->size)) {
+                lol_prev_min = lol_min;
+                lol_prev_size = leaf.info->size;
+                lol_id = new_leaf_id;
                 lol_min = new_leaf.keys[0];
+                lol_size = new_leaf.info->size;
             } else {
                 lol_max = new_leaf.keys[0];
+                lol_size = leaf.info->size;
             }
+        }
+        if (new_leaf_id != tail_id && new_leaf.info->next_id == lol_id) {
+            lol_prev_min = new_leaf.keys[0];
+            lol_prev_size = new_leaf.info->size;
         }
 #endif
 
@@ -332,17 +354,20 @@ class bp_tree {
 public:
     bp_tree(const char *filepath, uint32_t blocks_in_memory) : manager(filepath, blocks_in_memory) {
         root_id = manager.allocate();
-        head_id = root_id;
+        head_id = tail_id = root_id;
 #ifdef LIL_FAT
         lil_id = root_id;
-        lil_min = std::nullopt;
-        lil_max = std::nullopt;
+        lil_min = 0;
+        lil_max = 0;
         ctr_lil = 0;
 #endif
 #ifdef LOL_FAT
         lol_id = root_id;
-        lol_min = std::nullopt;
-        lol_max = std::nullopt;
+        lol_prev_min = 0;
+        lol_prev_size = 0;
+        lol_min = 0;
+        lol_max = 0;
+        lol_size = 0;
         ctr_lol = 0;
 #endif
         node_t root(manager.open_block(root_id), bp_node_info::LEAF);
@@ -360,44 +385,43 @@ public:
     bool insert(const key_type &key, const value_type &value) {
 #ifdef LOL_FAT
 #ifdef LIL_FAT
-        assert(lil_id != lol_id || (lil_min == lol_min && lil_max == lol_max));
+        assert(lil_id != lol_id || ((lol_id == head_id || lil_min == lol_min) && (lol_id == tail_id || lil_max == lol_max)));
 #endif
 #endif
         node_t leaf;
 #ifdef LOL_FAT
-        if ((!lol_min.has_value() || lol_min <= key) && (!lol_max.has_value() || key < lol_max)) {
+        if ((lol_id == head_id || lol_min <= key) && (lol_id == tail_id || key < lol_max)) {
             ctr_lol++;
             leaf.load(manager.open_block(lol_id));
             return leaf_insert(leaf, key, value);
         }
 #endif
 #ifdef LIL_FAT
-        if ((!lil_min.has_value() || lil_min <= key) && (!lil_max.has_value() || key < lil_max)) {
+        if ((lil_id == head_id || lil_min <= key) && (lil_id == tail_id || key < lil_max)) {
             ctr_lil++;
             leaf.load(manager.open_block(lil_id));
             return leaf_insert(leaf, key, value);
         }
 #endif
-        std::optional<key_type> current_max = find_leaf(leaf, key);
+        key_type current_max = find_leaf(leaf, key);
 #ifdef LIL_FAT
         lil_id = leaf.info->id;
-        if (head_id == leaf.info->id)
-            lil_min = std::nullopt;
-        else
+        if (lil_id != head_id)
             lil_min = leaf.keys[0];
-        lil_max = current_max;
+        if (lil_id != tail_id)
+            lil_max = current_max;
 #endif
 #ifdef LOL_FAT
         // if the new inserted key will not be an outlier according to current lol
         // and if we make this a top-insert to lol->next, then update lol.
-        if (lol_max.has_value() && leaf.keys[0] == lol_max &&
-            lol_min.has_value() && lol_max < IQRDetector::max_outlier2(lol_q1, lol_min.value())) {
-            node_t lol_leaf;
-            lol_leaf.load(manager.open_block(lol_id));
-            lol_q1 = lol_leaf.keys[lol_leaf.info->size - 250];
+        if (lol_id != head_id && lol_id != tail_id && lol_max == leaf.keys[0] &&
+            lol_max < IQRDetector::max_outlier(lol_prev_min, lol_min, lol_prev_size, lol_size)) {
+            lol_prev_min = lol_min;
+            lol_prev_size = lol_size;
             lol_id = leaf.info->id;
-            lol_min = leaf.keys[0];
+            lol_min = lol_max;
             lol_max = current_max;
+            lol_size = leaf.info->size;
         }
 #endif
         return leaf_insert(leaf, key, value);

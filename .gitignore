@@ -2,14 +2,11 @@
 .idea
 .gitignore
 cmake-build-default
-vanillla
-outofplace
-inplace
 a.out
 simple
 lil
 lol
-fast
+lollipop
 input*
 *.csv
 *.dat

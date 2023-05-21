@@ -2,9 +2,6 @@
 #define BP_NODE_H
 
 #include <algorithm>
-#include <ostream>
-
-#include "block_manager.h"
 
 struct bp_node_info {
     uint32_t id;

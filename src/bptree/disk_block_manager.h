@@ -1,15 +1,136 @@
-#ifndef BLOCK_MANAGER_H
-#define BLOCK_MANAGER_H
+#ifndef DISK_BLOCK_MANAGER_H
+#define DISK_BLOCK_MANAGER_H
 
 #include <cassert>
-#include <cstring>
 #include <fcntl.h>
 #include <iostream>
-#include <string>
 #include <unistd.h>
+#include <unordered_map>
 #include <unordered_set>
 
-#include "lru_cache.h"
+struct Node {
+    uint32_t id;
+    const uint32_t pos;
+    Node *prev, *next;
+
+    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos) {
+        prev = nullptr;
+        next = nullptr;
+    }
+};
+
+class LinkedList {
+    Node *begin;
+    Node *end;
+
+public:
+    LinkedList() {
+        begin = nullptr;
+        end = nullptr;
+    }
+
+    ~LinkedList() {
+        while (end) {
+            delete removeFromEnd();
+        }
+    }
+
+    void moveToFront(Node *node) {
+        if (node == begin) return;
+
+        node->prev->next = node->next;
+
+        if (node == end) {
+            end = end->prev;
+        } else {
+            node->next->prev = node->prev;
+        }
+
+        // add to front
+        begin->prev = node;
+        node->next = begin;
+        node->prev = nullptr;
+        begin = node;
+    }
+
+    void addToFront(Node *node) {
+        if (begin) {
+            node->next = begin;
+            begin->prev = node;
+        } else {
+            end = node;
+        }
+        begin = node;
+    }
+
+    Node *removeFromEnd() {
+        if (end == nullptr) return nullptr;
+
+        Node *temp = end;
+        if (end->prev) {
+            end->prev->next = nullptr;
+        } else {
+            begin = nullptr;
+        }
+        end = end->prev;
+        temp->prev = nullptr;
+        return temp;
+    }
+};
+
+class LRUCache {
+    const uint32_t capacity;
+    uint32_t size;
+    LinkedList list;
+    std::unordered_map<uint32_t, Node *> node_hash{};
+
+public:
+
+    explicit LRUCache(uint32_t cap) : capacity(cap), size(0) {}
+
+    /**
+     * Get a node from cache
+     * @param id
+     * @return position in internal memory
+     */
+    uint32_t get(uint32_t id) {
+        auto it = node_hash.find(id);
+
+        if (it == node_hash.end()) {
+            return capacity;
+        }
+
+        list.moveToFront(it->second);
+
+        return it->second->pos;
+    }
+
+    /**
+     * Put a node in cache evicting the least recently used node if necessary
+     * @param id
+     * @param[out] pos
+     * @param[out] evicted_id
+     * @return true if an eviction occurred
+     */
+    bool put(uint32_t id, uint32_t &pos, uint32_t &evicted_id) {
+        Node *node;
+        bool eviction = size == capacity;
+        if (eviction) {
+            node = list.removeFromEnd();
+            evicted_id = node->id;
+            node_hash.erase(evicted_id);
+            node->id = id;
+        } else {
+            node = new Node(id, size);
+            size++;
+        }
+        pos = node->pos;
+        list.addToFront(node);
+        node_hash[id] = node;
+
+        return eviction;
+    }
+};
 
 #ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
@@ -17,53 +138,6 @@
 
 struct Block {
     uint8_t block_buf[BLOCK_SIZE_BYTES]{};
-};
-
-class InMemoryBlockManager {
-    friend std::ostream &operator<<(std::ostream &os, const InMemoryBlockManager &manager) {
-        os << ", ";
-        return os;
-    }
-
-    const uint32_t capacity;
-    uint32_t next_block_id;
-    Block *internal_memory;
-public:
-    static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
-
-    InMemoryBlockManager(const char *filepath, uint32_t capacity) :
-            capacity(capacity),
-            next_block_id(0) {
-        std::cout << "IN MEMORY" << std::endl;
-        internal_memory = new Block[capacity];
-    }
-
-    ~InMemoryBlockManager() {
-        delete[] internal_memory;
-    }
-
-    void flush() {
-    }
-
-    /**
-     * Allocate a block id
-     * @return block id for the new block
-     */
-    uint32_t allocate() {
-        assert(next_block_id < capacity);
-        return next_block_id++;
-    }
-
-    /**
-     * Mark a block as dirty
-     * @param id block id
-     */
-    void mark_dirty(uint32_t id) {
-    }
-
-    void *open_block(uint32_t id) {
-        return internal_memory[id].block_buf;
-    }
 };
 
 class DiskBlockManager {
@@ -179,13 +253,5 @@ public:
         return internal_memory[pos].block_buf;
     }
 };
-
-#ifdef INMEMORY
-typedef InMemoryBlockManager BlockManager;
-#else
-typedef DiskBlockManager BlockManager;
-#endif
-
-#undef BLOCK_SIZE_BYTES
 
 #endif
