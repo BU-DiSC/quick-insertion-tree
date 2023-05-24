@@ -2,13 +2,21 @@
 #define BP_TREE_H
 
 #include <optional>
+
 #ifdef INMEMORY
+
 #include "memory_block_manager.h"
+
 typedef InMemoryBlockManager BlockManager;
+
 #else
+
 #include "disk_block_manager.h"
+
 typedef DiskBlockManager BlockManager;
+
 #endif
+
 #include "bp_node.h"
 
 #ifdef LOL_FAT
@@ -34,6 +42,9 @@ class bp_tree {
     }
 
     using node_t = bp_node<key_type, value_type>;
+    using dist_f = std::size_t (*)(const key_type &, const key_type &);
+
+    dist_f dist;
 
     BlockManager manager;
     uint32_t root_id;
@@ -106,15 +117,9 @@ class bp_tree {
             manager.mark_dirty(node_id);
             if (node.info->size < node_t::internal_capacity) {
                 // insert new key
-#ifdef COPY
-                std::copy_backward(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
-                std::copy_backward(node.children + index + 1, node.children + node.info->size + 1,
-                                   node.children + node.info->size + 2);
-#else
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
                 std::memmove(node.children + index + 2, node.children + index + 1,
                              (node.info->size - index) * sizeof(uint32_t));
-#endif
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
                 node.info->size++;
@@ -133,65 +138,34 @@ class bp_tree {
             new_node.info->size = node_t::internal_capacity - node.info->size;
 
             if (index < node.info->size) {
-#ifdef COPY
-                std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
-                std::copy_backward(node.keys + index, node.keys + node.info->size, node.keys + node.info->size + 1);
-#else
                 std::memcpy(new_node.keys, node.keys + node.info->size,
                             (node_t::internal_capacity - node.info->size) * sizeof(key_type));
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
-#endif
                 node.keys[index] = key;
-#ifdef COPY
-                std::copy(node.children + node.info->size, node.children + 1 + node_t::internal_capacity,
-                          new_node.children);
-                std::copy_backward(node.children + index + 1, node.children + node.info->size + 1,
-                                   node.children + node.info->size + 2);
-#else
                 std::memcpy(new_node.children, node.children + node.info->size,
                             (1 + node_t::internal_capacity - node.info->size) * sizeof(uint32_t));
                 std::memmove(node.children + index + 2, node.children + index + 1,
                              (node.info->size - index + 1) * sizeof(uint32_t));
-#endif
                 node.children[index + 1] = child_id;
 
                 key = node.keys[node.info->size];
                 // key = new_node.keys[0];
             } else if (index == node.info->size) {
-#ifdef COPY
-                std::copy(node.keys + node.info->size, node.keys + node_t::internal_capacity, new_node.keys);
-                std::copy(node.children + 1 + node.info->size, node.children + 1 + node_t::internal_capacity,
-                          new_node.children + 1);
-#else
                 std::memcpy(new_node.keys, node.keys + node.info->size,
                             (node_t::internal_capacity - node.info->size) * sizeof(key_type));
                 std::memcpy(new_node.children + 1, node.children + 1 + node.info->size,
                             (node_t::internal_capacity - node.info->size) * sizeof(uint32_t));
-#endif
                 new_node.children[0] = child_id;
             } else {
-#ifdef COPY
-                std::copy(node.keys + node.info->size + 1, node.keys + index, new_node.keys);
-                std::copy(node.keys + index, node.keys + node_t::internal_capacity,
-                          new_node.keys + index - node.info->size);
-#else
                 std::memcpy(new_node.keys, node.keys + node.info->size + 1,
                             (index - node.info->size - 1) * sizeof(key_type));
                 std::memcpy(new_node.keys + index - node.info->size, node.keys + index,
                             (node_t::internal_capacity - index) * sizeof(key_type));
-#endif
                 new_node.keys[index - node.info->size - 1] = key;
-
-#ifdef COPY
-                std::copy(node.children + 1 + node.info->size, node.children + 1 + index, new_node.children);
-                std::copy(node.children + 1 + index, node.children + 1 + node_t::internal_capacity,
-                          new_node.children + 1 + index - node.info->size);
-#else
                 std::memcpy(new_node.children, node.children + 1 + node.info->size,
                             (index - node.info->size) * sizeof(uint32_t));
                 std::memcpy(new_node.children + 1 + index - node.info->size, node.children + 1 + index,
                             (node_t::internal_capacity - index) * sizeof(uint32_t));
-#endif
                 new_node.children[index - node.info->size] = child_id;
 
                 key = node.keys[node.info->size];
@@ -225,13 +199,8 @@ class bp_tree {
         ctr_size++;
         if (leaf.info->size < node_t::leaf_capacity) {
             // insert new key
-#ifdef COPY
-            std::copy_backward(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
-            std::copy_backward(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
-#else
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
-#endif
             leaf.keys[index] = key;
             leaf.values[index] = value;
             leaf.info->size++;
@@ -263,23 +232,13 @@ class bp_tree {
         }
 
         if (index < leaf.info->size) {
-#ifdef COPY
-            std::copy(leaf.keys + leaf.info->size - 1, leaf.keys + node_t::leaf_capacity, new_leaf.keys);
-            std::copy_backward(leaf.keys + index, leaf.keys + leaf.info->size, leaf.keys + leaf.info->size + 1);
-#else
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1,
                         (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(key_type));
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
-#endif
             leaf.keys[index] = key;
-#ifdef COPY
-            std::copy(leaf.values + leaf.info->size - 1, leaf.values + node_t::leaf_capacity, new_leaf.values);
-            std::copy_backward(leaf.values + index, leaf.values + leaf.info->size, leaf.values + leaf.info->size + 1);
-#else
             std::memcpy(new_leaf.values, leaf.values + leaf.info->size - 1,
                         (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(value_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
-#endif
             leaf.values[index] = value;
 
 #ifdef LIL_FAT
@@ -290,25 +249,13 @@ class bp_tree {
                 lil_max = new_leaf.keys[0];
 #endif
         } else {
-#ifdef COPY
-            std::copy(leaf.keys + leaf.info->size, leaf.keys + index, new_leaf.keys);
-            std::copy(leaf.keys + index, leaf.keys + node_t::leaf_capacity,
-                      new_leaf.keys + index - leaf.info->size + 1);
-#else
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size, (index - leaf.info->size) * sizeof(key_type));
             std::memcpy(new_leaf.keys + index - leaf.info->size + 1, leaf.keys + index,
                         (node_t::leaf_capacity - index) * sizeof(key_type));
-#endif
             new_leaf.keys[index - leaf.info->size] = key;
-#ifdef COPY
-            std::copy(leaf.values + leaf.info->size, leaf.values + index, new_leaf.values);
-            std::copy(leaf.values + index, leaf.values + node_t::leaf_capacity,
-                      new_leaf.values + index - leaf.info->size + 1);
-#else
             std::memcpy(new_leaf.values, leaf.values + leaf.info->size, (index - leaf.info->size) * sizeof(value_type));
             std::memcpy(new_leaf.values + index - leaf.info->size + 1, leaf.values + index,
                         (node_t::leaf_capacity - index) * sizeof(value_type));
-#endif
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
 #ifdef LOL_FAT
@@ -324,7 +271,8 @@ class bp_tree {
 #ifdef LOL_FAT
         if (leaf.info->id == lol_id) {
             if (lol_id == head_id ||
-                new_leaf.keys[0] < IQRDetector::max_outlier(lol_prev_min, lol_min, lol_prev_size, leaf.info->size)) {
+                dist(new_leaf.keys[0], lol_min) <
+                IQRDetector::max_distance(lol_prev_min, lol_min, lol_prev_size, leaf.info->size)) {
                 lol_prev_min = lol_min;
                 lol_prev_size = leaf.info->size;
                 lol_id = new_leaf_id;
@@ -352,7 +300,8 @@ class bp_tree {
     }
 
 public:
-    bp_tree(const char *filepath, uint32_t blocks_in_memory) : manager(filepath, blocks_in_memory) {
+    bp_tree(const char *filepath, uint32_t blocks_in_memory, dist_f cmp) : manager(filepath, blocks_in_memory) {
+        dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
 #ifdef LIL_FAT
@@ -385,7 +334,8 @@ public:
     bool insert(const key_type &key, const value_type &value) {
 #ifdef LOL_FAT
 #ifdef LIL_FAT
-        assert(lil_id != lol_id || ((lol_id == head_id || lil_min == lol_min) && (lol_id == tail_id || lil_max == lol_max)));
+        assert(lil_id != lol_id ||
+               ((lol_id == head_id || lil_min == lol_min) && (lol_id == tail_id || lil_max == lol_max)));
 #endif
 #endif
         node_t leaf;
@@ -415,7 +365,7 @@ public:
         // if the new inserted key will not be an outlier according to current lol
         // and if we make this a top-insert to lol->next, then update lol.
         if (lol_id != head_id && lol_id != tail_id && lol_max == leaf.keys[0] &&
-            lol_max < IQRDetector::max_outlier(lol_prev_min, lol_min, lol_prev_size, lol_size)) {
+            dist(lol_max, lol_min) < IQRDetector::max_distance(lol_prev_min, lol_min, lol_prev_size, lol_size)) {
             lol_prev_min = lol_min;
             lol_prev_size = lol_size;
             lol_id = leaf.info->id;

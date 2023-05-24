@@ -33,10 +33,6 @@ public:
 
     ~InMemoryBlockManager() {
         delete[] internal_memory;
-        std::cout << next_block_id << std::endl;
-    }
-
-    void flush() {
     }
 
     /**

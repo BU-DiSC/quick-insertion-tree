@@ -136,6 +136,10 @@ void display_help(const char *name) {
                                       "  --updates <perc>              The percentage of input file that should be used for updates [0-100]. Default value 0.\n";
 }
 
+std::size_t cmp(const unsigned &a, const unsigned &b) {
+    return a - b;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         display_help(argv[0]);
@@ -181,7 +185,7 @@ int main(int argc, char **argv) {
 #ifdef LIL_FAT
     std::cout << "LIL" << std::endl;
 #endif
-    bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory);
+    bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, cmp);
     workload(tree, input_file, seed, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc);
 
     return 0;
