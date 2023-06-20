@@ -3,8 +3,8 @@
 #include <filesystem>
 #include <fstream>
 
-#include "config.h"
-#include "bp_tree.h"
+#include "bptree/config.h"
+#include "bptree/bp_tree.h"
 
 std::vector<unsigned> read_file(const char *filename) {
     std::vector<unsigned> data;
@@ -35,6 +35,9 @@ void workload(bp_tree<unsigned, unsigned> &tree, const char *input_file, unsigne
 
     std::ofstream results("results.csv", std::ofstream::app);
     std::string name = ""
+#ifdef TAIL_FAT
+                       "TAIL"
+#endif
 #ifdef LOL_FAT
                        "LOL"
 #endif
@@ -179,6 +182,9 @@ int main(int argc, char **argv) {
 
     Config config(config_file);
 
+#ifdef TAIL_FAT
+    std::cout << "TAIL" << std::endl;
+#endif
 #ifdef LOL_FAT
     std::cout << "LOL" << std::endl;
 #endif

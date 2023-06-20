@@ -30,13 +30,17 @@ class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
         os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
+           #ifdef TAIL_FAT
+           << tree.ctr_tail
+           #endif
+           << ", "
            #ifdef LIL_FAT
            << tree.ctr_lil
            #endif
            << ", "
            #ifdef LOL_FAT
            << tree.ctr_lol
-#endif
+           #endif
                 ;
         return os;
     }
@@ -50,6 +54,10 @@ class bp_tree {
     uint32_t root_id;
     uint32_t head_id;  // not really needed
     uint32_t tail_id;  // not really needed
+#ifdef TAIL_FAT
+    key_type tail_min;
+    uint32_t ctr_tail;
+#endif
 #ifdef LIL_FAT
     uint32_t lil_id;
     key_type lil_min;
@@ -227,9 +235,6 @@ class bp_tree {
         new_leaf.info->next_id = leaf.info->next_id;
         leaf.info->next_id = new_leaf_id;
         new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
-        if (leaf.info->id == tail_id) {
-            tail_id = new_leaf_id;
-        }
 
         if (index < leaf.info->size) {
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1,
@@ -268,6 +273,12 @@ class bp_tree {
             }
 #endif
         }
+        if (leaf.info->id == tail_id) {
+            tail_id = new_leaf_id;
+#ifdef TAIL_FAT
+            tail_min = new_leaf.keys[0];
+#endif
+        }
 #ifdef LOL_FAT
         if (leaf.info->id == lol_id) {
             if (lol_id == head_id ||
@@ -304,6 +315,10 @@ public:
         dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
+#ifdef TAIL_FAT
+        tail_min = 0;
+        ctr_tail = 0;
+#endif
 #ifdef LIL_FAT
         lil_id = root_id;
         lil_min = 0;
@@ -350,6 +365,13 @@ public:
         if ((lil_id == head_id || lil_min <= key) && (lil_id == tail_id || key < lil_max)) {
             ctr_lil++;
             leaf.load(manager.open_block(lil_id));
+            return leaf_insert(leaf, key, value);
+        }
+#endif
+#ifdef TAIL_FAT
+        if (tail_id != head_id && tail_min <= key) {
+            ctr_tail++;
+            leaf.load(manager.open_block(tail_id));
             return leaf_insert(leaf, key, value);
         }
 #endif
