@@ -14,7 +14,6 @@ std::vector<unsigned> read_file(const char *filename) {
         unsigned key = std::stoi(line);
         data.push_back(key);
     }
-    ifs.close();
     return data;
 }
 
@@ -139,8 +138,8 @@ void display_help(const char *name) {
                                       "  --updates <perc>              The percentage of input file that should be used for updates [0-100]. Default value 0.\n";
 }
 
-std::size_t cmp(const unsigned &a, const unsigned &b) {
-    return a - b;
+std::size_t cmp(const unsigned &max, const unsigned &min) {
+    return max - min;
 }
 
 int main(int argc, char **argv) {

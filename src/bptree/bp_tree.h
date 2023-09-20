@@ -7,17 +7,18 @@
 
 #include "memory_block_manager.h"
 
-typedef InMemoryBlockManager BlockManager;
+using BlockManager = InMemoryBlockManager;
 
 #else
 
 #include "disk_block_manager.h"
 
-typedef DiskBlockManager BlockManager;
+using BlockManager = DiskBlockManager;
 
 #endif
 
 #include "bp_node.h"
+#define SIMPLE_BPT
 
 #ifdef LOL_FAT
 
@@ -25,28 +26,40 @@ typedef DiskBlockManager BlockManager;
 
 #endif
 
+#ifndef LOL_FAT
+#undef VARIABLE_SPLIT
+#endif
+#define MAX_DEPTH 10
+
 template<typename key_type, typename value_type>
 class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
         os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
            #ifdef TAIL_FAT
+           #undef SIMPLE_BPT
            << tree.ctr_tail
            #endif
            << ", "
            #ifdef LIL_FAT
+           #undef SIMPLE_BPT
            << tree.ctr_lil
            #endif
            << ", "
            #ifdef LOL_FAT
+           #undef SIMPLE_BPT
            << tree.ctr_lol
-           #endif
+#endif
                 ;
         return os;
     }
 
     using node_t = bp_node<key_type, value_type>;
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
+    using path_t = std::array<key_type, MAX_DEPTH>;  // starts from leaf -> root and empty slots at the end for the tree to grow
+
+    static const uint32_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
+    static const uint32_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
 
     dist_f dist;
 
@@ -56,18 +69,21 @@ class bp_tree {
     uint32_t tail_id;  // not really needed
 #ifdef TAIL_FAT
     key_type tail_min;
+    path_t tail_path;
     uint32_t ctr_tail;
 #endif
 #ifdef LIL_FAT
     uint32_t lil_id;
     key_type lil_min;
     key_type lil_max;
+    path_t lil_path;
     uint32_t ctr_lil;
 #endif
 #ifdef LOL_FAT
     uint32_t lol_id;
     key_type lol_min;
     key_type lol_max;
+    path_t lol_path;
     uint32_t ctr_lol;
     // iqr
     key_type lol_prev_min;
@@ -75,12 +91,31 @@ class bp_tree {
     uint16_t lol_size;
 #endif
     uint32_t ctr_size;
-    uint32_t ctr_depth;
+    uint32_t ctr_depth;  // path[ctr_depth - 1] is the root
     uint32_t ctr_internal;
     uint32_t ctr_leaves;
 
-    void create_new_root(key_type key, node_t &node, node_t &new_node) {
-        assert(root_id == node.info->id);
+#ifndef SIMPLE_BPT
+    void update_paths(uint32_t depth, const key_type &key, uint32_t node_id, uint32_t new_node_id) {
+#ifdef LOL_FAT
+        if (lol_path[depth] == node_id && lol_id != head_id && key <= lol_min) {
+            lol_path[depth] = new_node_id;
+        }
+#endif
+#ifdef LIL_FAT
+        if (lil_path[depth] == node_id && lil_id != head_id && key <= lil_min) {
+            lil_path[depth] = new_node_id;
+        }
+#endif
+#ifdef TAIL_FAT
+        if (tail_path[depth] == node_id && tail_id != head_id && key <= tail_min) {
+            tail_path[depth] = new_node_id;
+        }
+#endif
+    }
+#endif
+    void create_new_root(const key_type &key, uint32_t node_id) {
+        uint32_t old_root_id = root_id;
         root_id = manager.allocate();
         node_t root(manager.open_block(root_id), bp_node_info::INTERNAL);
         // It is expected that the root is already marked dirty, so we don't need to mark it again
@@ -88,35 +123,47 @@ class bp_tree {
         root.info->id = root_id;
         root.info->size = 1;
         root.keys[0] = key;
-        root.children[0] = node.info->id;
-        root.children[1] = new_node.info->id;
-        node.info->parent_id = root_id;
-        new_node.info->parent_id = root_id;
+        root.children[0] = old_root_id;
+        root.children[1] = node_id;
+#ifdef LOL_FAT
+        lol_path[ctr_depth] = root_id;
+#endif
+#ifdef LIL_FAT
+        lil_path[ctr_depth] = root_id;
+#endif
+#ifdef TAIL_FAT
+        tail_path[ctr_depth] = root_id;
+#endif
         ctr_depth++;
+        assert(ctr_depth < MAX_DEPTH);
         ctr_internal++;
     }
 
-    key_type find_leaf(node_t &node, const key_type &key) {
-        key_type current_max = -1;
+    key_type find_leaf(node_t &node, path_t &path, const key_type &key) {
+        key_type leaf_max = {};
         uint32_t child_id = root_id;
-        while (true) {
+        for (int i = ctr_depth - 1; i > 0; --i) {  // from root to last internal level
+            path[i] = child_id;
             node.load(manager.open_block(child_id));
             assert(child_id == node.info->id);
-            if (node.info->type == bp_node_info::LEAF)
-                break;
 
             uint32_t slot = node.child_slot(key);
             if (slot != node.info->size) {
-                current_max = node.keys[slot];
+                leaf_max = node.keys[slot];
             }
             child_id = node.children[slot];
         }
+        path[0] = child_id;
+        node.load(manager.open_block(child_id));
+        assert(child_id == node.info->id);
+        assert(node.info->type == bp_node_info::LEAF);
 
-        return current_max;
+        return leaf_max;
     }
 
-    void internal_insert(uint32_t node_id, key_type key, uint32_t child_id, float split_ratio) {
-        while (true) {
+    void internal_insert(path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
+        for (int i = 1; i < ctr_depth; i++) {
+            uint32_t node_id = path[i];
             node_t node(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_info::INTERNAL);
@@ -140,9 +187,8 @@ class bp_tree {
             manager.mark_dirty(new_node_id);
             ctr_internal++;
 
-            node.info->size = node_t::internal_capacity * split_ratio;
+            node.info->size = split_pos;
             new_node.info->id = new_node_id;
-            new_node.info->parent_id = node.info->parent_id; // same parent?
             new_node.info->size = node_t::internal_capacity - node.info->size;
 
             if (index < node.info->size) {
@@ -178,25 +224,15 @@ class bp_tree {
 
                 key = node.keys[node.info->size];
             }
-
-            for (int i = 0; i <= new_node.info->size; ++i) {
-                node_t child(manager.open_block(new_node.children[i]));
-                assert(child.info->id == new_node.children[i]);
-                manager.mark_dirty(child.info->id);
-                child.info->parent_id = new_node_id;
-            }
-
-            if (node.info->id == root_id) {
-                create_new_root(key, node, new_node);
-                return;
-            }
-
-            node_id = node.info->parent_id;
+#ifndef SIMPLE_BPT
+            update_paths(i, key, node_id, new_node_id);
+#endif
             child_id = new_node_id;
         }
+        create_new_root(key, child_id);
     }
 
-    bool leaf_insert(node_t &leaf, const key_type &key, const value_type &value) {
+    bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
         uint32_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {
@@ -204,6 +240,7 @@ class bp_tree {
             leaf.values[index] = value;
             return false;
         }
+
         ctr_size++;
         if (leaf.info->size < node_t::leaf_capacity) {
             // insert new key
@@ -215,23 +252,32 @@ class bp_tree {
 #ifdef LOL_FAT
             if (leaf.info->id == lol_id) {
                 lol_size++;
-            }
-            if (leaf.info->id != tail_id && leaf.info->next_id == lol_id) {
+            } else if (leaf.info->id != tail_id && leaf.info->next_id == lol_id) {
                 lol_prev_size++;
             }
 #endif
             return true;
         }
+
         // split the leaf
         uint32_t new_leaf_id = manager.allocate();
         node_t new_leaf(manager.open_block(new_leaf_id), bp_node_info::LEAF);
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
-        float split_ratio = 0.5;
-        leaf.info->size = (node_t::leaf_capacity + 1) * split_ratio;
+#ifdef VARIABLE_SPLIT
+        uint16_t split_leaf_pos;
+        if (leaf.info->id == lol_id) {
+            split_leaf_pos = SPLIT_LEAF_POS;
+        } else {
+            split_leaf_pos = SPLIT_LEAF_POS;
+        }
+#else
+        uint16_t split_leaf_pos = SPLIT_LEAF_POS;
+#endif
+        assert(split_leaf_pos < node_t::leaf_capacity + 1);
+        leaf.info->size = split_leaf_pos;
         new_leaf.info->id = new_leaf_id;
-        new_leaf.info->parent_id = leaf.info->parent_id; // same parent?
         new_leaf.info->next_id = leaf.info->next_id;
         leaf.info->next_id = new_leaf_id;
         new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
@@ -248,10 +294,9 @@ class bp_tree {
 
 #ifdef LIL_FAT
             // if we insert to left node of split, we set the leaf max
-#ifdef LOL_FAT
-            if (lil_id == leaf.info->id)
-#endif
+            if (leaf.info->id == lil_id) {
                 lil_max = new_leaf.keys[0];
+            }
 #endif
         } else {
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size, (index - leaf.info->size) * sizeof(key_type));
@@ -263,13 +308,11 @@ class bp_tree {
                         (node_t::leaf_capacity - index) * sizeof(value_type));
             new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
-#ifdef LOL_FAT
-            if (leaf.info->id == lil_id)
-#endif
-            {
+            if (leaf.info->id == lil_id) {
                 lil_id = new_leaf.info->id;
                 // if we insert to right split node, we set leaf min
                 lil_min = new_leaf.keys[0];
+                lil_path[0] = lil_id;
             }
 #endif
         }
@@ -277,18 +320,22 @@ class bp_tree {
             tail_id = new_leaf_id;
 #ifdef TAIL_FAT
             tail_min = new_leaf.keys[0];
+            tail_path[0] = tail_id;
 #endif
         }
 #ifdef LOL_FAT
         if (leaf.info->id == lol_id) {
-            if (lol_id == head_id ||
+            if (lol_id == head_id ||  // move lol from head
                 dist(new_leaf.keys[0], lol_min) <
-                IQRDetector::max_distance(lol_prev_min, lol_min, lol_prev_size, leaf.info->size)) {
+                IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, leaf.info->size)) {
+                // lol believes that the new leaf is not an outlier
+                // TODO: is this redundant because of variable split?
                 lol_prev_min = lol_min;
                 lol_prev_size = leaf.info->size;
                 lol_id = new_leaf_id;
                 lol_min = new_leaf.keys[0];
                 lol_size = new_leaf.info->size;
+                lol_path[0] = lol_id;
             } else {
                 lol_max = new_leaf.keys[0];
                 lol_size = leaf.info->size;
@@ -300,13 +347,15 @@ class bp_tree {
         }
 #endif
 
-        if (leaf.info->id == root_id) {
-            create_new_root(new_leaf.keys[0], leaf, new_leaf);
-            return true;
-        }
-
         // insert new key to parent
-        internal_insert(new_leaf.info->parent_id, new_leaf.keys[0], new_leaf_id, split_ratio);
+        uint16_t split_internal_pos;
+        if (split_leaf_pos == SPLIT_LEAF_POS) {
+            split_internal_pos = SPLIT_INTERNAL_POS;
+        } else {
+            split_internal_pos = SPLIT_INTERNAL_POS * leaf.info->size / new_leaf.info->size;
+        }
+        assert(split_internal_pos < node_t::internal_capacity);
+        internal_insert(path, new_leaf.keys[0], new_leaf_id, split_internal_pos);
         return true;
     }
 
@@ -316,17 +365,20 @@ public:
         root_id = manager.allocate();
         head_id = tail_id = root_id;
 #ifdef TAIL_FAT
+        tail_path[0] = tail_id;
         tail_min = 0;
         ctr_tail = 0;
 #endif
 #ifdef LIL_FAT
         lil_id = root_id;
+        lil_path[0] = lil_id;
         lil_min = 0;
         lil_max = 0;
         ctr_lil = 0;
 #endif
 #ifdef LOL_FAT
         lol_id = root_id;
+        lol_path[0] = lol_id;
         lol_prev_min = 0;
         lol_prev_size = 0;
         lol_min = 0;
@@ -349,8 +401,9 @@ public:
     bool insert(const key_type &key, const value_type &value) {
 #ifdef LOL_FAT
 #ifdef LIL_FAT
+        // sanity check
         assert(lil_id != lol_id ||
-               ((lol_id == head_id || lil_min == lol_min) && (lol_id == tail_id || lil_max == lol_max)));
+               ((lil_id == head_id || lil_min == lol_min) && (lil_id == tail_id || lil_max == lol_max)));
 #endif
 #endif
         node_t leaf;
@@ -358,50 +411,61 @@ public:
         if ((lol_id == head_id || lol_min <= key) && (lol_id == tail_id || key < lol_max)) {
             ctr_lol++;
             leaf.load(manager.open_block(lol_id));
-            return leaf_insert(leaf, key, value);
+            return leaf_insert(leaf, lol_path, key, value);
         }
 #endif
 #ifdef LIL_FAT
         if ((lil_id == head_id || lil_min <= key) && (lil_id == tail_id || key < lil_max)) {
             ctr_lil++;
             leaf.load(manager.open_block(lil_id));
-            return leaf_insert(leaf, key, value);
+            return leaf_insert(leaf, lil_path, key, value);
         }
 #endif
 #ifdef TAIL_FAT
-        if (tail_id != head_id && tail_min <= key) {
+        if (tail_id == head_id || tail_min <= key) {
             ctr_tail++;
             leaf.load(manager.open_block(tail_id));
-            return leaf_insert(leaf, key, value);
+            return leaf_insert(leaf, tail_path, key, value);
         }
 #endif
-        key_type current_max = find_leaf(leaf, key);
 #ifdef LIL_FAT
+        path_t &path = lil_path;  // update lil_path
+#else
+        path_t path;
+#endif
+        key_type leaf_max = find_leaf(leaf, path, key);
+#ifdef LIL_FAT
+        // update rest of lil
         lil_id = leaf.info->id;
         if (lil_id != head_id)
             lil_min = leaf.keys[0];
         if (lil_id != tail_id)
-            lil_max = current_max;
+            lil_max = leaf_max;
 #endif
 #ifdef LOL_FAT
-        // if the new inserted key will not be an outlier according to current lol
-        // and if we make this a top-insert to lol->next, then update lol.
-        if (lol_id != head_id && lol_id != tail_id && lol_max == leaf.keys[0] &&
-            dist(lol_max, lol_min) < IQRDetector::max_distance(lol_prev_min, lol_min, lol_prev_size, lol_size)) {
+        // if the new inserted key goes to lol->next, check if lol->next is not an outlier
+        // it might be the case that lol reached the previous outliers.
+        if (lol_id != head_id && // lol->prev and lol_min exist
+            lol_id != tail_id && // lol_max exists
+            lol_max == leaf.keys[0] && // leaf is lol->next
+            dist(lol_max, lol_min) < IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size)) {
+            // move lol to lol->next = leaf
             lol_prev_min = lol_min;
             lol_prev_size = lol_size;
             lol_id = leaf.info->id;
             lol_min = lol_max;
-            lol_max = current_max;
+            lol_max = leaf_max;
             lol_size = leaf.info->size;
+            lol_path = path;
         }
 #endif
-        return leaf_insert(leaf, key, value);
+        return leaf_insert(leaf, path, key, value);
     }
 
     std::optional<value_type> get(const key_type &key) {
         node_t leaf;
-        find_leaf(leaf, key);
+        path_t path;
+        find_leaf(leaf, path, key);
         uint32_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {
             return leaf.values[index];

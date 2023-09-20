@@ -5,7 +5,6 @@
 
 struct bp_node_info {
     uint32_t id;
-    uint32_t parent_id; // not needed?
     uint32_t next_id;
     uint16_t size;
     enum bp_node_type {
