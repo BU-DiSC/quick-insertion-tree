@@ -15,9 +15,9 @@ struct bp_node_info {
 template<typename key_type, typename value_type>
 class bp_node {
 public:
-    static constexpr uint32_t leaf_capacity = (BlockManager::block_size - sizeof(bp_node_info)) /
+    static constexpr uint16_t leaf_capacity = (BlockManager::block_size - sizeof(bp_node_info)) /
                                               (sizeof(key_type) + sizeof(value_type));
-    static constexpr uint32_t internal_capacity = (BlockManager::block_size - sizeof(bp_node_info) - sizeof(uint32_t)) /
+    static constexpr uint16_t internal_capacity = (BlockManager::block_size - sizeof(bp_node_info) - sizeof(uint32_t)) /
                                                   (sizeof(key_type) + sizeof(uint32_t));
     bp_node_info *info;
     key_type *keys;

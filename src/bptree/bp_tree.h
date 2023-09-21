@@ -18,6 +18,7 @@ using BlockManager = DiskBlockManager;
 #endif
 
 #include "bp_node.h"
+
 #define SIMPLE_BPT
 
 #ifdef LOL_FAT
@@ -26,9 +27,6 @@ using BlockManager = DiskBlockManager;
 
 #endif
 
-#ifndef LOL_FAT
-#undef VARIABLE_SPLIT
-#endif
 #define MAX_DEPTH 10
 
 template<typename key_type, typename value_type>
@@ -58,8 +56,8 @@ class bp_tree {
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
     using path_t = std::array<key_type, MAX_DEPTH>;  // starts from leaf -> root and empty slots at the end for the tree to grow
 
-    static const uint32_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
-    static const uint32_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
+    static const uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
+    static const uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
 
     dist_f dist;
 
@@ -96,6 +94,7 @@ class bp_tree {
     uint32_t ctr_leaves;
 
 #ifndef SIMPLE_BPT
+
     void update_paths(uint32_t depth, const key_type &key, uint32_t node_id, uint32_t new_node_id) {
 #ifdef LOL_FAT
         if (lol_path[depth] == node_id && lol_id != head_id && key <= lol_min) {
@@ -113,7 +112,9 @@ class bp_tree {
         }
 #endif
     }
+
 #endif
+
     void create_new_root(const key_type &key, uint32_t node_id) {
         uint32_t old_root_id = root_id;
         root_id = manager.allocate();
@@ -147,7 +148,7 @@ class bp_tree {
             node.load(manager.open_block(child_id));
             assert(child_id == node.info->id);
 
-            uint32_t slot = node.child_slot(key);
+            uint16_t slot = node.child_slot(key);
             if (slot != node.info->size) {
                 leaf_max = node.keys[slot];
             }
@@ -167,7 +168,7 @@ class bp_tree {
             node_t node(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_info::INTERNAL);
-            uint32_t index = node.child_slot(key);
+            uint16_t index = node.child_slot(key);
             assert(index == node_t::internal_capacity || node.keys[index] != key);
             manager.mark_dirty(node_id);
             if (node.info->size < node_t::internal_capacity) {
@@ -234,7 +235,7 @@ class bp_tree {
 
     bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
-        uint32_t index = leaf.value_slot(key);
+        uint16_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {
             // update value
             leaf.values[index] = value;
@@ -265,15 +266,30 @@ class bp_tree {
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
-#ifdef VARIABLE_SPLIT
         uint16_t split_leaf_pos;
-        if (leaf.info->id == lol_id) {
-            split_leaf_pos = SPLIT_LEAF_POS;
+#if VARIABLE_SPLIT == 0
+        split_leaf_pos = SPLIT_LEAF_POS;
+#elif VARIABLE_SPLIT == 1
+        // when splitting leaf, normally we would do it in the middle
+        // but for lol we want to split it where IQR suggests
+        if (leaf.info->id == lol_id && lol_id != head_id) {
+            key_t max_key = lol_min + IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size);
+            split_leaf_pos = leaf.value_slot(max_key);
+            if (leaf.keys[split_leaf_pos]) {
+                ++split_leaf_pos;
+            }
+            if (split_leaf_pos > SPLIT_LEAF_POS) {
+                --split_leaf_pos;
+            }
         } else {
             split_leaf_pos = SPLIT_LEAF_POS;
         }
+#elif VARIABLE_SPLIT == 2
+        split_leaf_pos = SPLIT_LEAF_POS;
+#elif VARIABLE_SPLIT == 3
+        split_leaf_pos = SPLIT_LEAF_POS;
 #else
-        uint16_t split_leaf_pos = SPLIT_LEAF_POS;
+        split_leaf_pos = SPLIT_LEAF_POS;
 #endif
         assert(split_leaf_pos < node_t::leaf_capacity + 1);
         leaf.info->size = split_leaf_pos;
@@ -348,14 +364,7 @@ class bp_tree {
 #endif
 
         // insert new key to parent
-        uint16_t split_internal_pos;
-        if (split_leaf_pos == SPLIT_LEAF_POS) {
-            split_internal_pos = SPLIT_INTERNAL_POS;
-        } else {
-            split_internal_pos = SPLIT_INTERNAL_POS * leaf.info->size / new_leaf.info->size;
-        }
-        assert(split_internal_pos < node_t::internal_capacity);
-        internal_insert(path, new_leaf.keys[0], new_leaf_id, split_internal_pos);
+        internal_insert(path, new_leaf.keys[0], new_leaf_id, SPLIT_INTERNAL_POS);
         return true;
     }
 
@@ -466,7 +475,7 @@ public:
         node_t leaf;
         path_t path;
         find_leaf(leaf, path, key);
-        uint32_t index = leaf.value_slot(key);
+        uint16_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {
             return leaf.values[index];
         }

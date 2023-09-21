@@ -6,8 +6,11 @@
 #include "bptree/config.h"
 #include "bptree/bp_tree.h"
 
-std::vector<unsigned> read_file(const char *filename) {
-    std::vector<unsigned> data;
+using key_type = unsigned;
+using value_type = unsigned;
+
+std::vector<key_type> read_file(const char *filename) {
+    std::vector<key_type> data;
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
@@ -17,9 +20,9 @@ std::vector<unsigned> read_file(const char *filename) {
     return data;
 }
 
-void workload(bp_tree<unsigned, unsigned> &tree, const char *input_file, unsigned seed,
+void workload(bp_tree<key_type, value_type> &tree, const char *input_file, unsigned seed,
               unsigned raw_read_perc, unsigned raw_write_perc, unsigned mix_load_perc, unsigned updates_perc) {
-    std::vector<unsigned> data = read_file(input_file);
+    std::vector<key_type> data = read_file(input_file);
 
     unsigned num_inserts = data.size();
 
@@ -50,7 +53,7 @@ void workload(bp_tree<unsigned, unsigned> &tree, const char *input_file, unsigne
     unsigned mix_queries = 0;
     uint32_t ctr_empty = 0;
 
-    unsigned idx = 0;
+    value_type idx = 0;
     auto it = data.cbegin();
     std::cout << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -78,7 +81,7 @@ void workload(bp_tree<unsigned, unsigned> &tree, const char *input_file, unsigne
             insert_time += std::chrono::high_resolution_clock::now() - _start;
             mix_inserts++;
         } else {
-            unsigned query_index = generator() % idx;
+            key_type query_index = generator() % idx;
             auto _start = std::chrono::high_resolution_clock::now();
             bool res = tree.contains(query_index);
             query_time += std::chrono::high_resolution_clock::now() - _start;
@@ -138,7 +141,7 @@ void display_help(const char *name) {
                                       "  --updates <perc>              The percentage of input file that should be used for updates [0-100]. Default value 0.\n";
 }
 
-std::size_t cmp(const unsigned &max, const unsigned &min) {
+std::size_t cmp(const key_type &max, const key_type &min) {
     return max - min;
 }
 
@@ -190,7 +193,7 @@ int main(int argc, char **argv) {
 #ifdef LIL_FAT
     std::cout << "LIL" << std::endl;
 #endif
-    bp_tree<unsigned, unsigned> tree(tree_dat, config.blocks_in_memory, cmp);
+    bp_tree<key_type, value_type> tree(tree_dat, config.blocks_in_memory, cmp);
     workload(tree, input_file, seed, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc);
 
     return 0;
