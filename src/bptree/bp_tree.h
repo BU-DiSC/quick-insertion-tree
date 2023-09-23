@@ -407,7 +407,9 @@ public:
         ctr_depth = 1;
         ctr_internal = 0;
         ctr_leaves = 1;
+#ifdef REDISTRIBUTE
         ctr_redistribute = 0;
+#endif
     }
 
     bool insert(const key_type &key, const value_type &value) {
