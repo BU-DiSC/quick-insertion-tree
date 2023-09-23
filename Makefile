@@ -13,10 +13,10 @@ lil:
 	$(CXX) $(CXXFLAGS) -DLIL_FAT -g $(TARGET) -o $@
 
 lol:
-	$(CXX) $(CXXFLAGS) -DLOL_FAT -g $(TARGET) -o $@
+	$(CXX) $(CXXFLAGS) -DLOL_FAT -DREDISTRIBUTE -DVARIABLE_SPLIT -g $(TARGET) -o $@
 
 lollipop:
-	$(CXX) $(CXXFLAGS) -DLIL_FAT -DLOL_FAT -DTAIL_FAT -g $(TARGET) -o $@
+	$(CXX) $(CXXFLAGS) -DLIL_FAT -DLOL_FAT -DTAIL_FAT -DREDISTRIBUTE -DVARIABLE_SPLIT -g $(TARGET) -o $@
 
 clean:
 	rm -rf simple tail lil lol lollipop

@@ -19,8 +19,6 @@ using BlockManager = DiskBlockManager;
 
 #include "bp_node.h"
 
-#define SIMPLE_BPT
-
 #ifdef LOL_FAT
 
 #include "outlier_detector.h"
@@ -34,20 +32,21 @@ class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
         os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
+           #ifdef REDISTRIBUTE
+           << tree.ctr_redistribute
+           #endif
+           << ", "
            #ifdef TAIL_FAT
-           #undef SIMPLE_BPT
            << tree.ctr_tail
            #endif
            << ", "
            #ifdef LIL_FAT
-           #undef SIMPLE_BPT
            << tree.ctr_lil
            #endif
            << ", "
            #ifdef LOL_FAT
-           #undef SIMPLE_BPT
            << tree.ctr_lol
-#endif
+           #endif
                 ;
         return os;
     }
@@ -56,8 +55,8 @@ class bp_tree {
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
     using path_t = std::array<key_type, MAX_DEPTH>;  // starts from leaf -> root and empty slots at the end for the tree to grow
 
-    static const uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
-    static const uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
+    static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
+    static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
 
     dist_f dist;
 
@@ -89,13 +88,14 @@ class bp_tree {
     uint16_t lol_size;
 #endif
     uint32_t ctr_size;
-    uint32_t ctr_depth;  // path[ctr_depth - 1] is the root
+    uint8_t ctr_depth;  // path[ctr_depth - 1] is the root
     uint32_t ctr_internal;
     uint32_t ctr_leaves;
+#ifdef REDISTRIBUTE
+    uint32_t ctr_redistribute;
+#endif
 
-#ifndef SIMPLE_BPT
-
-    void update_paths(uint32_t depth, const key_type &key, uint32_t node_id, uint32_t new_node_id) {
+    void update_paths(uint8_t depth, const key_type &key, uint32_t node_id, uint32_t new_node_id) {
 #ifdef LOL_FAT
         if (lol_path[depth] == node_id && lol_id != head_id && key <= lol_min) {
             lol_path[depth] = new_node_id;
@@ -112,8 +112,6 @@ class bp_tree {
         }
 #endif
     }
-
-#endif
 
     void create_new_root(const key_type &key, uint32_t node_id) {
         uint32_t old_root_id = root_id;
@@ -163,7 +161,7 @@ class bp_tree {
     }
 
     void internal_insert(path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
-        for (int i = 1; i < ctr_depth; i++) {
+        for (uint8_t i = 1; i < ctr_depth; i++) {
             uint32_t node_id = path[i];
             node_t node(manager.open_block(node_id));
             assert(node.info->id == node_id);
@@ -225,9 +223,9 @@ class bp_tree {
 
                 key = node.keys[node.info->size];
             }
-#ifndef SIMPLE_BPT
+
             update_paths(i, key, node_id, new_node_id);
-#endif
+
             child_id = new_node_id;
         }
         create_new_root(key, child_id);
@@ -260,38 +258,42 @@ class bp_tree {
             return true;
         }
 
+#ifndef LOL_FAT
+#undef VARIABLE_SPLIT
+#endif
+        uint16_t split_leaf_pos = SPLIT_LEAF_POS;
+#ifdef VARIABLE_SPLIT
+        if (leaf.info->id == lol_id) {
+            // when splitting leaf, normally we would do it in the middle
+            // but for lol we want to split it where IQR suggests
+            if (lol_id != head_id) {
+                // If IQR has enough information
+                if (lol_prev_size >= SPLIT_LEAF_POS) {
+                    size_t outlier = IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size);
+                    split_leaf_pos = leaf.value_slot(lol_min + outlier);
+                    if (leaf.keys[split_leaf_pos]) {
+                        ++split_leaf_pos;
+                    }
+                    if (split_leaf_pos > SPLIT_LEAF_POS) {
+                        --split_leaf_pos;
+                    }
+                } else {
+#ifdef REDISTRIBUTE
+                    ctr_redistribute++;
+//                    return true;
+#else
+#endif
+                }
+            }
+        }
+#endif
         // split the leaf
         uint32_t new_leaf_id = manager.allocate();
         node_t new_leaf(manager.open_block(new_leaf_id), bp_node_info::LEAF);
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
-        uint16_t split_leaf_pos;
-#if VARIABLE_SPLIT == 0
-        split_leaf_pos = SPLIT_LEAF_POS;
-#elif VARIABLE_SPLIT == 1
-        // when splitting leaf, normally we would do it in the middle
-        // but for lol we want to split it where IQR suggests
-        if (leaf.info->id == lol_id && lol_id != head_id) {
-            key_t max_key = lol_min + IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size);
-            split_leaf_pos = leaf.value_slot(max_key);
-            if (leaf.keys[split_leaf_pos]) {
-                ++split_leaf_pos;
-            }
-            if (split_leaf_pos > SPLIT_LEAF_POS) {
-                --split_leaf_pos;
-            }
-        } else {
-            split_leaf_pos = SPLIT_LEAF_POS;
-        }
-#elif VARIABLE_SPLIT == 2
-        split_leaf_pos = SPLIT_LEAF_POS;
-#elif VARIABLE_SPLIT == 3
-        split_leaf_pos = SPLIT_LEAF_POS;
-#else
-        split_leaf_pos = SPLIT_LEAF_POS;
-#endif
-        assert(split_leaf_pos < node_t::leaf_capacity + 1);
+        assert(split_leaf_pos <= node_t::leaf_capacity);
         leaf.info->size = split_leaf_pos;
         new_leaf.info->id = new_leaf_id;
         new_leaf.info->next_id = leaf.info->next_id;
@@ -405,6 +407,7 @@ public:
         ctr_depth = 1;
         ctr_internal = 0;
         ctr_leaves = 1;
+        ctr_redistribute = 0;
     }
 
     bool insert(const key_type &key, const value_type &value) {

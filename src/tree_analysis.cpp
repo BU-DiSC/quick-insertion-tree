@@ -46,6 +46,14 @@ void workload(bp_tree<key_type, value_type> &tree, const char *input_file, unsig
 #ifdef LIL_FAT
                        "LIL"
 #endif
+#ifdef LOL_FAT
+#ifdef VARIABLE_SPLIT
+                       "_VARIABLE_SPLIT"
+#endif
+#ifdef REDISTRIBUTE
+                       "_REDISTRIBUTE"
+#endif
+#endif
     ;
     results << (name.empty() ? "SIMPLE" : name) << ", ";
 
