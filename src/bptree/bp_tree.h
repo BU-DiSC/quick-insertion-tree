@@ -30,7 +30,7 @@ using BlockManager = DiskBlockManager;
 template<typename key_type, typename value_type>
 class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
-        os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager << ", "
+        os << tree.ctr_size << ", " << +tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
            #ifdef REDISTRIBUTE
            << tree.ctr_redistribute
@@ -277,8 +277,8 @@ class bp_tree {
                     if (split_leaf_pos > SPLIT_LEAF_POS) {
                         --split_leaf_pos;
                     }
-                } else {
 #ifdef REDISTRIBUTE
+                } else {
                     ctr_redistribute++;
 //                    return true;
 #else
