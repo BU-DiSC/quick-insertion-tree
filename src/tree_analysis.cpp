@@ -14,7 +14,7 @@ std::vector<key_type> read_file(const char *filename) {
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
-        unsigned key = std::stoi(line);
+        unsigned key = std::stoul(line);
         data.push_back(key);
     }
     return data;
@@ -48,10 +48,11 @@ void workload(bp_tree<key_type, value_type> &tree, const char *input_file, unsig
 #endif
 #ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
-                       "_VARIABLE_SPLIT"
-#endif
 #ifdef REDISTRIBUTE
                        "_REDISTRIBUTE"
+#else
+                       "_VARIABLE"
+#endif
 #endif
 #endif
     ;
