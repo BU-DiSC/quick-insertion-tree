@@ -201,12 +201,11 @@ class bp_tree {
             new_node.info->size = node_t::internal_capacity - node.info->size;
 
             if (index < node.info->size) {
-                std::memcpy(new_node.keys, node.keys + node.info->size,
-                            (node_t::internal_capacity - node.info->size) * sizeof(key_type));
+                std::memcpy(new_node.keys, node.keys + node.info->size, new_node.info->size * sizeof(key_type));
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
                 node.keys[index] = key;
                 std::memcpy(new_node.children, node.children + node.info->size,
-                            (1 + node_t::internal_capacity - node.info->size) * sizeof(uint32_t));
+                            (new_node.info->size + 1) * sizeof(uint32_t));
                 std::memmove(node.children + index + 2, node.children + index + 1,
                              (node.info->size - index + 1) * sizeof(uint32_t));
                 node.children[index + 1] = child_id;
@@ -214,10 +213,9 @@ class bp_tree {
                 key = node.keys[node.info->size];
                 // key = new_node.keys[0];
             } else if (index == node.info->size) {
-                std::memcpy(new_node.keys, node.keys + node.info->size,
-                            (node_t::internal_capacity - node.info->size) * sizeof(key_type));
+                std::memcpy(new_node.keys, node.keys + node.info->size, new_node.info->size * sizeof(key_type));
                 std::memcpy(new_node.children + 1, node.children + 1 + node.info->size,
-                            (node_t::internal_capacity - node.info->size) * sizeof(uint32_t));
+                            new_node.info->size * sizeof(uint32_t));
                 new_node.children[0] = child_id;
             } else {
                 std::memcpy(new_node.keys, node.keys + node.info->size + 1,
@@ -228,7 +226,7 @@ class bp_tree {
                 std::memcpy(new_node.children, node.children + 1 + node.info->size,
                             (index - node.info->size) * sizeof(uint32_t));
                 std::memcpy(new_node.children + 1 + index - node.info->size, node.children + 1 + index,
-                            (node_t::internal_capacity - index) * sizeof(uint32_t));
+                            new_node.info->size * sizeof(uint32_t));
                 new_node.children[index - node.info->size] = child_id;
 
                 key = node.keys[node.info->size];
@@ -271,6 +269,7 @@ class bp_tree {
 #ifndef LOL_FAT
 #undef VARIABLE_SPLIT
 #endif
+        // how many elements should be on the left side after split
         uint16_t split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef VARIABLE_SPLIT
         bool lol_move = false;
@@ -314,7 +313,7 @@ class bp_tree {
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
-        assert(split_leaf_pos <= node_t::leaf_capacity);
+        assert(1 < split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
         leaf.info->size = split_leaf_pos;
         new_leaf.info->id = new_leaf_id;
         new_leaf.info->next_id = leaf.info->next_id;
@@ -322,13 +321,13 @@ class bp_tree {
         new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
 
         if (index < leaf.info->size) {
-            std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1,
-                        (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(key_type));
-            std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
+            // get one more since the new key goes left
+            std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1, new_leaf.info->size * sizeof(key_type));
+            std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index - 1) * sizeof(key_type));
             leaf.keys[index] = key;
-            std::memcpy(new_leaf.values, leaf.values + leaf.info->size - 1,
-                        (node_t::leaf_capacity - leaf.info->size + 1) * sizeof(value_type));
-            std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
+            std::memcpy(new_leaf.values, leaf.values + leaf.info->size - 1, new_leaf.info->size * sizeof(value_type));
+            std::memmove(leaf.values + index + 1, leaf.values + index,
+                         (leaf.info->size - index - 1) * sizeof(value_type));
             leaf.values[index] = value;
 
 #ifdef LIL_FAT
@@ -338,14 +337,15 @@ class bp_tree {
             }
 #endif
         } else {
-            std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size, (index - leaf.info->size) * sizeof(key_type));
-            std::memcpy(new_leaf.keys + index - leaf.info->size + 1, leaf.keys + index,
+            uint16_t new_index = index - leaf.info->size;
+            std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size, new_index * sizeof(key_type));
+            new_leaf.keys[new_index] = key;
+            std::memcpy(new_leaf.keys + new_index + 1, leaf.keys + index,
                         (node_t::leaf_capacity - index) * sizeof(key_type));
-            new_leaf.keys[index - leaf.info->size] = key;
-            std::memcpy(new_leaf.values, leaf.values + leaf.info->size, (index - leaf.info->size) * sizeof(value_type));
-            std::memcpy(new_leaf.values + index - leaf.info->size + 1, leaf.values + index,
+            std::memcpy(new_leaf.values, leaf.values + leaf.info->size, new_index * sizeof(value_type));
+            new_leaf.values[new_index] = value;
+            std::memcpy(new_leaf.values + new_index + 1, leaf.values + index,
                         (node_t::leaf_capacity - index) * sizeof(value_type));
-            new_leaf.values[index - leaf.info->size] = value;
 #ifdef LIL_FAT
             if (leaf.info->id == lil_id) {
                 lil_id = new_leaf.info->id;

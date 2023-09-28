@@ -12,6 +12,9 @@ tail:
 lil:
 	$(CXX) $(CXXFLAGS) -DLIL_FAT $(TARGET) -o $@
 
+plainlol:
+	$(CXX) $(CXXFLAGS) -DLOL_FAT $(TARGET) -o $@
+
 lol:
 	$(CXX) $(CXXFLAGS) -DLOL_FAT -DREDISTRIBUTE -DVARIABLE_SPLIT $(TARGET) -o $@
 

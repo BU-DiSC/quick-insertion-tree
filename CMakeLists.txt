@@ -14,6 +14,10 @@ add_executable(lil src/tree_analysis.cpp)
 target_compile_definitions(lil PRIVATE LIL_FAT)
 target_compile_definitions(lil PRIVATE INMEMORY)
 
+add_executable(plain_lol src/tree_analysis.cpp)
+target_compile_definitions(plain_lol PRIVATE LOL_FAT)
+target_compile_definitions(plain_lol PRIVATE INMEMORY)
+
 add_executable(lol src/tree_analysis.cpp)
 target_compile_definitions(lol PRIVATE LOL_FAT)
 target_compile_definitions(lol PRIVATE INMEMORY)
