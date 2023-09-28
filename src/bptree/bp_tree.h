@@ -48,6 +48,18 @@ class bp_tree {
            << tree.ctr_soft
            #endif
            << ", "
+           #ifdef LOL_FAT
+           << tree.ctr_1
+           #endif
+           << ", "
+           #ifdef LOL_FAT
+           << tree.ctr_2
+           #endif
+           << ", "
+           #ifdef LOL_FAT
+           << tree.ctr_3
+           #endif
+           << ", "
            #ifdef TAIL_FAT
            << tree.ctr_tail
            #endif
@@ -69,7 +81,7 @@ class bp_tree {
 
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
-    static constexpr uint16_t IQR_SIZE_THRESH = 50;
+    static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
 
     dist_f dist;
 
@@ -107,6 +119,9 @@ class bp_tree {
     uint8_t ctr_depth;  // path[ctr_depth - 1] is the root
     uint32_t ctr_internal;
     uint32_t ctr_leaves;
+    uint32_t ctr_1;
+    uint32_t ctr_2;
+    uint32_t ctr_3;
 #ifdef REDISTRIBUTE
     uint32_t ctr_redistribute;
 #endif
@@ -286,19 +301,33 @@ class bp_tree {
                 lol_move = true; // move from head
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
-                size_t outlier = IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size);
-                split_leaf_pos = leaf.value_slot(lol_min + outlier); // 0 < split_leaf_pos <= node_t::leaf_capacity
+                size_t d = dist(lol_min, lol_prev_min);
+                size_t lower = IQRDetector::lower_bound(d, lol_prev_size, lol_size);
+                uint16_t lower_pos = leaf.value_slot(lol_min + lower); // 0 < split_leaf_pos <= node_t::leaf_capacity
 //                if (key < leaf.keys[split_leaf_pos]) {
 //                    ++split_leaf_pos;
 //                }
-                if (split_leaf_pos > SPLIT_LEAF_POS) {
-                    --split_leaf_pos;
+                if (lower_pos > SPLIT_LEAF_POS) {
+                    split_leaf_pos = lower_pos - 1;
                     lol_move = true; // also move lol
+                    ctr_1++;
+                } else {
+                    size_t upper = IQRDetector::upper_bound(d, lol_prev_size, lol_size);
+                    uint16_t upper_pos = leaf.value_slot(lol_min + upper); // 0 < split_leaf_pos <= node_t::leaf_capacity
+                    if (upper_pos < SPLIT_LEAF_POS) {
+                        split_leaf_pos = upper_pos;
+                        ctr_2++;
+                    } else {
+                        split_leaf_pos = SPLIT_LEAF_POS;
+                        lol_move = upper_pos - SPLIT_LEAF_POS > SPLIT_LEAF_POS - lower_pos;
+                        ctr_3++;
+                    }
                 }
 //                split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef REDISTRIBUTE
             } else {
                 ctr_redistribute++;
+                lol_move = false;
 //              move values from leaf to leaf prev
 //              update parent for current leaf min
 //              update lol_min, lol_size
@@ -372,7 +401,7 @@ class bp_tree {
             bool lol_move = lol_id == head_id || // move lol from head
                             (lol_prev_size >= IQR_SIZE_THRESH &&
                              dist(new_leaf.keys[0], lol_min) <
-                             IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, leaf.info->size));
+                             IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, leaf.info->size));
 #endif
             if (lol_move) {
                 ctr_iqr++;
@@ -438,6 +467,9 @@ public:
         ctr_depth = 1;
         ctr_internal = 0;
         ctr_leaves = 1;
+        ctr_1 = 0;
+        ctr_2 = 0;
+        ctr_3 = 0;
 #ifdef REDISTRIBUTE
         ctr_redistribute = 0;
 #endif
@@ -493,10 +525,8 @@ public:
         if (lol_id != head_id && // lol->prev and lol_min exist
             lol_id != tail_id && // lol_max exists
             lol_max == leaf.keys[0] && // leaf is lol->next
-            dist(lol_max, lol_min) < IQRDetector::max_distance(dist(lol_min, lol_prev_min), lol_prev_size, lol_size)) {
-            if (lol_prev_size < IQR_SIZE_THRESH || lol_size < IQR_SIZE_THRESH) {
-                std::cerr << lol_prev_size << ' ' << lol_size << std::endl;
-            }
+//            lol_prev_size >= IQR_SIZE_THRESH && lol_size >= IQR_SIZE_THRESH &&  // TODO: IQR doesn't have enough values but this kinda works
+            dist(lol_max, lol_min) < IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, lol_size)) {
             // move lol to lol->next = leaf
             lol_prev_min = lol_min;
             lol_prev_size = lol_size;

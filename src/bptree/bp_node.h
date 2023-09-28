@@ -62,14 +62,14 @@ public:
      * @param key
      * @return index of key slot
      */
-    uint32_t value_slot(const key_type &key) const {
+    uint16_t value_slot(const key_type &key) const {
         assert(info->type == bp_node_info::LEAF);
         auto it = std::lower_bound(keys, keys + info->size, key);
 //       assert(it == std::lower_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }
 
-    uint32_t child_slot(const key_type &key) const {
+    uint16_t child_slot(const key_type &key) const {
         assert(info->type == bp_node_info::INTERNAL);
         auto it = std::upper_bound(keys, keys + info->size, key);
 //        assert(it == std::upper_bound(keys, keys + info->size, key));
