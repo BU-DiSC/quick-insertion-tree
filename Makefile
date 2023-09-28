@@ -1,7 +1,7 @@
 CXXFLAGS=-Isrc/bptree -std=c++17 -DINMEMORY -g
 TARGET=src/tree_analysis.cpp
 
-all: clean simple tail lil lol lollipop
+all: clean simple tail lil lol plainlol lollipop
 
 simple:
 	$(CXX) $(CXXFLAGS) $(TARGET) -o $@
@@ -22,4 +22,4 @@ lollipop:
 	$(CXX) $(CXXFLAGS) -DLIL_FAT -DLOL_FAT -DTAIL_FAT -DREDISTRIBUTE -DVARIABLE_SPLIT $(TARGET) -o $@
 
 clean:
-	rm -rf simple tail lil lol lollipop
+	rm -rf simple tail lil lol plainlol lollipop
