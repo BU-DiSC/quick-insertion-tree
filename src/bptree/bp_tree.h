@@ -307,15 +307,15 @@ class bp_tree {
 //                if (key < leaf.keys[split_leaf_pos]) {
 //                    ++split_leaf_pos;
 //                }
-                if (lower_pos > SPLIT_LEAF_POS) {
-                    split_leaf_pos = lower_pos - 1;
+                if (lower_pos > SPLIT_LEAF_POS) {  // most of the values are certainly good
+                    split_leaf_pos = lower_pos - 1;  // take one to the new leaf
                     lol_move = true; // also move lol
                     ctr_1++;
                 } else {
                     size_t upper = IQRDetector::upper_bound(d, lol_prev_size, lol_size);
                     uint16_t upper_pos = leaf.value_slot(lol_min + upper); // 0 < split_leaf_pos <= node_t::leaf_capacity
-                    if (upper_pos < SPLIT_LEAF_POS) {
-                        split_leaf_pos = upper_pos;
+                    if (upper_pos < SPLIT_LEAF_POS) {  // most of the values are certainly bad
+                        split_leaf_pos = index <= upper_pos ? upper_pos + 1 : upper_pos;
                         ctr_2++;
                     } else {
                         split_leaf_pos = SPLIT_LEAF_POS;
