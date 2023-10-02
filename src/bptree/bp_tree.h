@@ -81,7 +81,7 @@ class bp_tree {
 
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
-    static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
+    static constexpr uint16_t IQR_SIZE_THRESH = 0;
 
     dist_f dist;
 
@@ -327,7 +327,10 @@ class bp_tree {
 #ifdef REDISTRIBUTE
             } else {
                 ctr_redistribute++;
-                lol_move = false;
+                lol_move = true;
+//                lol_move = lol_id == head_id || // move lol from head
+//                            dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
+//                            IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
 //              move values from leaf to leaf prev
 //              update parent for current leaf min
 //              update lol_min, lol_size
@@ -524,6 +527,7 @@ public:
         // it might be the case that lol reached the previous outliers.
         if (lol_id != head_id && // lol->prev and lol_min exist
             lol_id != tail_id && // lol_max exists
+//            leaf.info->id != tail_id && // don't go to tail
             lol_max == leaf.keys[0] && // leaf is lol->next
 //            lol_prev_size >= IQR_SIZE_THRESH && lol_size >= IQR_SIZE_THRESH &&  // TODO: IQR doesn't have enough values but this kinda works
             dist(lol_max, lol_min) < IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, lol_size)) {
