@@ -81,7 +81,7 @@ class bp_tree {
 
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
-    static constexpr uint16_t IQR_SIZE_THRESH = 0;
+    static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
 
     dist_f dist;
 
@@ -107,6 +107,8 @@ class bp_tree {
     key_type lol_max;
     path_t lol_path;
     uint32_t ctr_lol;
+    // redistribute
+    key_type lol_prev_id;
     // iqr
     key_type lol_prev_min;
     uint16_t lol_prev_size;
@@ -191,7 +193,23 @@ class bp_tree {
         return leaf_max;
     }
 
-    void internal_insert(path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
+    void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key) {
+        for (uint8_t i = 1; i < ctr_depth; i++) {
+            uint32_t node_id = path[i];
+            node_t node(manager.open_block(node_id));
+            assert(node.info->id == node_id);
+            assert(node.info->type == bp_node_info::INTERNAL);
+            uint16_t index = node.child_slot(old_key) - 1;
+            if (index < node.info->size && node.keys[index] == old_key) {
+                manager.mark_dirty(node_id);
+                node.keys[index] = new_key;
+                return;
+            }
+        }
+        assert(false);
+    }
+
+    void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
         for (uint8_t i = 1; i < ctr_depth; i++) {
             uint32_t node_id = path[i];
             node_t node(manager.open_block(node_id));
@@ -327,16 +345,53 @@ class bp_tree {
 #ifdef REDISTRIBUTE
             } else {
                 ctr_redistribute++;
-                lol_move = true;
-//                lol_move = lol_id == head_id || // move lol from head
-//                            dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
+                // move values from leaf to leaf prev
+                uint16_t items = IQR_SIZE_THRESH - lol_prev_size;  // items to be moved to lol prev
+                manager.mark_dirty(lol_prev_id);
+                node_t lol_prev(manager.open_block(lol_prev_id), bp_node_info::LEAF);
+                if (index < items) {
+                    items--;
+                    std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
+                    std::memcpy(lol_prev.keys + lol_prev_size + index + 1, leaf.keys + index, (items - index) * sizeof(key_type));
+                    lol_prev.keys[lol_prev_size + index] = key;
+                    std::memcpy(lol_prev.values + lol_prev_size, leaf.values, index * sizeof(value_type));
+                    std::memcpy(lol_prev.values + lol_prev_size + index + 1, leaf.values + index, (items - index) * sizeof(value_type));
+                    lol_prev.values[lol_prev_size + index] = value;
+
+                    std::memmove(leaf.keys, leaf.keys + items, (lol_size - items) * sizeof(key_type));
+                    std::memmove(leaf.values, leaf.values + items, (lol_size - items) * sizeof(value_type));
+                    items++;
+                } else {
+                    std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, items * sizeof(key_type));
+                    std::memcpy(lol_prev.values + lol_prev_size, leaf.values, items * sizeof(key_type));
+
+                    // move leaf.keys and leaf.values items positions to the left
+                    uint16_t new_index = index - items;
+                    std::memmove(leaf.keys, leaf.keys + items, new_index * sizeof(key_type));
+                    std::memmove(leaf.keys + new_index + 1, leaf.keys + index, (lol_size - index) * sizeof(key_type));
+                    leaf.keys[new_index] = key;
+                    std::memmove(leaf.values, leaf.values + items, new_index * sizeof(value_type));
+                    std::memmove(leaf.values + new_index + 1, leaf.values + index, (lol_size - index) * sizeof(value_type));
+                    leaf.values[new_index] = value;
+                }
+#ifdef LIL_FAT
+                if (lol_prev_id == lil_id) {
+                    lil_max = leaf.keys[0];
+                } else if (lol_id == lil_id) {
+                    lil_min = leaf.keys[0];
+                }
+#endif
+                // update parent for current leaf min
+                update_internal(path, lol_min, leaf.keys[0]);
+                // update lol_min, lol_size
+                lol_min = leaf.keys[0];
+                lol_size = lol_size - items + 1;
+                lol_prev_size = IQR_SIZE_THRESH;
+                leaf.info->size = lol_size;
+                lol_prev.info->size = IQR_SIZE_THRESH;
+//                lol_move = dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
 //                            IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
-//              move values from leaf to leaf prev
-//              update parent for current leaf min
-//              update lol_min, lol_size
-//              lol_prev_size = SPLIT_LEAF_POS;
-//              ctr_lol_split++;
-//              return true;
+                return true;
 #else
 #endif
             }
@@ -366,7 +421,7 @@ class bp_tree {
             leaf.values[index] = value;
 
 #ifdef LIL_FAT
-            // if we insert to left node of split, we set the leaf max
+            // if we insert to left node of split, we set the lil max
             if (leaf.info->id == lil_id) {
                 lil_max = new_leaf.keys[0];
             }
@@ -411,6 +466,7 @@ class bp_tree {
                 // lol believes that the new leaf is not an outlier
                 lol_prev_min = lol_min;
                 lol_prev_size = leaf.info->size;
+                lol_prev_id = lol_id;
                 lol_id = new_leaf_id;
                 lol_min = new_leaf.keys[0];
                 lol_size = new_leaf.info->size;
@@ -449,6 +505,7 @@ public:
 #endif
 #ifdef LOL_FAT
         lol_id = root_id;
+        lol_prev_id = lol_id;
         lol_path[0] = lol_id;
         lol_prev_min = 0;
         lol_prev_size = 0;
@@ -534,6 +591,7 @@ public:
             // move lol to lol->next = leaf
             lol_prev_min = lol_min;
             lol_prev_size = lol_size;
+            lol_prev_id = lol_id;
             lol_id = leaf.info->id;
             lol_min = lol_max;
             lol_max = leaf_max;
