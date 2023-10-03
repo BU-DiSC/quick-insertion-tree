@@ -107,8 +107,9 @@ class bp_tree {
     key_type lol_max;
     path_t lol_path;
     uint32_t ctr_lol;
-    // redistribute
+#ifdef REDISTRIBUTE
     key_type lol_prev_id;
+#endif
     // iqr
     key_type lol_prev_min;
     uint16_t lol_prev_size;
@@ -193,6 +194,7 @@ class bp_tree {
         return leaf_max;
     }
 
+#ifdef REDISTRIBUTE
     void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key) {
         for (uint8_t i = 1; i < ctr_depth; i++) {
             uint32_t node_id = path[i];
@@ -208,6 +210,7 @@ class bp_tree {
         }
         assert(false);
     }
+#endif
 
     void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
         for (uint8_t i = 1; i < ctr_depth; i++) {
@@ -278,6 +281,56 @@ class bp_tree {
         create_new_root(key, child_id);
     }
 
+    void redistribute(const node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
+        ctr_redistribute++;
+        // move values from leaf to leaf prev
+        uint16_t items = IQR_SIZE_THRESH - lol_prev_size;  // items to be moved to lol prev
+        manager.mark_dirty(lol_prev_id);
+        node_t lol_prev(manager.open_block(lol_prev_id), bp_node_info::LEAF);
+        if (index < items) {
+            items--;
+            std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
+            std::memcpy(lol_prev.keys + lol_prev_size + index + 1, leaf.keys + index, (items - index) * sizeof(key_type));
+            lol_prev.keys[lol_prev_size + index] = key;
+            std::memcpy(lol_prev.values + lol_prev_size, leaf.values, index * sizeof(value_type));
+            std::memcpy(lol_prev.values + lol_prev_size + index + 1, leaf.values + index, (items - index) * sizeof(value_type));
+            lol_prev.values[lol_prev_size + index] = value;
+
+            std::memmove(leaf.keys, leaf.keys + items, (lol_size - items) * sizeof(key_type));
+            std::memmove(leaf.values, leaf.values + items, (lol_size - items) * sizeof(value_type));
+            items++;
+        } else {
+            std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, items * sizeof(key_type));
+            std::memcpy(lol_prev.values + lol_prev_size, leaf.values, items * sizeof(key_type));
+
+            // move leaf.keys and leaf.values items positions to the left
+            uint16_t new_index = index - items;
+            std::memmove(leaf.keys, leaf.keys + items, new_index * sizeof(key_type));
+            std::memmove(leaf.keys + new_index + 1, leaf.keys + index, (lol_size - index) * sizeof(key_type));
+            leaf.keys[new_index] = key;
+            std::memmove(leaf.values, leaf.values + items, new_index * sizeof(value_type));
+            std::memmove(leaf.values + new_index + 1, leaf.values + index, (lol_size - index) * sizeof(value_type));
+            leaf.values[new_index] = value;
+        }
+#ifdef LIL_FAT
+        if (lol_prev_id == lil_id) {
+            lil_max = leaf.keys[0];
+        } else if (lol_id == lil_id) {
+            lil_min = leaf.keys[0];
+        }
+#endif
+        // update parent for current leaf min
+        update_internal(lol_path, lol_min, leaf.keys[0]);
+        // update lol_min, lol_size
+        lol_min = leaf.keys[0];
+        lol_size = lol_size - items + 1;
+        lol_prev_size = IQR_SIZE_THRESH;
+        leaf.info->size = lol_size;
+        lol_prev.info->size = IQR_SIZE_THRESH;
+//        lol_move = dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
+//                    IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
+    }
+
     bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
         uint16_t index = leaf.value_slot(key);
@@ -344,55 +397,8 @@ class bp_tree {
 //                split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef REDISTRIBUTE
             } else {
-                ctr_redistribute++;
-                // move values from leaf to leaf prev
-                uint16_t items = IQR_SIZE_THRESH - lol_prev_size;  // items to be moved to lol prev
-                manager.mark_dirty(lol_prev_id);
-                node_t lol_prev(manager.open_block(lol_prev_id), bp_node_info::LEAF);
-                if (index < items) {
-                    items--;
-                    std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
-                    std::memcpy(lol_prev.keys + lol_prev_size + index + 1, leaf.keys + index, (items - index) * sizeof(key_type));
-                    lol_prev.keys[lol_prev_size + index] = key;
-                    std::memcpy(lol_prev.values + lol_prev_size, leaf.values, index * sizeof(value_type));
-                    std::memcpy(lol_prev.values + lol_prev_size + index + 1, leaf.values + index, (items - index) * sizeof(value_type));
-                    lol_prev.values[lol_prev_size + index] = value;
-
-                    std::memmove(leaf.keys, leaf.keys + items, (lol_size - items) * sizeof(key_type));
-                    std::memmove(leaf.values, leaf.values + items, (lol_size - items) * sizeof(value_type));
-                    items++;
-                } else {
-                    std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, items * sizeof(key_type));
-                    std::memcpy(lol_prev.values + lol_prev_size, leaf.values, items * sizeof(key_type));
-
-                    // move leaf.keys and leaf.values items positions to the left
-                    uint16_t new_index = index - items;
-                    std::memmove(leaf.keys, leaf.keys + items, new_index * sizeof(key_type));
-                    std::memmove(leaf.keys + new_index + 1, leaf.keys + index, (lol_size - index) * sizeof(key_type));
-                    leaf.keys[new_index] = key;
-                    std::memmove(leaf.values, leaf.values + items, new_index * sizeof(value_type));
-                    std::memmove(leaf.values + new_index + 1, leaf.values + index, (lol_size - index) * sizeof(value_type));
-                    leaf.values[new_index] = value;
-                }
-#ifdef LIL_FAT
-                if (lol_prev_id == lil_id) {
-                    lil_max = leaf.keys[0];
-                } else if (lol_id == lil_id) {
-                    lil_min = leaf.keys[0];
-                }
-#endif
-                // update parent for current leaf min
-                update_internal(path, lol_min, leaf.keys[0]);
-                // update lol_min, lol_size
-                lol_min = leaf.keys[0];
-                lol_size = lol_size - items + 1;
-                lol_prev_size = IQR_SIZE_THRESH;
-                leaf.info->size = lol_size;
-                lol_prev.info->size = IQR_SIZE_THRESH;
-//                lol_move = dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
-//                            IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
+                redistribute(leaf, index, key, value);
                 return true;
-#else
 #endif
             }
         }

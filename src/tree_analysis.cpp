@@ -20,9 +20,19 @@ std::vector<key_type> read_file(const char *filename) {
     return data;
 }
 
+std::vector<key_type> read_bin(const char *filename) {
+    std::ifstream inputFile(filename, std::ios::binary);
+    inputFile.seekg(0, std::ios::end);
+    std::streampos fileSize = inputFile.tellg();
+    inputFile.seekg(0, std::ios::beg);
+    std::vector<key_type> data(fileSize / sizeof(key_type));
+    inputFile.read(reinterpret_cast<char*>(data.data()), fileSize);
+    return data;
+}
+
 void workload(bp_tree<key_type, value_type> &tree, const char *input_file, unsigned seed,
               unsigned raw_read_perc, unsigned raw_write_perc, unsigned mix_load_perc, unsigned updates_perc) {
-    std::vector<key_type> data = read_file(input_file);
+    std::vector<key_type> data = read_bin(input_file);
 
     unsigned num_inserts = data.size();
 
