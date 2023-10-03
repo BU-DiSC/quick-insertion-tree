@@ -411,7 +411,7 @@ class bp_tree {
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
-        assert(1 < split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
+        assert(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
         leaf.info->size = split_leaf_pos;
         new_leaf.info->id = new_leaf_id;
         new_leaf.info->next_id = leaf.info->next_id;
