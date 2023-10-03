@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
 #ifdef LIL_FAT
     std::cout << "LIL" << std::endl;
 #endif
-    bp_tree<key_type, value_type> tree(tree_dat, config.blocks_in_memory, cmp);
+    bp_tree<key_type, value_type> tree(tree_dat, cmp, config);
     workload(tree, input_file, seed, raw_read_perc, raw_write_perc, mix_load_perc, updates_perc);
 
     return 0;

@@ -497,7 +497,7 @@ class bp_tree {
     }
 
 public:
-    bp_tree(const char *filepath, uint32_t blocks_in_memory, dist_f cmp) : manager(filepath, blocks_in_memory) {
+    bp_tree(const char *filepath, dist_f cmp, const Config &config) : manager(filepath, config.blocks_in_memory) {
         dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
