@@ -281,6 +281,7 @@ class bp_tree {
         create_new_root(key, child_id);
     }
 
+#ifdef REDISTRIBUTE
     void redistribute(const node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
         ctr_redistribute++;
         // move values from leaf to leaf prev
@@ -330,6 +331,7 @@ class bp_tree {
 //        lol_move = dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
 //                    IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
     }
+#endif
 
     bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
@@ -472,7 +474,9 @@ class bp_tree {
                 // lol believes that the new leaf is not an outlier
                 lol_prev_min = lol_min;
                 lol_prev_size = leaf.info->size;
+#ifdef REDISTRIBUTE
                 lol_prev_id = lol_id;
+#endif
                 lol_id = new_leaf_id;
                 lol_min = new_leaf.keys[0];
                 lol_size = new_leaf.info->size;
@@ -511,7 +515,9 @@ public:
 #endif
 #ifdef LOL_FAT
         lol_id = root_id;
+#ifdef REDISTRIBUTE
         lol_prev_id = lol_id;
+#endif
         lol_path[0] = lol_id;
         lol_prev_min = 0;
         lol_prev_size = 0;
@@ -597,7 +603,9 @@ public:
             // move lol to lol->next = leaf
             lol_prev_min = lol_min;
             lol_prev_size = lol_size;
+#ifdef REDISTRIBUTE
             lol_prev_id = lol_id;
+#endif
             lol_id = leaf.info->id;
             lol_min = lol_max;
             lol_max = leaf_max;
