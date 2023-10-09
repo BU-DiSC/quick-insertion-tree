@@ -14,7 +14,7 @@ std::vector<key_type> read_file(const char *filename) {
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
-        unsigned key = std::stoul(line);
+        key_type key = std::stoul(line);
         data.push_back(key);
     }
     return data;
@@ -57,6 +57,12 @@ void workload(bp_tree<key_type, value_type> &tree, const char *input_file, unsig
                        "LIL"
 #endif
 #ifdef LOL_FAT
+#ifdef LOL_RESET
+                       "_RESET"
+#endif
+#ifdef VARIABLE_SPLIT
+                       "_DOUBLE_IQR"
+#endif
 #ifdef VARIABLE_SPLIT
 #ifdef REDISTRIBUTE
                        "_REDISTRIBUTE"
@@ -208,6 +214,15 @@ int main(int argc, char **argv) {
 #endif
 #ifdef LOL_FAT
     std::cout << "LOL" << std::endl;
+#ifdef DOUBLE_IQR
+    std::cout << "DOUBLE_IQR" << std::endl;
+#endif
+#ifdef VARIABLE_SPLIT
+    std::cout << "VARIABLE_SPLIT" << std::endl;
+#ifdef REDISTRIBUTE
+    std::cout << "REDISTRIBUTE" << std::endl;
+#endif
+#endif
 #endif
 #ifdef LIL_FAT
     std::cout << "LIL" << std::endl;

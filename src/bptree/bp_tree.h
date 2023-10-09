@@ -404,8 +404,6 @@ class bp_tree {
         lol_prev_size = IQR_SIZE_THRESH;
         leaf.info->size = lol_size;
         lol_prev.info->size = IQR_SIZE_THRESH;
-//        lol_move = dist(leaf.keys[SPLIT_LEAF_POS], lol_min) <
-//                    IQRDetector::upper_bound(dist(lol_min, lol_prev_min), lol_prev_size, SPLIT_LEAF_POS);
     }
 #endif
 
@@ -456,6 +454,7 @@ class bp_tree {
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
                 size_t d = dist(lol_min, lol_prev_min);
+#ifdef DOUBLE_IQR
                 size_t lower = IQRDetector::lower_bound(d, lol_prev_size, lol_size);
                 uint16_t lower_pos = leaf.value_slot(lol_min + lower); // 0 < split_leaf_pos <= node_t::leaf_capacity
 //                if (key < leaf.keys[split_leaf_pos]) {
@@ -474,6 +473,22 @@ class bp_tree {
                         lol_move = upper_pos - SPLIT_LEAF_POS > SPLIT_LEAF_POS - lower_pos;
                     }
                 }
+#else
+                size_t max_distance = IQRDetector::upper_bound(d, lol_prev_size, lol_size);
+                uint16_t outlier_pos = leaf.value_slot(lol_min + max_distance); // 0 < split_leaf_pos <= node_t::leaf_capacity
+//                if (key < leaf.keys[split_leaf_pos]) {
+//                    ++split_leaf_pos;
+//                }
+                if (outlier_pos <= SPLIT_LEAF_POS) {
+                    split_leaf_pos = outlier_pos;  // keep these good values on current lol and do not move
+                } else {  // most of the values are certainly good
+                    split_leaf_pos = outlier_pos - 1;  // take one to the new leaf
+                    lol_move = true; // also move lol
+                }
+                if (index < outlier_pos) {
+                    split_leaf_pos++;  // this key will be also in the current leaf
+                }
+#endif
 //                split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef REDISTRIBUTE
             } else {
