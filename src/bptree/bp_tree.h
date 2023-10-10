@@ -158,7 +158,7 @@ class bp_tree {
 
     dist_f dist;
 
-    BlockManager manager;
+    BlockManager &manager;
     uint32_t root_id;
     uint32_t head_id;  // not really needed
     uint32_t tail_id;  // not really needed
@@ -439,11 +439,9 @@ class bp_tree {
             return true;
         }
 
-#ifndef LOL_FAT
-#undef VARIABLE_SPLIT
-#endif
         // how many elements should be on the left side after split
         uint16_t split_leaf_pos = SPLIT_LEAF_POS;
+#ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
         bool lol_move = false;
         if (leaf.info->id == lol_id) {
@@ -497,6 +495,7 @@ class bp_tree {
 #endif
             }
         }
+#endif
 #endif
         // split the leaf
         uint32_t new_leaf_id = manager.allocate();
@@ -595,11 +594,11 @@ class bp_tree {
     }
 
 public:
-    bp_tree(const char *filepath, dist_f cmp, const Config &config) :
+    bp_tree(dist_f cmp, BlockManager &m) :
 #ifdef LOL_RESET
-            life((node_t::leaf_capacity + 1) / 2),
+            life(SPLIT_LEAF_POS),
 #endif
-            manager(filepath, config.blocks_in_memory) {
+            manager(m) {
         dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
@@ -734,6 +733,49 @@ public:
         }
 #endif
         return leaf_insert(leaf, path, key, value);
+    }
+
+    size_t topk(size_t count, const key_type &min_key) {
+        node_t leaf;
+        path_t path;
+        find_leaf(leaf, path, min_key);
+        uint16_t index = leaf.value_slot(min_key);
+        size_t loads = 1;
+        while (count-- > 0) {
+            if (index < leaf.info->size) {
+                continue;
+            }
+            if (leaf.info->id == tail_id) {
+                break;
+            }
+            leaf.load(manager.open_block(leaf.info->next_id));
+            index = 0;
+            ++loads;
+        }
+        return loads;
+    }
+
+    size_t range(const key_type &min_key, const key_type &max_key) {
+        size_t loads = 1;
+        node_t leaf;
+        path_t path;
+        find_leaf(leaf, path, min_key);
+        uint16_t index = leaf.value_slot(min_key);
+        while (true) {
+            while (index < leaf.info->size) {
+                if (leaf.keys[index] > max_key) {
+                    return loads;
+                }
+                ++loads;
+                ++index;
+            }
+            if (leaf.info->id == tail_id) {
+                break;
+            }
+            leaf.load(manager.open_block(leaf.info->next_id));
+            index = 0;
+        }
+        return loads;
     }
 
     std::optional<value_type> get(const key_type &key) {

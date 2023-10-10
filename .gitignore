@@ -2,14 +2,9 @@
 .idea
 .gitignore
 cmake-build-*
-a.out
-simple
-tail
-lil
-lol
-plainlol
-input*
 *.csv
 *.dat
 *.txt
+config.toml
+trees
 workloads

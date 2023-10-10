@@ -33,7 +33,7 @@ public:
     }
 
     bp_node(void *buf, const bp_node_info::bp_node_type &type) {
-        load(buf, type);
+        init(buf, type);
     }
 
     void load(void *buf) {
@@ -46,7 +46,7 @@ public:
         }
     }
 
-    void load(void *buf, const bp_node_info::bp_node_type &type) {
+    void init(void *buf, const bp_node_info::bp_node_type &type) {
         info = static_cast<bp_node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
         info->type = type;
