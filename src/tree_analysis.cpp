@@ -38,12 +38,12 @@ struct experiments {
     unsigned short_range = 0;
     unsigned mid_range = 0;
     unsigned long_range = 0;
-    unsigned runs = 5;
+    unsigned runs = 1;
+    unsigned repeat = 1;
     unsigned seed = 1234;
 };
 
-void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const experiments &exp, std::ofstream &results) {
-
+void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const experiments &exp, std::ofstream &results, const key_type &offset) {
     unsigned num_inserts = data.size();
     unsigned raw_queries = exp.raw_read_perc / 100.0 * num_inserts;
     unsigned raw_writes = exp.raw_write_perc / 100.0 * num_inserts;
@@ -63,7 +63,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
     while (idx < num_load) {
-        tree.insert(*it++, idx++);
+        tree.insert(*it++ + offset, idx++);
     }
     auto duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -71,7 +71,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     while (idx < num_load + raw_writes) {
-        tree.insert(*it++, idx++);
+        tree.insert(*it++ + offset, idx++);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -82,11 +82,11 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     while (mix_inserts < mixed_size || mix_queries < mixed_size) {
         if (mix_queries >= mixed_size || (mix_inserts < mixed_size && distribution(generator))) {
             auto _start = std::chrono::high_resolution_clock::now();
-            tree.insert(*it++, idx++);
+            tree.insert(*it++ + offset, idx++);
             insert_time += std::chrono::high_resolution_clock::now() - _start;
             mix_inserts++;
         } else {
-            key_type query_index = generator() % idx;
+            key_type query_index = generator() % idx + offset;
             auto _start = std::chrono::high_resolution_clock::now();
             bool res = tree.contains(query_index);
             query_time += std::chrono::high_resolution_clock::now() - _start;
@@ -103,7 +103,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < raw_queries; i++) {
-        tree.contains(data[range_distribution(generator) % data.size()]);
+        tree.contains(data[range_distribution(generator) % data.size()] + offset);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -111,40 +111,43 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < updates; i++) {
-        tree.insert(data[range_distribution(generator) % data.size()], 0);
+        tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
 
+    size_t leaf_accesses = 0;
     size_t k = data.size() / 1000;
     std::cerr << "Range " << k << " (" << exp.short_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < exp.short_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)];
-        tree.topk(k, min_key);
+        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
+    results << ", " << duration.count() << ", " << (exp.short_range ? leaf_accesses / exp.short_range : 0);
 
+    leaf_accesses = 0;
     k = data.size() / 100;
     std::cerr << "Range " << k << " (" << exp.mid_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < exp.mid_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)];
-        tree.topk(k, min_key);
+        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
+    results << ", " << duration.count() << ", " << (exp.mid_range ? leaf_accesses / exp.mid_range : 0);
 
+    leaf_accesses = 0;
     k = data.size() / 10;
     std::cerr << "Range " << k << " (" << exp.long_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < exp.long_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)];
-        tree.topk(k, min_key);
+        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
+    results << ", " << duration.count() << ", " << (exp.long_range ? leaf_accesses / exp.long_range : 0);
 
     results << ", " << ctr_empty << ", " << tree << "\n";
 #ifndef BENCHMARK
@@ -177,6 +180,7 @@ void display_help(const char *name) {
                                       "  --short <k>               Run k short range queries (.1% selectivity). Default value 0.\n"
                                       "  --mid <k>                 Run k mid range queries (1% selectivity). Default value 0.\n"
                                       "  --long <k>                Run k long range queries (10% selectivity). Default value 0.\n"
+                                      "  --repeat <k>              The workload will run k times without resetting the tree. Default value 1.\n"
                                       "  --runs <k>                The experiment will run k times. Default value 1.\n";
 }
 
@@ -214,6 +218,8 @@ int main(int argc, char **argv) {
             exp.updates_perc = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--runs") == 0) {
             exp.runs = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--repeat") == 0) {
+            exp.repeat = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--short") == 0) {
             exp.short_range = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--mid") == 0) {
@@ -256,9 +262,13 @@ int main(int argc, char **argv) {
     ;
     for (int i = 0; i < exp.runs; ++i) {
         manager.reset();
-        results << (name.empty() ? "SIMPLE" : name) << ", " << input_file;
         bp_tree<key_type, value_type> tree(cmp, manager);
-        workload(tree, data, exp, results);
+        key_type offset = 0;
+        for (int j = 0; j < exp.repeat; ++j) {
+            results << (name.empty() ? "SIMPLE" : name) << ", " << input_file << ", " << offset;
+            workload(tree, data, exp, results, offset);
+            offset += data.size();
+        }
         results.flush();
     }
     return 0;
