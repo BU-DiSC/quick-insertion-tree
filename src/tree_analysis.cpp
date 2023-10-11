@@ -267,9 +267,9 @@ int main(int argc, char **argv) {
         for (int j = 0; j < exp.repeat; ++j) {
             results << (name.empty() ? "SIMPLE" : name) << ", " << input_file << ", " << offset;
             workload(tree, data, exp, results, offset);
+            results.flush();
             offset += data.size();
         }
-        results.flush();
     }
     return 0;
 }
