@@ -28,14 +28,6 @@ public:
 
     bp_node() = default;
 
-    explicit bp_node(void *buf) {
-        load(buf);
-    }
-
-    bp_node(void *buf, const bp_node_info::bp_node_type &type) {
-        init(buf, type);
-    }
-
     void load(void *buf) {
         info = static_cast<bp_node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);

@@ -225,7 +225,8 @@ class bp_tree {
     void create_new_root(const key_type &key, uint32_t node_id) {
         uint32_t old_root_id = root_id;
         root_id = manager.allocate();
-        node_t root(manager.open_block(root_id), bp_node_info::INTERNAL);
+        node_t root;
+        root.init(manager.open_block(root_id), bp_node_info::INTERNAL);
         // It is expected that the root is already marked dirty, so we don't need to mark it again
         // manager.mark_dirty(root_id);
         root.info->id = root_id;
@@ -254,6 +255,7 @@ class bp_tree {
             path[i] = child_id;
             node.load(manager.open_block(child_id));
             assert(child_id == node.info->id);
+            assert(node.info->type == bp_node_info::INTERNAL);
 
             uint16_t slot = node.child_slot(key);
             if (slot != node.info->size) {
@@ -271,9 +273,10 @@ class bp_tree {
 
 #ifdef REDISTRIBUTE
     void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key) {
+        node_t node;
         for (uint8_t i = 1; i < ctr_depth; i++) {
             uint32_t node_id = path[i];
-            node_t node(manager.open_block(node_id));
+            node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_info::INTERNAL);
             uint16_t index = node.child_slot(old_key) - 1;
@@ -288,9 +291,10 @@ class bp_tree {
 #endif
 
     void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
+        node_t node;
         for (uint8_t i = 1; i < ctr_depth; i++) {
             uint32_t node_id = path[i];
-            node_t node(manager.open_block(node_id));
+            node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_info::INTERNAL);
             uint16_t index = node.child_slot(key);
@@ -309,7 +313,8 @@ class bp_tree {
 
             // split the node
             uint32_t new_node_id = manager.allocate();
-            node_t new_node(manager.open_block(new_node_id), bp_node_info::INTERNAL);
+            node_t new_node;
+            new_node.init(manager.open_block(new_node_id), bp_node_info::INTERNAL);
             manager.mark_dirty(new_node_id);
             ctr_internal++;
 
@@ -363,7 +368,10 @@ class bp_tree {
         // move values from leaf to leaf prev
         uint16_t items = IQR_SIZE_THRESH - lol_prev_size;  // items to be moved to lol prev
         manager.mark_dirty(lol_prev_id);
-        node_t lol_prev(manager.open_block(lol_prev_id), bp_node_info::LEAF);
+        node_t lol_prev;
+        lol_prev.load(manager.open_block(lol_prev_id));
+        assert(lol_prev_id == lol_prev.info->id);
+        assert(lol_prev.info->type == bp_node_info::LEAF);
         if (index < items) {
             items--;
             std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
@@ -499,7 +507,8 @@ class bp_tree {
 #endif
         // split the leaf
         uint32_t new_leaf_id = manager.allocate();
-        node_t new_leaf(manager.open_block(new_leaf_id), bp_node_info::LEAF);
+        node_t new_leaf;
+        new_leaf.init(manager.open_block(new_leaf_id), bp_node_info::LEAF);
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
@@ -634,7 +643,8 @@ public:
         ctr_hard = 0;
 #endif
 #endif
-        node_t root(manager.open_block(root_id), bp_node_info::LEAF);
+        node_t root;
+        root.init(manager.open_block(root_id), bp_node_info::LEAF);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->next_id = root_id;
@@ -662,6 +672,8 @@ public:
         if ((lol_id == head_id || lol_min <= key) && (lol_id == tail_id || key < lol_max)) {
             ctr_lol++;
             leaf.load(manager.open_block(lol_id));
+            assert(lol_id == leaf.info->id);
+            assert(leaf.info->type == bp_node_info::LEAF);
 #ifdef LOL_RESET
             life.success();
 #endif
@@ -672,6 +684,8 @@ public:
         if ((lil_id == head_id || lil_min <= key) && (lil_id == tail_id || key < lil_max)) {
             ctr_lil++;
             leaf.load(manager.open_block(lil_id));
+            assert(lil_id == leaf.info->id);
+            assert(leaf.info->type == bp_node_info::LEAF);
             return leaf_insert(leaf, lil_path, key, value);
         }
 #endif
@@ -679,6 +693,8 @@ public:
         if (tail_id == head_id || tail_min <= key) {
             ctr_tail++;
             leaf.load(manager.open_block(tail_id));
+            assert(tail_id == leaf.info->id);
+            assert(leaf.info->type == bp_node_info::LEAF);
             return leaf_insert(leaf, tail_path, key, value);
         }
 #endif
@@ -748,7 +764,10 @@ public:
             if (leaf.info->id == tail_id) {
                 break;
             }
-            leaf.load(manager.open_block(leaf.info->next_id));
+            uint32_t next_id = leaf.info->next_id;
+            leaf.load(manager.open_block(next_id));
+            assert(next_id == leaf.info->id);
+            assert(leaf.info->type == bp_node_info::LEAF);
             index = 0;
             ++loads;
         }
@@ -772,7 +791,10 @@ public:
             if (leaf.info->id == tail_id) {
                 break;
             }
-            leaf.load(manager.open_block(leaf.info->next_id));
+            uint32_t next_id = leaf.info->next_id;
+            leaf.load(manager.open_block(next_id));
+            assert(next_id == leaf.info->id);
+            assert(leaf.info->type == bp_node_info::LEAF);
             index = 0;
         }
         return loads;
