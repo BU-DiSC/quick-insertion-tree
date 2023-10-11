@@ -125,7 +125,11 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << (exp.short_range ? leaf_accesses / exp.short_range : 0);
+    results << ", " << duration.count() << ", ";
+    results << ", " << duration.count() << ", ";
+    if (exp.short_range) {
+        results << (leaf_accesses - 1 + exp.short_range) / exp.short_range;  // ceil
+    }
 
     leaf_accesses = 0;
     k = data.size() / 100;
@@ -136,7 +140,10 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << (exp.mid_range ? leaf_accesses / exp.mid_range : 0);
+    results << ", " << duration.count() << ", ";
+    if (exp.mid_range) {
+        results << (leaf_accesses - 1 + exp.mid_range) / exp.mid_range;  // ceil
+    }
 
     leaf_accesses = 0;
     k = data.size() / 10;
@@ -147,7 +154,10 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", " << (exp.long_range ? leaf_accesses / exp.long_range : 0);
+    results << ", " << duration.count() << ", ";
+    if (exp.long_range) {
+        results << (leaf_accesses - 1 + exp.long_range) / exp.long_range;  // ceil
+    }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
 #ifndef BENCHMARK

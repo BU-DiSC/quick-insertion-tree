@@ -757,10 +757,9 @@ public:
         find_leaf(leaf, path, min_key);
         uint16_t index = leaf.value_slot(min_key);
         size_t loads = 1;
-        while (count-- > 0) {
-            if (index < leaf.info->size) {
-                continue;
-            }
+        uint16_t curr_size = leaf.info->size - index;
+        while (count > curr_size) {
+            count -= curr_size;
             if (leaf.info->id == tail_id) {
                 break;
             }
@@ -768,7 +767,7 @@ public:
             leaf.load(manager.open_block(next_id));
             assert(next_id == leaf.info->id);
             assert(leaf.info->type == bp_node_info::LEAF);
-            index = 0;
+            curr_size = leaf.info->size;
             ++loads;
         }
         return loads;
@@ -779,15 +778,7 @@ public:
         node_t leaf;
         path_t path;
         find_leaf(leaf, path, min_key);
-        uint16_t index = leaf.value_slot(min_key);
-        while (true) {
-            while (index < leaf.info->size) {
-                if (leaf.keys[index] > max_key) {
-                    return loads;
-                }
-                ++loads;
-                ++index;
-            }
+        while (leaf.keys[leaf.info->size - 1] < max_key) {
             if (leaf.info->id == tail_id) {
                 break;
             }
@@ -795,7 +786,7 @@ public:
             leaf.load(manager.open_block(next_id));
             assert(next_id == leaf.info->id);
             assert(leaf.info->type == bp_node_info::LEAF);
-            index = 0;
+            ++loads;
         }
         return loads;
     }
