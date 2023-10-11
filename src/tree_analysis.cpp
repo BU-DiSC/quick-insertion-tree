@@ -126,7 +126,6 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
-    results << ", " << duration.count() << ", ";
     if (exp.short_range) {
         results << (leaf_accesses - 1 + exp.short_range) / exp.short_range;  // ceil
     }
@@ -256,9 +255,6 @@ int main(int argc, char **argv) {
                        "LIL"
 #endif
 #ifdef LOL_FAT
-#ifdef LOL_RESET
-                       "_RESET"
-#endif
 #ifdef VARIABLE_SPLIT
 #ifdef DOUBLE_IQR
                        "_DOUBLE_IQR"
@@ -267,6 +263,9 @@ int main(int argc, char **argv) {
                        "_REDISTRIBUTE"
 #endif
                        "_VARIABLE"
+#endif
+#ifdef LOL_RESET
+                       "_RESET" + std::to_string(LOL_RESET)
 #endif
 #endif
     ;

@@ -27,8 +27,33 @@ using BlockManager = DiskBlockManager;
 
 #define MAX_DEPTH 10
 
-#ifdef LOL_RESET
-#ifdef SIMPLE_RESET
+#if LOL_RESET == 0
+struct reset_stats {
+    uint32_t count;
+    uint32_t threshold;
+
+    reset_stats(uint32_t t) {
+        count = 0;
+        threshold = t;
+    }
+
+    void success() {
+        count = 0;
+    }
+
+    bool failure(bool left=false) {
+        count++;
+        if (count >= threshold) {
+            return true;
+        }
+        return false;
+    }
+
+    void reset() {
+        count = 0;
+    }
+};
+#elif LOL_RESET == 1
 struct reset_stats {
     uint32_t count;
     uint32_t step;
@@ -49,8 +74,6 @@ struct reset_stats {
         step++;
         count += step;
         if (count >= threshold) {
-            count = 0;
-            step = step / 2;
             return true;
         }
         return false;
@@ -61,7 +84,7 @@ struct reset_stats {
         step = step / 2;
     }
 };
-#else
+#elif LOL_RESET == 2
 struct reset_stats {
     int32_t count;
     uint16_t step;
@@ -95,8 +118,6 @@ struct reset_stats {
                 return false;
             }
         }
-        count = 0;
-        step = step / 2;
         return true;
     }
 
@@ -105,7 +126,6 @@ struct reset_stats {
         step = step / 2;
     }
 };
-#endif
 #endif
 
 template<typename key_type, typename value_type>
@@ -605,7 +625,11 @@ class bp_tree {
 public:
     bp_tree(dist_f cmp, BlockManager &m) :
 #ifdef LOL_RESET
+#if LOL_RESET == 0
+            life(sqrt(node_t::leaf_capacity)),
+#else
             life(SPLIT_LEAF_POS),
+#endif
 #endif
             manager(m) {
         dist = cmp;
@@ -744,6 +768,7 @@ public:
                 lol_max = leaf_max;
                 lol_size = leaf.info->size;
                 lol_path = path;
+                life.reset();
             }
 #endif
         }
