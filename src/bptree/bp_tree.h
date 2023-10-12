@@ -27,6 +27,7 @@ using BlockManager = DiskBlockManager;
 
 #define MAX_DEPTH 10
 
+#ifdef LOL_RESET
 #if LOL_RESET == 0
 struct reset_stats {
     uint32_t count;
@@ -126,6 +127,7 @@ struct reset_stats {
         step = step / 2;
     }
 };
+#endif
 #endif
 
 template<typename key_type, typename value_type>
