@@ -761,17 +761,15 @@ public:
             ctr_soft++;
 #ifdef LOL_RESET
             life.reset();
-        } else {
+        } else if (life.failure(lol_id != head_id && key < lol_min)) {
             ctr_hard++;
-            if (life.failure(lol_id != head_id && key < lol_min)) {
-                lol_prev_valid = false;
-                lol_id = leaf.info->id;
-                lol_min = leaf.keys[0];
-                lol_max = leaf_max;
-                lol_size = leaf.info->size;
-                lol_path = path;
-                life.reset();
-            }
+            lol_prev_valid = false;
+            lol_id = leaf.info->id;
+            lol_min = leaf.keys[0];
+            lol_max = leaf_max;
+            lol_size = leaf.info->size;
+            lol_path = path;
+            life.reset();
 #endif
         }
 #endif
