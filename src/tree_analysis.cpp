@@ -30,28 +30,15 @@ std::vector<key_type> read_bin(const char *filename) {
     return data;
 }
 
-struct experiments {
-    unsigned raw_read_perc = 0;
-    unsigned raw_write_perc = 0;
-    unsigned mix_load_perc = 0;
-    unsigned updates_perc = 0;
-    unsigned short_range = 0;
-    unsigned mid_range = 0;
-    unsigned long_range = 0;
-    unsigned runs = 1;
-    unsigned repeat = 1;
-    unsigned seed = 1234;
-};
-
-void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const experiments &exp, std::ofstream &results, const key_type &offset) {
+void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const Config &conf, std::ofstream &results, const key_type &offset) {
     unsigned num_inserts = data.size();
-    unsigned raw_queries = exp.raw_read_perc / 100.0 * num_inserts;
-    unsigned raw_writes = exp.raw_write_perc / 100.0 * num_inserts;
-    unsigned mixed_size = exp.mix_load_perc / 100.0 * num_inserts;
-    unsigned updates = exp.updates_perc / 100.0 * num_inserts;
+    unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
+    unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
+    unsigned mixed_size = conf.mix_load_perc / 100.0 * num_inserts;
+    unsigned updates = conf.updates_perc / 100.0 * num_inserts;
     unsigned num_load = num_inserts - raw_writes - mixed_size;
 
-    std::mt19937 generator(exp.seed);
+    std::mt19937 generator(conf.seed);
     std::uniform_int_distribution<int> distribution(0, 1);
 
     unsigned mix_inserts = 0;
@@ -118,44 +105,44 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     size_t leaf_accesses = 0;
     size_t k = data.size() / 1000;
-    std::cerr << "Range " << k << " (" << exp.short_range << ")\n";
+    std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < exp.short_range; i++) {
+    for (int i = 0; i < conf.short_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
-    if (exp.short_range) {
-        results << (leaf_accesses - 1 + exp.short_range) / exp.short_range;  // ceil
+    if (conf.short_range) {
+        results << (leaf_accesses - 1 + conf.short_range) / conf.short_range;  // ceil
     }
 
     leaf_accesses = 0;
     k = data.size() / 100;
-    std::cerr << "Range " << k << " (" << exp.mid_range << ")\n";
+    std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < exp.mid_range; i++) {
+    for (int i = 0; i < conf.mid_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
-    if (exp.mid_range) {
-        results << (leaf_accesses - 1 + exp.mid_range) / exp.mid_range;  // ceil
+    if (conf.mid_range) {
+        results << (leaf_accesses - 1 + conf.mid_range) / conf.mid_range;  // ceil
     }
 
     leaf_accesses = 0;
     k = data.size() / 10;
-    std::cerr << "Range " << k << " (" << exp.long_range << ")\n";
+    std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < exp.long_range; i++) {
+    for (int i = 0; i < conf.long_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.topk(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
-    if (exp.long_range) {
-        results << (leaf_accesses - 1 + exp.long_range) / exp.long_range;  // ceil
+    if (conf.long_range) {
+        results << (leaf_accesses - 1 + conf.long_range) / conf.long_range;  // ceil
     }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
@@ -176,73 +163,28 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 #endif
 }
 
-void display_help(const char *name) {
-    std::cerr << "Usage: " << name << " <input_file> [OPTION...]\n"
-                                      "  --help                    Display this information.\n"
-                                      "  --config <config_file>    Experiment configurations.\n"
-                                      "  --tree <tree_file>        Tree data will be written to tree_file.\n"
-                                      "  --seed <seed>             Seed used by the random generator.\n"
-                                      "  --writes <perc>           The percentage of input file that should be used for raw writes [0-100]. Default value 0.\n"
-                                      "  --reads <perc>            The percentage of input file that should be used for raw reads [0-100]. Default value 0.\n"
-                                      "  --mixed <perc>            The percentage of input file that should be used for mixed [0-100]. Default value 0.\n"
-                                      "  --updates <perc>          The percentage of input file that should be used for updates [0-100]. Default value 0.\n"
-                                      "  --short <k>               Run k short range queries (.1% selectivity). Default value 0.\n"
-                                      "  --mid <k>                 Run k mid range queries (1% selectivity). Default value 0.\n"
-                                      "  --long <k>                Run k long range queries (10% selectivity). Default value 0.\n"
-                                      "  --repeat <k>              The workload will run k times without resetting the tree. Default value 1.\n"
-                                      "  --runs <k>                The experiment will run k times. Default value 1.\n";
-}
-
 std::size_t cmp(const key_type &max, const key_type &min) {
     return max - min;
 }
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        display_help(argv[0]);
+        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]" << std::endl;
         return -1;
     }
 
     const char *input_file = argv[1];
     const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
-    experiments exp;
-    for (int i = 2; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            display_help(argv[0]);
-            return 0;
-        } else if (strcmp(argv[i], "--config") == 0) {
-            config_file = argv[++i];
-        } else if (strcmp(argv[i], "--tree") == 0) {
-            tree_dat = argv[++i];
-        } else if (strcmp(argv[i], "--seed") == 0) {
-            exp.seed = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--writes") == 0) {
-            exp.raw_write_perc = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--reads") == 0) {
-            exp.raw_read_perc = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--mixed") == 0) {
-            exp.mix_load_perc = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--updates") == 0) {
-            exp.updates_perc = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--runs") == 0) {
-            exp.runs = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--repeat") == 0) {
-            exp.repeat = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--short") == 0) {
-            exp.short_range = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--mid") == 0) {
-            exp.mid_range = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--long") == 0) {
-            exp.long_range = std::stoi(argv[++i]);
-        } else {
-            std::cerr << "Discarding option: " << argv[i] << std::endl;
-        }
-    }
 
-    Config config(config_file);
-    BlockManager manager(tree_dat, config.blocks_in_memory);
-    std::vector<key_type> data = read_bin(input_file);
+    Config conf(config_file);
+    BlockManager manager(tree_dat, conf.blocks_in_memory);
+
+    std::vector<std::vector<key_type>> data;
+    for (int i = 1; i < argc; i++) {
+        std::cerr << "Reading " << argv[i] << std::endl;
+        data.emplace_back(read_bin(input_file));
+    }
     std::ofstream results("results.csv", std::ofstream::app);
     std::string name = ""
 #ifdef TAIL_FAT
@@ -269,15 +211,17 @@ int main(int argc, char **argv) {
 #endif
 #endif
     ;
-    for (int i = 0; i < exp.runs; ++i) {
+    for (int i = 0; i < conf.runs; ++i) {
         manager.reset();
         bp_tree<key_type, value_type> tree(cmp, manager);
         key_type offset = 0;
-        for (int j = 0; j < exp.repeat; ++j) {
-            results << (name.empty() ? "SIMPLE" : name) << ", " << input_file << ", " << offset;
-            workload(tree, data, exp, results, offset);
-            results.flush();
-            offset += data.size();
+        for (int j = 0; j < conf.repeat; ++j) {
+            for (const auto &input: data) {
+                results << (name.empty() ? "SIMPLE" : name) << ", " << input_file << ", " << offset;
+                workload(tree, input, conf, results, offset);
+                results.flush();
+                offset += input.size();
+            }
         }
     }
     return 0;
