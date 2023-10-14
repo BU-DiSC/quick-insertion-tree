@@ -686,6 +686,17 @@ public:
     }
 
     bool insert(const key_type &key, const value_type &value) {
+#ifdef PLOT_FAST
+        #ifdef TAIL_FAT
+        std::cout << key << ',' << ctr_tail << std::endl;
+        #endif
+        #ifdef LIL_FAT
+        std::cout << key << ',' << ctr_lil << std::endl;
+        #endif
+        #ifdef LOL_FAT
+        std::cout << key << ',' << ctr_lol << std::endl;
+        #endif
+#endif
 #ifdef LOL_FAT
 #ifdef LIL_FAT
         // sanity check
@@ -697,9 +708,6 @@ public:
 #ifdef LOL_FAT
         if ((lol_id == head_id || lol_min <= key) && (lol_id == tail_id || key < lol_max)) {
             ctr_lol++;
-#ifdef PLOT
-            std::cout << key << ',' << ctr_lol << std::endl;
-#endif
             leaf.load(manager.open_block(lol_id));
             assert(lol_id == leaf.info->id);
             assert(leaf.info->type == bp_node_info::LEAF);
@@ -708,9 +716,6 @@ public:
 #endif
             return leaf_insert(leaf, lol_path, key, value);
         }
-#ifdef PLOT
-        std::cout << key << ',' << ctr_lol << std::endl;
-#endif
 #endif
 #ifdef LIL_FAT
         if ((lil_id == head_id || lil_min <= key) && (lil_id == tail_id || key < lil_max)) {
