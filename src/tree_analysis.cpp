@@ -173,7 +173,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    const char *input_file = argv[1];
     const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
 
@@ -183,7 +182,7 @@ int main(int argc, char **argv) {
     std::vector<std::vector<key_type>> data;
     for (int i = 1; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_bin(input_file));
+        data.emplace_back(read_bin(argv[i]));
     }
     std::ofstream results("results.csv", std::ofstream::app);
     std::string name = ""
@@ -216,8 +215,9 @@ int main(int argc, char **argv) {
         bp_tree<key_type, value_type> tree(cmp, manager);
         key_type offset = 0;
         for (int j = 0; j < conf.repeat; ++j) {
-            for (const auto &input: data) {
-                results << (name.empty() ? "SIMPLE" : name) << ", " << input_file << ", " << offset;
+            for (int k = 0; k < data.size(); ++k) {
+                const auto &input = data[k];
+                results << (name.empty() ? "SIMPLE" : name) << ", " << argv[k+1] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();
