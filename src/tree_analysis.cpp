@@ -109,7 +109,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < conf.short_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.topk(k, min_key);
+        leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
@@ -123,7 +123,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < conf.mid_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.topk(k, min_key);
+        leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
@@ -137,7 +137,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < conf.long_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.topk(k, min_key);
+        leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
                        "_VARIABLE"
 #endif
 #ifdef LOL_RESET
-                       "_RESET" + std::to_string(LOL_RESET)
+                       "_RESET"
 #endif
 #endif
     ;

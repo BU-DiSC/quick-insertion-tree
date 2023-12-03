@@ -3,49 +3,50 @@
 
 #include <algorithm>
 
-struct bp_node_info {
-    uint32_t id;
-    uint32_t next_id;
-    uint16_t size;
-    enum bp_node_type {
-        LEAF, INTERNAL
-    } type; // not needed? use 1 bit from id
+enum bp_node_type {
+    LEAF, INTERNAL
 };
 
-template<typename key_type, typename value_type>
+template<typename node_id_type, typename key_type, typename value_type>
 class bp_node {
+    struct node_info {
+        node_id_type id;
+        node_id_type next_id;
+        uint16_t size;
+        bp_node_type type; // not needed. use 1 bit from id?
+    };
 public:
-    static constexpr uint16_t leaf_capacity = (BlockManager::block_size - sizeof(bp_node_info)) /
+    static constexpr uint16_t leaf_capacity = (BlockManager::block_size - sizeof(node_info)) /
                                               (sizeof(key_type) + sizeof(value_type));
-    static constexpr uint16_t internal_capacity = (BlockManager::block_size - sizeof(bp_node_info) - sizeof(uint32_t)) /
-                                                  (sizeof(key_type) + sizeof(uint32_t));
-    bp_node_info *info;
+    static constexpr uint16_t internal_capacity = (BlockManager::block_size - sizeof(node_info) - sizeof(node_id_type)) /
+                                                  (sizeof(key_type) + sizeof(node_id_type));
+    node_info *info;
     key_type *keys;
     union {
-        uint32_t *children;
+        node_id_type *children;
         value_type *values;
     };
 
     bp_node() = default;
 
     void load(void *buf) {
-        info = static_cast<bp_node_info *>(buf);
+        info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
-        if (info->type == bp_node_info::LEAF) {
+        if (info->type == bp_node_type::LEAF) {
             values = reinterpret_cast<value_type *>(keys + leaf_capacity);
         } else {
-            children = reinterpret_cast<uint32_t *>(keys + internal_capacity);
+            children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
         }
     }
 
-    void init(void *buf, const bp_node_info::bp_node_type &type) {
-        info = static_cast<bp_node_info *>(buf);
+    void init(void *buf, const bp_node_type &type) {
+        info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
         info->type = type;
-        if (info->type == bp_node_info::LEAF) {
+        if (info->type == bp_node_type::LEAF) {
             values = reinterpret_cast<value_type *>(keys + leaf_capacity);
         } else {
-            children = reinterpret_cast<uint32_t *>(keys + internal_capacity);
+            children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
         }
     }
 
@@ -55,14 +56,14 @@ public:
      * @return index of key slot
      */
     uint16_t value_slot(const key_type &key) const {
-        assert(info->type == bp_node_info::LEAF);
+        assert(info->type == bp_node_type::LEAF);
         auto it = std::lower_bound(keys, keys + info->size, key);
 //       assert(it == std::lower_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }
 
     uint16_t child_slot(const key_type &key) const {
-        assert(info->type == bp_node_info::INTERNAL);
+        assert(info->type == bp_node_type::INTERNAL);
         auto it = std::upper_bound(keys, keys + info->size, key);
 //        assert(it == std::upper_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
