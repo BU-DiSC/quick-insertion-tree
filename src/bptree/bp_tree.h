@@ -185,7 +185,7 @@ class bp_tree {
     key_type find_leaf(node_t &node, path_t &path, const key_type &key) const {
         key_type leaf_max = {};
         uint32_t child_id = root_id;
-        for (int i = ctr_depth - 1; i > 0; --i) {  // from root to last internal level
+        for (uint8_t i = ctr_depth - 1; i > 0; --i) {  // from root to last internal level
             path[i] = child_id;
             node.load(manager.open_block(child_id));
             assert(child_id == node.info->id);
