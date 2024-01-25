@@ -8,41 +8,52 @@
 #include <unordered_map>
 #include <unordered_set>
 
-struct Node {
+struct Node
+{
     uint32_t id;
     const uint32_t pos;
     Node *prev, *next;
 
-    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos) {
+    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos)
+    {
         prev = nullptr;
         next = nullptr;
     }
 };
 
-class LinkedList {
+class LinkedList
+{
     Node *begin;
     Node *end;
 
 public:
-    LinkedList() {
+    LinkedList()
+    {
         begin = nullptr;
         end = nullptr;
     }
 
-    ~LinkedList() {
-        while (end) {
+    ~LinkedList()
+    {
+        while (end)
+        {
             delete removeFromEnd();
         }
     }
 
-    void moveToFront(Node *node) {
-        if (node == begin) return;
+    void moveToFront(Node *node)
+    {
+        if (node == begin)
+            return;
 
         node->prev->next = node->next;
 
-        if (node == end) {
+        if (node == end)
+        {
             end = end->prev;
-        } else {
+        }
+        else
+        {
             node->next->prev = node->prev;
         }
 
@@ -53,23 +64,32 @@ public:
         begin = node;
     }
 
-    void addToFront(Node *node) {
-        if (begin) {
+    void addToFront(Node *node)
+    {
+        if (begin)
+        {
             node->next = begin;
             begin->prev = node;
-        } else {
+        }
+        else
+        {
             end = node;
         }
         begin = node;
     }
 
-    Node *removeFromEnd() {
-        if (end == nullptr) return nullptr;
+    Node *removeFromEnd()
+    {
+        if (end == nullptr)
+            return nullptr;
 
         Node *temp = end;
-        if (end->prev) {
+        if (end->prev)
+        {
             end->prev->next = nullptr;
-        } else {
+        }
+        else
+        {
             begin = nullptr;
         }
         end = end->prev;
@@ -78,14 +98,14 @@ public:
     }
 };
 
-class LRUCache {
+class LRUCache
+{
     const uint32_t capacity;
     uint32_t size;
     LinkedList list;
     std::unordered_map<uint32_t, Node *> node_hash{};
 
 public:
-
     explicit LRUCache(uint32_t cap) : capacity(cap), size(0) {}
 
     /**
@@ -93,10 +113,12 @@ public:
      * @param id
      * @return position in internal memory
      */
-    uint32_t get(uint32_t id) {
+    uint32_t get(uint32_t id)
+    {
         auto it = node_hash.find(id);
 
-        if (it == node_hash.end()) {
+        if (it == node_hash.end())
+        {
             return capacity;
         }
 
@@ -112,15 +134,19 @@ public:
      * @param[out] evicted_id
      * @return true if an eviction occurred
      */
-    bool put(uint32_t id, uint32_t &pos, uint32_t &evicted_id) {
+    bool put(uint32_t id, uint32_t &pos, uint32_t &evicted_id)
+    {
         Node *node;
         bool eviction = size == capacity;
-        if (eviction) {
+        if (eviction)
+        {
             node = list.removeFromEnd();
             evicted_id = node->id;
             node_hash.erase(evicted_id);
             node->id = id;
-        } else {
+        }
+        else
+        {
             node = new Node(id, size);
             size++;
         }
@@ -136,12 +162,15 @@ public:
 #define BLOCK_SIZE_BYTES 4096
 #endif
 
-struct Block {
+struct Block
+{
     uint8_t block_buf[BLOCK_SIZE_BYTES]{};
 };
 
-class DiskBlockManager {
-    friend std::ostream &operator<<(std::ostream &os, const DiskBlockManager &manager) {
+class DiskBlockManager
+{
+    friend std::ostream &operator<<(std::ostream &os, const DiskBlockManager &manager)
+    {
         os << manager.ctr_writes << ", " << manager.ctr_mark_dirty;
         return os;
     }
@@ -160,10 +189,11 @@ class DiskBlockManager {
      * @param id block id (offset in file)
      * @param pos position in internal memory
      */
-    void write_block(uint32_t id, uint32_t pos) {
+    void write_block(uint32_t id, uint32_t pos)
+    {
         assert(pos < capacity);
         off_t offset = id * block_size;
-//        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+        //        assert(pwrite(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
         pwrite(fd, internal_memory[pos].block_buf, block_size, offset);
         ctr_writes++;
     }
@@ -173,28 +203,30 @@ class DiskBlockManager {
      * @param id block id (offset in file)
      * @param pos position in internal memory
      */
-    void read_block(uint32_t id, uint32_t pos) {
+    void read_block(uint32_t id, uint32_t pos)
+    {
         off_t offset = id * block_size;
-//        assert(pread(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
+        //        assert(pread(fd, internal_memory[pos].block_buf, block_size, offset) == block_size);
         pread(fd, internal_memory[pos].block_buf, block_size, offset);
     }
 
 public:
     static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
-    DiskBlockManager(const char *filepath, uint32_t capacity) :
-            capacity(capacity),
-            next_block_id(0),
-            cache(capacity),
-            dirty_nodes(),
-            ctr_writes(0),
-            ctr_mark_dirty(0) {
+    DiskBlockManager(const char *filepath, uint32_t capacity) : capacity(capacity),
+                                                                next_block_id(0),
+                                                                cache(capacity),
+                                                                dirty_nodes(),
+                                                                ctr_writes(0),
+                                                                ctr_mark_dirty(0)
+    {
         internal_memory = new Block[capacity];
         fd = open(filepath, O_RDWR | O_CREAT | O_TRUNC, 0600);
         assert(fd != -1);
     }
 
-    ~DiskBlockManager() {
+    ~DiskBlockManager()
+    {
 #ifndef BENCHMARK
         flush();
 #endif
@@ -202,9 +234,11 @@ public:
         close(fd);
     }
 
-    void flush() {
+    void flush()
+    {
         // write dirty blocks back to disk
-        for (const auto &id: dirty_nodes) {
+        for (const auto &id : dirty_nodes)
+        {
             uint32_t pos = cache.get(id);
             write_block(id, pos);
         }
@@ -215,7 +249,8 @@ public:
      * Allocate a block id
      * @return block id for the new block
      */
-    uint32_t allocate() {
+    uint32_t allocate()
+    {
         return next_block_id++;
     }
 
@@ -223,7 +258,8 @@ public:
      * Mark a block as dirty
      * @param id block id
      */
-    void mark_dirty(uint32_t id) {
+    void mark_dirty(uint32_t id)
+    {
         assert(cache.get(id) != capacity);
         dirty_nodes.insert(id);
         ctr_mark_dirty++;
@@ -234,14 +270,17 @@ public:
      * @param id block id
      * @return position of block in memory
      */
-    void *open_block(uint32_t id) {
+    void *open_block(uint32_t id)
+    {
         uint32_t pos = cache.get(id);
-        if (pos == capacity) {
+        if (pos == capacity)
+        {
             uint32_t evicted_id;
             bool eviction = cache.put(id, pos, evicted_id);
 
             // write old block back to disk
-            if (eviction && dirty_nodes.find(evicted_id) != dirty_nodes.end()) {
+            if (eviction && dirty_nodes.find(evicted_id) != dirty_nodes.end())
+            {
                 // write block if dirty
                 write_block(evicted_id, pos);
                 dirty_nodes.erase(evicted_id);
@@ -251,6 +290,12 @@ public:
             read_block(id, pos);
         }
         return internal_memory[pos].block_buf;
+    }
+
+    // getter for capacity
+    uint32_t get_capacity() const
+    {
+        return capacity;
     }
 };
 

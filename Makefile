@@ -1,4 +1,4 @@
-CXXFLAGS=-Isrc/bptree -std=c++17
+CXXFLAGS=-Isrc/bptree -std=c++17 -lpthread
 TARGET=src/tree_analysis.cpp
 EXE_DIR=trees
 
