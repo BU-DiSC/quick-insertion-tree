@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <atomic>
 
 struct Node
 {
@@ -176,7 +177,7 @@ class DiskBlockManager
     }
 
     const uint32_t capacity;
-    uint32_t next_block_id;
+    std::atomic<uint32_t> next_block_id;
     Block *internal_memory;
     LRUCache cache;
     int fd;
