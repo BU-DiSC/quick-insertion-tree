@@ -380,12 +380,14 @@ class bp_tree
         // then, copy the data to the leaf between ibegin and iend
         // the data will be a vector of pairs, so we need to copy the keys and values separately
         uint16_t size = iend - ibegin;
-        for (size_t s = 0; s < num_items + 1; ++s, ++it)
+        auto it = ibegin;
+        for (size_t s = 0; s < size + 1; ++s, ++it)
         {
             leaf.keys[s] = it->first;
             leaf.values[s] = it->second;
             leaf.info->size++;
         }
+        return true;
     }
 
     bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value)
