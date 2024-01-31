@@ -372,12 +372,8 @@ class bp_tree
     }
 #endif
     template <typename Iterator>
-    bool bulkload_leaf(Iterator ibegin, Iterator iend, path_t &path, node_t &leaf, bool is_leaf_root)
+    bool insert_bulk_data_to_leaf(Iterator ibegin, Iterator iend, path_t &path, node_t &leaf, bool is_leaf_root)
     {
-        // unline leaf_insert() that first finds the leaf to insert and then performs the insertion,
-        // bulkload_leaf will simply first allocate the leaf, and then based on the tail leaf, it will
-        // set the parents.
-
         // first open the leaf and mark as dirty
         manager.mark_dirty(leaf.info->id);
 
@@ -390,18 +386,6 @@ class bp_tree
             leaf.values[s] = it->second;
             leaf.info->size++;
         }
-
-        // if leaf is the root, then return
-        if (is_leaf_root)
-        {
-            return true;
-        }
-        // otherwise, call internal insert
-        uint16_t split_internal_pos = SPLIT_INTERNAL_POS;
-#ifdef SPLIT80
-        split_internal_pos = 0.8 * node_t::internal_capacity;
-#endif
-        internal_insert(path, leaf.keys[0], leaf.info->id, SPLIT_INTERNAL_POS);
     }
 
     bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value)
@@ -664,16 +648,39 @@ public:
 #endif
     }
 
-    bool bulk_load(const std::vector<std::pair<key_type, value_type>> &data)
-    {
-    }
-
     bool top_insert(const key_type &key, const value_type &value)
     {
         node_t leaf;
         path_t path;
         find_leaf(leaf, path, key);
         return leaf_insert(leaf, path, key, value);
+    }
+
+    template <typename Iterator>
+    bool bulkload_leaf(Iterator ibegin, Iterator iend)
+    {
+        node_t leaf;
+        path_t path;
+
+        // allocate and initialize new leaf
+        uint32_t new_leaf_id = manager.allocate();
+        leaf.init(manager.open_block(new_leaf_id), bp_node_type::LEAF);
+        manager.mark_dirty(new_leaf_id);
+        ctr_leaves++;
+
+        // insert data into leaf
+        bool res = insert_bulk_data_to_leaf(ibegin, iend, path, leaf, true);
+        if (ctr_size == 0)
+        {
+            return res;
+        }
+
+        // otherwise, call internal insert
+        uint16_t split_internal_pos = SPLIT_INTERNAL_POS;
+#ifdef SPLIT80
+        split_internal_pos = 0.8 * node_t::internal_capacity;
+#endif
+        internal_insert(path, leaf.keys[0], leaf.info->id, split_internal_pos);
     }
 
     bool insert(const key_type &key, const value_type &value)
