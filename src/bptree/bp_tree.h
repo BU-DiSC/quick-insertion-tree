@@ -657,12 +657,12 @@ public:
         find_leaf(leaf, path, key);
         return leaf_insert(leaf, path, key, value);
     }
-
+#ifdef FAST_PATH
     template <typename Iterator>
     bool bulkload_leaf(Iterator ibegin, Iterator iend)
     {
         node_t leaf;
-        path_t path;
+        path_t &path = fp_path;
 
         // allocate and initialize new leaf
         uint32_t new_leaf_id = manager.allocate();
@@ -684,7 +684,7 @@ public:
 #endif
         internal_insert(path, leaf.keys[0], leaf.info->id, split_internal_pos);
     }
-
+#endif
     bool insert(const key_type &key, const value_type &value)
     {
         node_t leaf;
