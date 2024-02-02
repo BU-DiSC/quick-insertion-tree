@@ -127,15 +127,19 @@ class bp_tree
 
     BlockManager &manager;
     mutable std::vector<std::shared_mutex> mutexes;
+    mutable std::shared_mutex root_mutex;
     node_id_t root_id;
     node_id_t head_id;
     node_id_t tail_id;
 #ifdef FAST_PATH
+    mutable std::shared_mutex fp_mutex;
     node_id_t fp_id;
     key_type fp_min;
     key_type fp_max;
     path_t fp_path;
 #ifdef LOL_FAT
+    uint16_t lol_size;
+    mutable std::shared_mutex lol_prev_mutex;
     node_id_t lol_prev_id;
 #ifdef LOL_RESET
     reset_stats life;
@@ -143,7 +147,6 @@ class bp_tree
     // iqr
     key_type lol_prev_min;
     uint16_t lol_prev_size;
-    uint16_t lol_size;
 #endif
 #endif
 
@@ -219,6 +222,8 @@ class bp_tree
         for (auto itr : locked_nodes_in_path)
         {
             mutexes[itr].unlock();
+            if (itr == root_id)
+                root_mutex.unlock();
         }
         locked_nodes_in_path.clear();
     }
@@ -238,15 +243,15 @@ class bp_tree
         key_type leaf_max = {};
         // lock root here
         uint32_t child_id = root_id;
-        while (true)
+        if (shared)
         {
-            lock_node(child_id, shared);
-            if (child_id == root_id)
-            {
-                break;
-            }
-            mutexes[child_id].unlock();
+            root_mutex.lock_shared();
         }
+        else
+        {
+            root_mutex.lock();
+        }
+        lock_node(child_id, shared);
         // from root to last internal level
         for (uint8_t i = ctr_depth - 1; i > 0; --i)
         {
@@ -280,6 +285,23 @@ class bp_tree
         return leaf_max;
     }
 
+    // make a new function that locks every node in the fast path
+    void lock_fast_path(std::set<node_id_t> &locked_nodes_in_path)
+    {
+        uint32_t child_id = root_id;
+        root_mutex.lock();
+
+        for (uint8_t i = ctr_depth - 1; i > 0; --i)
+        {
+            child_id = path[i];
+            lock_node(child_id, false);
+            node.load(manager.open_block(child_id));
+            assert(node.info->type == bp_node_type::INTERNAL);
+            if (node.info->size < node_t::internal_capacity)
+                unlock_nodes_in_path(locked_nodes_in_path);
+            locked_nodes_in_path.insert(child_id);
+        }
+    }
 #ifdef REDISTRIBUTE
     void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key)
     {
@@ -649,6 +671,8 @@ class bp_tree
                 fp_max = new_leaf.keys[0];
                 lol_size = leaf.info->size;
             }
+            // we can unlock lol_prev_mutex here
+            lol_prev_mutex.unlock();
         }
         else if (new_leaf_id != tail_id && new_leaf.info->next_id == fp_id)
         {
@@ -718,6 +742,8 @@ public:
 #ifdef PLOT_FAST
         std::cout << key << ',' << ctr_fp << std::endl;
 #endif
+        // take a shared lock on the fast path mutex
+        fp_mutex.lock_shared();
         if ((fp_id == head_id || fp_min <= key) && (fp_id == tail_id || key < fp_max))
         {
             ctr_fp++;
@@ -727,7 +753,10 @@ public:
 #ifdef LOL_RESET
             life.success();
 #endif
-            return leaf_insert(leaf, fp_path, key, value, locked_nodes_in_path);
+            bool res = leaf_insert(leaf, fp_path, key, value, locked_nodes_in_path);
+            // unlock the fast path mutex
+            fp_mutex.unlock_shared();
+            return res;
         }
 #endif
 #ifdef LIL_FAT
@@ -746,6 +775,8 @@ public:
             fp_max = leaf_max;
 #endif
 #ifdef LOL_FAT
+        // lock lol_prev_mutex
+        lol_prev_mutex.lock();
         // if the new inserted key goes to lol->next, check if lol->next is not an outlier
         // it might be the case that lol reached the previous outliers.
         if (lol_prev_id != tail_id && // lol->prev info exist
@@ -783,7 +814,15 @@ public:
 #endif
         }
 #endif
-        return leaf_insert(leaf, path, key, value, locked_nodes_in_path);
+        bool res = leaf_insert(leaf, path, key, value, locked_nodes_in_path);
+        // unlock fp_mutex
+#ifdef FAST_PATH
+        fp_mutex.unlock_shared();
+#ifdef LOL_FAT
+        lol_prev_mutex.unlock();
+#endif
+#endif
+        return res;
     }
 
     size_t top_k(size_t count, const key_type &min_key) const
