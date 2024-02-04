@@ -241,7 +241,7 @@ class bp_tree {
                              (node.info->size - index) * sizeof(uint32_t));
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
-                node.info->size++;
+                ++node.info->size;
                 return;
             }
 
@@ -307,7 +307,7 @@ class bp_tree {
         assert(lol_prev_id == lol_prev.info->id);
         assert(lol_prev.info->type == bp_node_type::LEAF);
         if (index < items) {
-            items--;
+            --items;
             std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
             std::memcpy(lol_prev.keys + lol_prev_size + index + 1, leaf.keys + index, (items - index) * sizeof(key_type));
             lol_prev.keys[lol_prev_size + index] = key;
@@ -317,7 +317,7 @@ class bp_tree {
 
             std::memmove(leaf.keys, leaf.keys + items, (lol_size - items) * sizeof(key_type));
             std::memmove(leaf.values, leaf.values + items, (lol_size - items) * sizeof(value_type));
-            items++;
+            ++items;
         } else {
             std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, items * sizeof(key_type));
             std::memcpy(lol_prev.values + lol_prev_size, leaf.values, items * sizeof(key_type));
@@ -343,7 +343,7 @@ class bp_tree {
     }
 #endif
 
-    bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value) {
+    bool leaf_insert(node_t &leaf, const path_t &path, const key_type &key, const value_type &value) {
         manager.mark_dirty(leaf.info->id);
         uint16_t index = leaf.value_slot(key);
         if (index < leaf.info->size && leaf.keys[index] == key) {
@@ -359,7 +359,7 @@ class bp_tree {
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
             leaf.keys[index] = key;
             leaf.values[index] = value;
-            leaf.info->size++;
+            ++leaf.info->size;
 #ifdef LOL_FAT
             if (leaf.info->id == fp_id) {
                 lol_size++;
@@ -387,7 +387,7 @@ class bp_tree {
                 size_t d = dist(fp_min, lol_prev_min);
 #ifdef DOUBLE_IQR
                 size_t lower = IKR::lower_bound(d, lol_prev_size, lol_size);
-                uint16_t lower_pos = leaf.value_slot(fp_min + lower); // 0 < split_leaf_pos <= node_t::leaf_capacity
+                const uint16_t lower_pos = leaf.value_slot(fp_min + lower); // 0 < split_leaf_pos <= node_t::leaf_capacity
 //                if (key < leaf.keys[split_leaf_pos]) {
 //                    ++split_leaf_pos;
 //                }
@@ -396,7 +396,7 @@ class bp_tree {
                     lol_move = true; // also move lol
                 } else {
                     size_t upper = IKR::upper_bound(d, lol_prev_size, lol_size);
-                    uint16_t upper_pos = leaf.value_slot(fp_min + upper); // 0 < split_leaf_pos <= node_t::leaf_capacity
+                    const uint16_t upper_pos = leaf.value_slot(fp_min + upper); // 0 < split_leaf_pos <= node_t::leaf_capacity
                     if (upper_pos < SPLIT_LEAF_POS) {  // most of the values are certainly bad
                         split_leaf_pos = index <= upper_pos ? upper_pos + 1 : upper_pos;
                     } else {
@@ -522,12 +522,11 @@ class bp_tree {
     }
 
 public:
-    bp_tree(dist_f cmp, BlockManager &m) :
+    bp_tree(dist_f cmp, BlockManager &m) : manager(m)
+
 #ifdef LOL_RESET
-            life(sqrt(node_t::leaf_capacity)),
-            ctr_hard(0),
+                                           , life(sqrt(node_t::leaf_capacity)), ctr_hard(0)
 #endif
-            manager(m)
     {
         dist = cmp;
         root_id = manager.allocate();
@@ -562,6 +561,13 @@ public:
 #ifdef REDISTRIBUTE
         ctr_redistribute = 0;
 #endif
+    }
+
+    bool top_insert(const key_type &key, const value_type &value) {
+        node_t leaf;
+        path_t path;
+        key_type leaf_max = find_leaf(leaf, path, key);
+        return leaf_insert(leaf, path, key, value);
     }
 
     bool insert(const key_type &key, const value_type &value) {
