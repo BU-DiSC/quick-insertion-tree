@@ -51,3 +51,8 @@ target_compile_definitions(quit PRIVATE DOUBLE_IQR)
 target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
 #target_compile_definitions(quit PRIVATE BENCHMARK)
+
+add_executable(sabtree src/test_satree.cpp)
+target_compile_definitions(sabtree PRIVATE INMEMORY)
+target_compile_definitions(sabtree PRIVATE OSMTIMER)
+target_compile_definitions(sabtree PRIVATE SPLIT80)

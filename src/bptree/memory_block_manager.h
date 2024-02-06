@@ -13,7 +13,8 @@ struct Block {
 };
 
 class InMemoryBlockManager {
-    friend std::ostream &operator<<(std::ostream &os, const InMemoryBlockManager &manager) {
+    friend std::ostream &operator<<(std::ostream &os,
+                                    const InMemoryBlockManager &manager) {
         os << ", ";
         return os;
     }
@@ -21,22 +22,21 @@ class InMemoryBlockManager {
     const uint32_t capacity;
     uint32_t next_block_id;
     Block *internal_memory;
-public:
+
+   public:
     static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
-    InMemoryBlockManager(const char *filepath, uint32_t capacity) :
-            capacity(capacity) {
+    InMemoryBlockManager(const char *filepath, uint32_t capacity)
+        : capacity(capacity) {
         std::cerr << "IN MEMORY" << std::endl;
         next_block_id = 0;
         internal_memory = new Block[capacity];
     }
 
-    ~InMemoryBlockManager() {
-        delete[] internal_memory;
-    }
+    ~InMemoryBlockManager() { delete[] internal_memory; }
 
     void reset() {
-        memset(internal_memory, 0, (size_t) next_block_id * block_size);
+        memset(internal_memory, 0, (size_t)next_block_id * block_size);
         next_block_id = 0;
     }
 
@@ -45,6 +45,8 @@ public:
      * @return block id for the new block
      */
     uint32_t allocate() {
+        // std::cout << "next_block_id: " << next_block_id
+        //           << "; capacity = " << capacity << std::endl;
         assert(next_block_id < capacity);
         return next_block_id++;
     }
@@ -53,8 +55,7 @@ public:
      * Mark a block as dirty
      * @param id block id
      */
-    void mark_dirty(uint32_t id) {
-    }
+    void mark_dirty(uint32_t id) {}
 
     void *open_block(uint32_t id) const {
         return internal_memory[id].block_buf;
