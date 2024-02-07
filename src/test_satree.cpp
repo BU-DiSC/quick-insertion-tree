@@ -11,29 +11,27 @@
 
 using namespace std;
 
-typedef int key_type;
+typedef unsigned long key_type;
 
-inline void showProgress(const uint32_t &n, const uint32_t &count);
-inline void showProgress(const uint32_t &workload_size,
-                         const uint32_t &counter) {
-    if (counter / (workload_size / 100) >= 1) {
-        for (int i = 0; i < 104; i++) {
-            std::cout << "\b";
-            fflush(stdout);
-        }
+std::vector<key_type> read_file(const char *filename) {
+    std::vector<key_type> data;
+    std::string line;
+    std::ifstream ifs(filename);
+    while (std::getline(ifs, line)) {
+        key_type key = std::stoul(line);
+        data.push_back(key);
     }
-    for (int i = 0; i < counter / (workload_size / 100); i++) {
-        std::cout << "=";
-        fflush(stdout);
-    }
-    std::cout << std::setfill(' ')
-              << std::setw(101 - counter / (workload_size / 100));
-    std::cout << counter * 100 / workload_size << "%";
-    fflush(stdout);
-    if (counter == workload_size) {
-        std::cout << "\n";
-        return;
-    }
+    return data;
+}
+
+std::vector<key_type> read_bin(const char *filename) {
+    std::ifstream inputFile(filename);
+    inputFile.seekg(0, std::ios::end);
+    std::streampos fileSize = inputFile.tellg();
+    inputFile.seekg(0, std::ios::beg);
+    std::vector<key_type> data(fileSize / sizeof(key_type));
+    inputFile.read(reinterpret_cast<char *>(data.data()), fileSize);
+    return data;
 }
 
 std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
@@ -83,17 +81,10 @@ int main(int argc, char *argv[]) {
     Config conf(config_file);
     BlockManager manager(tree_dat, 2000000);
     cout << "blocks_in_memory = " << conf.blocks_in_memory << endl;
-    OsmTree<int, int> tree(cmp, manager, num_entries_buffer_can_hold,
-                           fill_factor);
+    OsmTree<unsigned long, unsigned long> tree(
+        cmp, manager, num_entries_buffer_can_hold, fill_factor);
 
     long int size = 0;
-    key_type *data;
-
-    ifstream infile(input_file, ios::in | ios::binary);
-    if (!infile) {
-        cout << "Cannot open file!" << endl;
-        return 0;
-    }
 
     ofstream outfile(output_file, ios::out | ios::app);
     if (!outfile) {
@@ -101,25 +92,14 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    FILE *file = fopen(input_file.c_str(), "rb");
-    if (file == NULL) return 0;
+    std::vector<key_type> data = read_file(input_file.c_str());
 
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
-    fclose(file);
-
-    cout << "size = " << size << endl;
-
-    data = new key_type[size / sizeof(key_type)];
-    infile.read((char *)data, size);
-    // fclose(input_file);
-    infile.close();
-
-    key_type num = size / sizeof(key_type);
+    key_type num = data.size();
     cout << "Num inserts = " << num << endl;
     int j = 0;
 
     cout << "Size of one data element =" << sizeof(data[0]) << endl;
+    // exit(0);
 
     cout << "\n\t\t********** Inserts **********" << endl;
     // insert into buffer
@@ -127,13 +107,8 @@ int main(int argc, char *argv[]) {
     key_type progress_counter = 0;
     key_type workload_size = n;
     for (key_type i = 0; i < n; i++, progress_counter++) {
-        // tree.osmInsert(data[i] + 1, data[i] + 1);
-        tree.osmInsert(i + 1, i + 1);
-        // std::cout << "i = " << i << std::endl;
-        if (n < 100) n = 100;
-        if (progress_counter % (n / 100) == 0) {
-            // showProgress(n, progress_counter);
-        }
+        tree.osmInsert(data[i] + 1, data[i] + 1);
+        // tree.osmInsert(i + 1, i + 1);
     }
 
     int cap = tree.getOsmBufCap();
@@ -165,13 +140,9 @@ int main(int argc, char *argv[]) {
     //     if (!flag) {
     //         x++;
     //     }
-    //     if (n < 100) n = 100;
-    //     if (progress_counter % (nops / 100) == 0) {
-    //         // showProgress(nops, progress_counter);
-    //     }
     // }
     for (int i = 0; i < n; i++) {
-        bool flag = tree.osmQuery(i + 1);
+        bool flag = tree.osmQuery(data[i] + 1);
         if (!flag) {
             x++;
         }
@@ -254,6 +225,5 @@ int main(int argc, char *argv[]) {
             << endl;
 #endif
     outfile.close();
-    delete[] data;
     return 0;
 }
