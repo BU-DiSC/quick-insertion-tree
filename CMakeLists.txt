@@ -10,6 +10,8 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+add_subdirectory(external)
+
 add_executable(simple src/tree_analysis.cpp)
 target_compile_definitions(simple PRIVATE INMEMORY)
 #target_compile_definitions(simple PRIVATE BENCHMARK)
@@ -67,6 +69,17 @@ add_executable(sabtree src/test_satree.cpp)
 target_compile_definitions(sabtree PRIVATE INMEMORY)
 target_compile_definitions(sabtree PRIVATE OSMTIMER)
 target_compile_definitions(sabtree PRIVATE SPLIT80)
+target_compile_definitions(sabtree PRIVATE TABULATE_STATS)
 
 target_compile_options(sabtree PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)
+
+target_include_directories(sabtree PUBLIC
+    ${PROJECT_SOURCE_DIR}/external
+)
+
+target_link_libraries(sabtree PUBLIC
+    spdlog::spdlog
+    cxxopts
+    tabulate
+)

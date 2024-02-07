@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <tabulate/table.hpp>
 #include <unordered_set>
 
 #include "bptree/config.h"
@@ -10,6 +11,7 @@
 #include "sware/swareBuffer.h"
 
 using namespace std;
+using namespace tabulate;
 
 typedef unsigned long key_type;
 
@@ -34,130 +36,110 @@ std::vector<key_type> read_bin(const char *filename) {
     return data;
 }
 
-std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
+void print_stats(OsmBufferCounters insert_counters, OsmBufferCounters counters,
+                 key_type nops) {
+#ifdef TABULATE_STATS
+    tabulate::Table insert_stats;
+    insert_stats.add_row({"Top inserts", to_string(top_inserts)});
+    insert_stats.add_row({"# flushes", to_string(num_flushes)});
+    insert_stats.add_row(
+        {"Total # sort attempts", to_string(insert_counters.total_sort)});
+    insert_stats.add_row(
+        {"# quick sort", to_string(insert_counters.num_quick)});
+    insert_stats.add_row(
+        {"# adaptive sort", to_string(insert_counters.num_adaptive)});
+    insert_stats.add_row({"# adaptive sort failures",
+                          to_string(insert_counters.num_adaptive_fail)});
 
-int main(int argc, char *argv[]) {
-    string input_file = "";
-    string output_file = "";
-    int l, num_nodes_for_buffer_pool, num_entries_buffer_can_hold;
-    int fill_factor_p;
+    std::cout << insert_stats << std::endl;
 
-    key_type k, n;
+    tabulate::Table query_stats;
+    query_stats.add_row({"# point lookups", to_string(nops)});
+    query_stats.add_row({"SWARE Buffer"});
+    query_stats[1]
+        .format()
+        .font_style({FontStyle::bold})
+        .font_align(FontAlign::center);
 
-    key_type num_queries;
+    // SWARE buffer stats nested table
+    Table sware_buffer_stats;
+    sware_buffer_stats.add_row(
+        {"# OSM Fence Pointer Scans", to_string(counters.osm_fence_queries)});
+    sware_buffer_stats.add_row({"# OSM Fence Pointer (Positive)",
+                                to_string(counters.osm_fence_positive)});
+    sware_buffer_stats.add_row({"# Unsorted Section Zonemap Queries",
+                                to_string(counters.unsorted_zonemap_queries)});
+    sware_buffer_stats.add_row({"# Unsorted Section Zonemap (Positive)",
+                                to_string(counters.unsorted_zonemap_positive)});
+    sware_buffer_stats.add_row(
+        {"# Sequential Scans", to_string(counters.num_seq_scan)});
+    sware_buffer_stats.add_row({"# Global Bloom Filter Queries",
+                                to_string(counters.global_bf_queried)});
+    sware_buffer_stats.add_row({"# Global Bloom Filter (Positive)",
+                                to_string(counters.global_bf_positive)});
+    sware_buffer_stats.add_row(
+        {"# Zones Queried", to_string(counters.num_zones_queried)});
+    sware_buffer_stats.add_row(
+        {"# Zones (Positive)", to_string(counters.num_zones_positive)});
+    sware_buffer_stats.add_row(
+        {"# Per-Page BFs Queried", to_string(counters.sublevel_bf_queried)});
+    sware_buffer_stats.add_row({"# Per-Page BFs (Positive)",
+                                to_string(counters.sublevel_bf_positive)});
+    sware_buffer_stats.add_row(
+        {"# Pages Scanned Sequentially", to_string(counters.seq_zone_queries)});
+    sware_buffer_stats.add_row(
+        {"# Pages (Positive)", to_string(counters.seq_zone_positive)});
+    sware_buffer_stats.add_row({"# Keys found in seq scan of unsorted section",
+                                to_string(counters.num_seq_found)});
+    sware_buffer_stats.add_row(
+        {"# Interpolation Search Queries",
+         to_string(counters.subblock_interpolation_queries)});
+    sware_buffer_stats.add_row(
+        {"# Interpolation Search (Positive)",
+         to_string(counters.subblock_interpolation_positive)});
+    sware_buffer_stats.add_row({"# Keys found in unsorted section",
+                                to_string(counters.num_unsorted_positive)});
+    sware_buffer_stats.add_row({"# Sorted Section Zonemap Queries",
+                                to_string(counters.sorted_zonemap_queries)});
+    sware_buffer_stats.add_row({"# Sorted Section Zonemap (Positive)",
+                                to_string(counters.sorted_zonemap_positive)});
+    sware_buffer_stats.add_row(
+        {"# Interpolation Search Queries (Sorted Section)",
+         to_string(counters.num_bin_scan)});
+    sware_buffer_stats.add_row(
+        {"# Interpolation Search (Positive) (Sorted Section)",
+         to_string(counters.num_bin_found)});
 
-    if (argc > 9) {
-        input_file = argv[1];
-        output_file = argv[2];
-        num_nodes_for_buffer_pool = atoi(argv[3]);
-        l = atoi(argv[5]);
-        k = atoi(argv[4]);
-        n = atoi(argv[6]);
+    sware_buffer_stats[0].format().hide_border_top();
+    query_stats.add_row({sware_buffer_stats});
+    query_stats.add_row({"B+-Tree"});
+    query_stats[3]
+        .format()
+        .font_style({FontStyle::bold})
+        .font_align(FontAlign::center);
+    Table tree_stats;
+    tree_stats.add_row(
+        {"# Tree Zonemap Queries", to_string(tree_zone_queries)});
+    tree_stats.add_row(
+        {"# Tree Zonemap (Positive)", to_string(tree_zone_positive)});
+    tree_stats.add_row({"# Tree Queries", to_string(num_tree_scan)});
+    tree_stats.add_row({"# Tree (Positive)", to_string(num_tree_found)});
+    tree_stats[0].format().hide_border_top();
+    query_stats.add_row({tree_stats});
 
-        num_entries_buffer_can_hold = atoi(argv[7]);
-        fill_factor_p = atoi(argv[8]);
-        if (fill_factor_p < 1 || fill_factor_p > 100) {
-            cout << "Fill Factor has to be between 1% and 100%" << endl;
-            return 0;
-        }
-        num_queries = atol(argv[9]);
-    } else {
-        cout << "Invalid no. of arguments" << endl;
-        cout << "Use: ./test_osmtree <input_workload_file> <output_file> "
-                "<num_nodes_in_buffer_pool_cache> <k> <l> <num_inserts> "
-                "<num_entries_osmBuffer_can_hold> <fill_factor_percentage> "
-                "<num_queries>"
-             << endl;
-        return 0;
-    }
-
-    cout << "Input file name = " << input_file << endl;
-    cout << "Output file name = " << output_file << endl;
-    double fill_factor = fill_factor_p / 100.0;
-
-    const char *config_file = "config.toml";
-    const char *tree_dat = "tree.dat";
-
-    Config conf(config_file);
-    BlockManager manager(tree_dat, 2000000);
-    cout << "blocks_in_memory = " << conf.blocks_in_memory << endl;
-    OsmTree<unsigned long, unsigned long> tree(
-        cmp, manager, num_entries_buffer_can_hold, fill_factor);
-
-    long int size = 0;
-
-    ofstream outfile(output_file, ios::out | ios::app);
-    if (!outfile) {
-        cout << "Cannot open output file!" << endl;
-        return 0;
-    }
-
-    std::vector<key_type> data = read_file(input_file.c_str());
-
-    key_type num = data.size();
-    cout << "Num inserts = " << num << endl;
-    int j = 0;
-
-    cout << "Size of one data element =" << sizeof(data[0]) << endl;
-    // exit(0);
-
-    cout << "\n\t\t********** Inserts **********" << endl;
-    // insert into buffer
-
-    key_type progress_counter = 0;
-    key_type workload_size = n;
-    for (key_type i = 0; i < n; i++, progress_counter++) {
-        tree.osmInsert(data[i] + 1, data[i] + 1);
-        // tree.osmInsert(i + 1, i + 1);
-    }
-
-    int cap = tree.getOsmBufCap();
-    int t = tree.getOsmBufSize();
-    int emp = 0;
-    progress_counter = 0;
-
-    int nops = num_queries;
-
-    OsmBufferCounters counters = tree.getBufferCounters();
+    std::cout << query_stats << std::endl;
+#else
+    cout << "----------------- \t Insert Metrics \t -----------------" << endl;
     cout << "Top inserts = " << top_inserts << endl;
     cout << "Num flushes = " << num_flushes << endl;
-    cout << "Total number of sort attempts = " << counters.total_sort << endl;
-    cout << "Number of quick sort = " << counters.num_quick << endl;
-    cout << "Num adaptive sort = " << counters.num_adaptive << endl;
+    cout << "Total number of sort attempts = " << insert_counters.total_sort
+         << endl;
+    cout << "Number of quick sort = " << insert_counters.num_quick << endl;
+    cout << "Num adaptive sort = " << insert_counters.num_adaptive << endl;
     cout << "Number of times Adaptive Sort failed = "
-         << counters.num_adaptive_fail << endl;
-#ifdef OSMTIMER
-    cout << "Time in nanoseconds for insert = " << tree.osmTimer.insert_time
-         << endl;
-#endif
+         << insert_counters.num_adaptive_fail << endl;
 
-    cout << "\n\t\t********** Point QUERY **********" << endl;
-    key_type x = 0;
-    progress_counter = 0;
-    // for (int i = 0; i < nops; i++, progress_counter++) {
-    //     uint query_index = (rand() % n) + 1;
-    //     bool flag = tree.osmQuery(query_index);
-    //     if (!flag) {
-    //         x++;
-    //     }
-    // }
-    for (int i = 0; i < n; i++) {
-        bool flag = tree.osmQuery(data[i] + 1);
-        if (!flag) {
-            x++;
-        }
-    }
-    cout << "Not found keys = " << x << endl;
-
-#ifdef OSMTIMER
-    cout << "Time in nanoseconds for query = " << tree.osmTimer.point_query_time
-         << endl;
-#endif
-
-    counters = tree.getBufferCounters();
-
-    cout << "----------------- \t Important Query Metrics \t -----------------"
-         << endl;
+    cout << "----------------- \t Query Metrics \t -----------------" << endl;
 
     cout << "#. of Point Lookups = " << nops << endl;
     cout << "#. of OSM Fence Pointer Scans = " << counters.osm_fence_queries
@@ -218,6 +200,131 @@ int main(int argc, char *argv[]) {
             "tree) = "
          << num_tree_found << endl
          << endl;
+#endif
+}
+
+std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
+
+int main(int argc, char *argv[]) {
+    string input_file = "";
+    string output_file = "";
+    int l, num_nodes_for_buffer_pool, num_entries_buffer_can_hold;
+    int fill_factor_p;
+
+    key_type k, n;
+
+    key_type num_queries;
+
+    if (argc > 9) {
+        input_file = argv[1];
+        output_file = argv[2];
+        num_nodes_for_buffer_pool = atoi(argv[3]);
+        l = atoi(argv[5]);
+        k = atoi(argv[4]);
+        n = atoi(argv[6]);
+
+        num_entries_buffer_can_hold = atoi(argv[7]);
+        fill_factor_p = atoi(argv[8]);
+        if (fill_factor_p < 1 || fill_factor_p > 100) {
+            cout << "Fill Factor has to be between 1% and 100%" << endl;
+            return 0;
+        }
+        num_queries = atol(argv[9]);
+    } else {
+        cerr << "Invalid no. of arguments" << endl;
+        cerr << "Use: ./test_osmtree <input_workload_file> <output_file> "
+                "<num_nodes_in_buffer_pool_cache> <k> <l> <num_inserts> "
+                "<num_entries_osmBuffer_can_hold> <fill_factor_percentage> "
+                "<num_queries>";
+        return 0;
+    }
+
+    cout << "input file = " << input_file << endl;
+    cout << "output file = " << output_file << endl;
+    double fill_factor = fill_factor_p / 100.0;
+
+    const char *config_file = "config.toml";
+    const char *tree_dat = "tree.dat";
+    Config conf(config_file);
+    BlockManager manager(tree_dat, 2000000);
+    cout << "blocks in memory = " << conf.blocks_in_memory << endl;
+    OsmTree<unsigned long, unsigned long> tree(
+        cmp, manager, num_entries_buffer_can_hold, fill_factor);
+
+    long int size = 0;
+
+    ofstream outfile(output_file, ios::out | ios::app);
+    if (!outfile) {
+        cout << "Cannot open output file" << endl;
+        return 0;
+    }
+
+    std::vector<key_type> data = read_file(input_file.c_str());
+
+    key_type num = data.size();
+    cout << "Num inserts = " << num << endl;
+    int j = 0;
+
+    cout << "size of data element = " << sizeof(data[0]) << endl;
+    // exit(0);
+
+    cout << "\n\t *** Inserting data into the tree ***" << endl;
+    // insert
+    // into
+    // buffer
+
+    key_type progress_counter = 0;
+    key_type workload_size = n;
+    for (key_type i = 0; i < n; i++, progress_counter++) {
+        tree.osmInsert(data[i] + 1, data[i] + 1);
+        // tree.osmInsert(i
+        // + 1,
+        // i +
+        // 1);
+    }
+
+    int cap = tree.getOsmBufCap();
+    int t = tree.getOsmBufSize();
+    int emp = 0;
+    progress_counter = 0;
+
+    int nops = num_queries;
+
+    OsmBufferCounters insert_counters = tree.getBufferCounters();
+
+#ifdef OSMTIMER
+    cout << "time in nanoseconds for insert = " << tree.osmTimer.insert_time
+         << endl;
+#endif
+
+    cout << "\n\t *** Querying the tree ***" << endl;
+    key_type x = 0;
+    progress_counter = 0;
+    for (int i = 0; i < nops; i++, progress_counter++) {
+        uint query_index = (rand() % n) + 1;
+        bool flag = tree.osmQuery(query_index);
+        if (!flag) {
+            x++;
+        }
+    }
+#ifdef VALIDATE
+    for (int i = 0; i < n; i++) {
+        bool flag = tree.osmQuery(data[i] + 1);
+        if (!flag) {
+            x++;
+        }
+    }
+#endif
+    cout << "Not found keys = " << x << endl;
+
+#ifdef OSMTIMER
+    cout << "time in nanoseconds for point query = "
+         << tree.osmTimer.point_query_time << endl;
+#endif
+
+    OsmBufferCounters read_counters = tree.getBufferCounters();
+
+    print_stats(insert_counters, read_counters, nops);
 
 #ifdef OSMTIMER
     outfile << k << "," << l << "," << n << "," << tree.osmTimer.insert_time
