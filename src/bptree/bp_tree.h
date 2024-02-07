@@ -664,20 +664,46 @@ class bp_tree {
     void bulkload_leaf(Iterator ibegin, Iterator iend) {
         node_t leaf;
         path_t &path = fp_path;
+        uint32_t new_leaf_id = root_id;
+        if (ctr_size != 0) {
+            // if the tree is not empty already,
+            // allocate and initialize new leaf
+            new_leaf_id = manager.allocate();
+        }
 
-        // allocate and initialize new leaf
-        uint32_t new_leaf_id = manager.allocate();
         leaf.init(manager.open_block(new_leaf_id), bp_node_type::LEAF);
         manager.mark_dirty(new_leaf_id);
-        ctr_leaves++;
 
         // insert data into leaf
         insert_bulk_data_to_leaf(ibegin, iend, path, leaf, true);
-        if (ctr_size == 0) {
+        ctr_size += leaf.info->size;
+
+        // update fast-path metadata
+        node_id_t old_fp_id = fp_id;
+        fp_id = new_leaf_id;
+        fp_min = leaf.keys[0];
+        fp_max = leaf.keys[leaf.info->size - 1];
+        fp_path[0] = fp_id;
+
+        // if we were inserting into the root then we can simply return from
+        // here
+        if (new_leaf_id == root_id) {
             return;
         }
+        ctr_leaves++;
 
-        // otherwise, call internal insert
+        // we need to open the old leaf because it's metadata should be updated
+        // ideally, we need to pin the tail leaf so we can avoid opening again
+        // and again
+        node_t old_tail;
+        old_tail.init(manager.open_block(old_fp_id), bp_node_type::LEAF);
+        manager.mark_dirty(old_fp_id);
+
+        leaf.info->id = new_leaf_id;
+        leaf.info->next_id = old_tail.info->next_id;
+        old_tail.info->next_id = new_leaf_id;
+
+        // call internal insert
         uint16_t split_internal_pos = SPLIT_INTERNAL_POS;
 #ifdef SPLIT80
         split_internal_pos = 0.8 * node_t::internal_capacity;

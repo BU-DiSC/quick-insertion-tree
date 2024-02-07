@@ -3,6 +3,13 @@ project(tree_analysis)
 
 set(CMAKE_CXX_STANDARD 17)
 
+option(DEBUG "Debug mode on or off" OFF)
+if(${DEBUG})
+    set(CMAKE_BUILD_TYPE "Debug")
+else()
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 add_executable(simple src/tree_analysis.cpp)
 target_compile_definitions(simple PRIVATE INMEMORY)
 #target_compile_definitions(simple PRIVATE BENCHMARK)
@@ -52,7 +59,14 @@ target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
 #target_compile_definitions(quit PRIVATE BENCHMARK)
 
+
+
+
+
 add_executable(sabtree src/test_satree.cpp)
 target_compile_definitions(sabtree PRIVATE INMEMORY)
 target_compile_definitions(sabtree PRIVATE OSMTIMER)
 target_compile_definitions(sabtree PRIVATE SPLIT80)
+
+target_compile_options(sabtree PUBLIC 
+$<$<BOOL:${DEBUG}>:-g>)
