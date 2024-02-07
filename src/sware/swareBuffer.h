@@ -199,7 +199,6 @@ class OsmBuffer {
         range_sorted = false;
 
         fill_threshold = 0.1;
-        std::cout << "Fill Threshold:" << fill_threshold << std::endl;
     }
 
     ~OsmBuffer() {

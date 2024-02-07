@@ -70,6 +70,7 @@ target_compile_definitions(sabtree PRIVATE INMEMORY)
 target_compile_definitions(sabtree PRIVATE OSMTIMER)
 target_compile_definitions(sabtree PRIVATE SPLIT80)
 target_compile_definitions(sabtree PRIVATE TABULATE_STATS)
+target_compile_definitions(sabtree PRIVATE SPDLOG_STATS)
 
 target_compile_options(sabtree PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)

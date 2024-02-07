@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
@@ -128,6 +130,74 @@ void print_stats(OsmBufferCounters insert_counters, OsmBufferCounters counters,
     query_stats.add_row({tree_stats});
 
     std::cout << query_stats << std::endl;
+#elif defined(SPDLOG_STATS)
+    spdlog::info("Printing insert stats ----------------------- ");
+    spdlog::info("Top inserts = {}", top_inserts);
+    spdlog::info("Num flushes = {}", num_flushes);
+    spdlog::info("Total number of sort attempts = {}",
+                 insert_counters.total_sort);
+    spdlog::info("Number of quick sort = {}", insert_counters.num_quick);
+    spdlog::info("Num adaptive sort = {}", insert_counters.num_adaptive);
+    spdlog::info("Number of times Adaptive Sort failed = {}",
+                 insert_counters.num_adaptive_fail);
+
+    spdlog::info("Printing query stats ----------------------- ");
+    spdlog::info("#. of Point Lookups = {}", nops);
+    spdlog::info("#. of OSM Fence Pointer Scans = {}",
+                 counters.osm_fence_queries);
+    spdlog::info(
+        "#. times of OSM Fence Pointer returned yes (#. of times "
+        "query went into buffer) = {}",
+        counters.osm_fence_positive);
+    spdlog::info("#. of times Unsorted Section Zonemap queried = {}",
+                 counters.unsorted_zonemap_queries);
+    spdlog::info("#. of times unsorted section zonemap answered yes = {}",
+                 counters.unsorted_zonemap_positive);
+    spdlog::info("#. of Sequential Scans = {}", counters.num_seq_scan);
+    spdlog::info("#. of Global Bloom filter Queries = {}",
+                 counters.global_bf_queried);
+    spdlog::info("#. times Global Bloom Filter returned yes = {}",
+                 counters.global_bf_positive);
+    spdlog::info("#. of Zones Queried = {}", counters.num_zones_queried);
+    spdlog::info("#. of Zones returned yes = {}", counters.num_zones_positive);
+    spdlog::info("#. of times Sublevel BFs queried = {}",
+                 counters.sublevel_bf_queried);
+    spdlog::info("#. of times Sublevel BFs returned yes = {}",
+                 counters.sublevel_bf_positive);
+    spdlog::info("#. of Pages Scanned through sequential search = {}",
+                 counters.seq_zone_queries);
+    spdlog::info("#. of pages with positive result = {}",
+                 counters.seq_zone_positive);
+    spdlog::info("#. of Keys found in seq scan of unsorted section = {}",
+                 counters.num_seq_found);
+    spdlog::info("#. of interpolation search queries (post sorting subblocks) ",
+                 "in unsorted section = {}",
+                 counters.subblock_interpolation_queries);
+    spdlog::info("#. of keys found through interpolation search in unsorted ",
+                 "section = {}", counters.subblock_interpolation_positive);
+    spdlog::info("#. of keys found in the unsorted section of the buffer ",
+                 "(section includes subsorted blocks for queries) = {}",
+                 counters.num_unsorted_positive);
+    spdlog::info("#. of times sorted section zonemap queried = {}",
+                 counters.sorted_zonemap_queries);
+    spdlog::info("#. of times sorted section zonemap answered yes = {}",
+                 counters.sorted_zonemap_positive);
+    spdlog::info("#. of times interpolation search performed = {}",
+                 counters.num_bin_scan);
+    spdlog::info("#. of times interpolation search yielded positive result ",
+                 "(number of keys found in sorted section) = {}",
+                 counters.num_bin_found);
+
+    spdlog::info("Printing tree stats ----------------------- ");
+    spdlog::info("#. of times Tree's Zonemap was queried = {}",
+                 tree_zone_queries);
+    spdlog::info("#. of times tree's zonemap returned yes = {}",
+                 tree_zone_positive);
+    spdlog::info("#. of times Tree was queried = {}", num_tree_scan);
+    spdlog::info(
+        "#. of times tree scan returned positive (#. of keys found in ",
+        "tree) = {}", num_tree_found);
+
 #else
     cout << "----------------- \t Insert Metrics \t -----------------" << endl;
     cout << "Top inserts = " << top_inserts << endl;
@@ -247,7 +317,11 @@ int main(int argc, char *argv[]) {
     const char *tree_dat = "tree.dat";
     Config conf(config_file);
     BlockManager manager(tree_dat, 2000000);
+#ifdef SPDLOG_STATS
+    spdlog::info("blocks in memory = {}", conf.blocks_in_memory);
+#else
     cout << "blocks in memory = " << conf.blocks_in_memory << endl;
+#endif
     OsmTree<unsigned long, unsigned long> tree(
         cmp, manager, num_entries_buffer_can_hold, fill_factor);
 
@@ -262,25 +336,19 @@ int main(int argc, char *argv[]) {
     std::vector<key_type> data = read_file(input_file.c_str());
 
     key_type num = data.size();
-    cout << "Num inserts = " << num << endl;
-    int j = 0;
-
+#ifdef SPDLOG_STATS
+    spdlog::info("# entries in data file = {}", num);
+    spdlog::info("size of data element = {}", sizeof(data[0]));
+#else
+    cout << "# entries in data file = " << num << endl;
     cout << "size of data element = " << sizeof(data[0]) << endl;
-    // exit(0);
-
-    cout << "\n\t *** Inserting data into the tree ***" << endl;
-    // insert
-    // into
-    // buffer
+#endif
+    int j = 0;
 
     key_type progress_counter = 0;
     key_type workload_size = n;
     for (key_type i = 0; i < n; i++, progress_counter++) {
         tree.osmInsert(data[i] + 1, data[i] + 1);
-        // tree.osmInsert(i
-        // + 1,
-        // i +
-        // 1);
     }
 
     int cap = tree.getOsmBufCap();
@@ -293,12 +361,16 @@ int main(int argc, char *argv[]) {
     OsmBufferCounters insert_counters = tree.getBufferCounters();
 
 #ifdef OSMTIMER
+#ifdef SPDLOG_STATS
+    spdlog::info("Time taken for insert (nanoseconds) = {}",
+                 tree.osmTimer.insert_time);
+#else
     cout << "time in nanoseconds for insert = " << tree.osmTimer.insert_time
          << endl;
 #endif
+#endif
 
-    cout << "\n\t *** Querying the tree ***" << endl;
-    key_type x = 0;
+        key_type x = 0;
     progress_counter = 0;
     for (int i = 0; i < nops; i++, progress_counter++) {
         uint query_index = (rand() % n) + 1;
@@ -307,19 +379,31 @@ int main(int argc, char *argv[]) {
             x++;
         }
     }
+#ifdef OSMTIMER
+#ifdef SPDLOG_STATS
+    spdlog::info("Time taken for point query (nanoseconds) = {}",
+                 tree.osmTimer.point_query_time);
+    spdlog::info("Keys not found = {}", x);
+#else
+    cout << "time in nanoseconds for point query = "
+         << tree.osmTimer.point_query_time << endl;
+    cout << "Not found keys = " << x << endl;
+#endif
+#endif
+
 #ifdef VALIDATE
+    x = 0;
     for (int i = 0; i < n; i++) {
         bool flag = tree.osmQuery(data[i] + 1);
         if (!flag) {
             x++;
         }
     }
-#endif
+#ifdef SPDLOG_STATS
+    spdlog::info("Keys not found = {}", x);
+#else
     cout << "Not found keys = " << x << endl;
-
-#ifdef OSMTIMER
-    cout << "time in nanoseconds for point query = "
-         << tree.osmTimer.point_query_time << endl;
+#endif
 #endif
 
     OsmBufferCounters read_counters = tree.getBufferCounters();
