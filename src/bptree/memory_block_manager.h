@@ -1,7 +1,9 @@
 #ifndef MEMORY_BLOCK_MANAGER_H
 #define MEMORY_BLOCK_MANAGER_H
 
+#include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <iostream>
 
 #ifndef BLOCK_SIZE_BYTES

@@ -313,10 +313,11 @@ int main(int argc, char *argv[]) {
     cout << "output file = " << output_file << endl;
     double fill_factor = fill_factor_p / 100.0;
 
-    const char *config_file = "config.toml";
+    const char *config_file = "../config.toml";
     const char *tree_dat = "tree.dat";
     Config conf(config_file);
-    BlockManager manager(tree_dat, 2000000);
+    BlockManager manager(tree_dat, conf.blocks_in_memory);
+
 #ifdef SPDLOG_STATS
     spdlog::info("blocks in memory = {}", conf.blocks_in_memory);
 #else
@@ -370,7 +371,7 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 
-        key_type x = 0;
+    key_type x = 0;
     progress_counter = 0;
     for (int i = 0; i < nops; i++, progress_counter++) {
         uint query_index = (rand() % n) + 1;

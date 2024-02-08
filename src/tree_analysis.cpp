@@ -1,13 +1,13 @@
-#include <random>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <random>
 
-#include "bptree/config.h"
 #include "bptree/bp_tree.h"
+#include "bptree/config.h"
 
-using key_type = unsigned;
-using value_type = unsigned;
+using key_type = unsigned long;
+using value_type = unsigned long;
 
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
@@ -26,11 +26,13 @@ std::vector<key_type> read_bin(const char *filename) {
     std::streampos fileSize = inputFile.tellg();
     inputFile.seekg(0, std::ios::beg);
     std::vector<key_type> data(fileSize / sizeof(key_type));
-    inputFile.read(reinterpret_cast<char*>(data.data()), fileSize);
+    inputFile.read(reinterpret_cast<char *>(data.data()), fileSize);
     return data;
 }
 
-void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const Config &conf, std::ofstream &results, const key_type &offset) {
+void workload(bp_tree<key_type, value_type> &tree,
+              const std::vector<key_type> &data, const Config &conf,
+              std::ofstream &results, const key_type &offset) {
     unsigned num_inserts = data.size();
     unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
     unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
@@ -67,7 +69,8 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     auto insert_time = start;
     auto query_time = start;
     while (mix_inserts < mixed_size || mix_queries < mixed_size) {
-        if (mix_queries >= mixed_size || (mix_inserts < mixed_size && distribution(generator))) {
+        if (mix_queries >= mixed_size ||
+            (mix_inserts < mixed_size && distribution(generator))) {
             auto _start = std::chrono::high_resolution_clock::now();
             tree.insert(*it++ + offset, idx++);
             insert_time += std::chrono::high_resolution_clock::now() - _start;
@@ -87,10 +90,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", " << duration.count();
 
     std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
-    std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
+    std::uniform_int_distribution<unsigned> range_distribution(0,
+                                                               num_inserts - 1);
     start = std::chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < raw_queries; i++) {
-        tree.contains(data[range_distribution(generator) % data.size()] + offset);
+        tree.contains(data[range_distribution(generator) % data.size()] +
+                      offset);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -98,7 +103,8 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < updates; i++) {
-        tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
+        tree.insert(data[range_distribution(generator) % data.size()] + offset,
+                    0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -108,13 +114,15 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < conf.short_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        const key_type min_key =
+            data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
     if (conf.short_range) {
-        results << (leaf_accesses - 1 + conf.short_range) / conf.short_range;  // ceil
+        results << (leaf_accesses - 1 + conf.short_range) /
+                       conf.short_range;  // ceil
     }
 
     leaf_accesses = 0;
@@ -122,13 +130,15 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < conf.mid_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        const key_type min_key =
+            data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
     if (conf.mid_range) {
-        results << (leaf_accesses - 1 + conf.mid_range) / conf.mid_range;  // ceil
+        results << (leaf_accesses - 1 + conf.mid_range) /
+                       conf.mid_range;  // ceil
     }
 
     leaf_accesses = 0;
@@ -136,19 +146,21 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned int i = 0; i < conf.long_range; i++) {
-        const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+        const key_type min_key =
+            data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count() << ", ";
     if (conf.long_range) {
-        results << (leaf_accesses - 1 + conf.long_range) / conf.long_range;  // ceil
+        results << (leaf_accesses - 1 + conf.long_range) /
+                       conf.long_range;  // ceil
     }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
 #ifndef BENCHMARK
     unsigned count = 0;
-    for (const auto &item: data) {
+    for (const auto &item : data) {
         if (!tree.contains(item)) {
             // std::cerr << item << " not found" << std::endl;
             // break;
@@ -163,17 +175,16 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 #endif
 }
 
-std::size_t cmp(const key_type &max, const key_type &min) {
-    return max - min;
-}
+std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]" << std::endl;
+        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]"
+                  << std::endl;
         return -1;
     }
 
-    const char *config_file = "config.toml";
+    const char *config_file = "../config.toml";
     const char *tree_dat = "tree.dat";
 
     Config conf(config_file);
@@ -182,34 +193,35 @@ int main(int argc, char **argv) {
     std::vector<std::vector<key_type>> data;
     for (int i = 1; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_bin(argv[i]));
+        data.emplace_back(read_file(argv[i]));
     }
     std::ofstream results("results.csv", std::ofstream::app);
-    std::string name = ""
+    std::string name =
+        ""
 #ifdef TAIL_FAT
-                       "TAIL"
+        "TAIL"
 #endif
 #ifdef LOL_FAT
-                       "LOL"
+        "LOL"
 #endif
 #ifdef LIL_FAT
-                       "LIL"
+        "LIL"
 #endif
 #ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
 #ifdef DOUBLE_IQR
-                       "_DOUBLE_IQR"
+        "_DOUBLE_IQR"
 #endif
 #ifdef REDISTRIBUTE
-                       "_REDISTRIBUTE"
+        "_REDISTRIBUTE"
 #endif
-                       "_VARIABLE"
+        "_VARIABLE"
 #endif
 #ifdef LOL_RESET
-                       "_RESET"
+        "_RESET"
 #endif
 #endif
-    ;
+        ;
     for (unsigned int i = 0; i < conf.runs; ++i) {
         manager.reset();
         bp_tree<key_type, value_type> tree(cmp, manager);
@@ -217,7 +229,8 @@ int main(int argc, char **argv) {
         for (unsigned int j = 0; j < conf.repeat; ++j) {
             for (unsigned int k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
-                results << (name.empty() ? "SIMPLE" : name) << ", " << argv[k+1] << ", " << offset;
+                results << (name.empty() ? "SIMPLE" : name) << ", "
+                        << argv[k + 1] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();
