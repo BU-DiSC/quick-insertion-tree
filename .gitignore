@@ -1,12 +1,15 @@
 .vscode
 .idea
-.gitignore
-cmake-build-*
+
+# Potential data files
 *.csv
 *.dat
-*.txt
+
+# Configuration file left at default
 config.toml
+
+# Build and caching folders
 trees
 workloads
-build/*
-.cache/*
+build
+.cache
