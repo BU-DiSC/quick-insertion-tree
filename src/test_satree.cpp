@@ -15,7 +15,7 @@
 using namespace std;
 using namespace tabulate;
 
-typedef unsigned long key_type;
+using key_type = unsigned;
 
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
@@ -323,8 +323,8 @@ int main(int argc, char *argv[]) {
 #else
     cout << "blocks in memory = " << conf.blocks_in_memory << endl;
 #endif
-    OsmTree<unsigned long, unsigned long> tree(
-        cmp, manager, num_entries_buffer_can_hold, fill_factor);
+    OsmTree<key_type, key_type> tree(cmp, manager, num_entries_buffer_can_hold,
+                                     fill_factor);
 
     long int size = 0;
 
@@ -348,9 +348,14 @@ int main(int argc, char *argv[]) {
 
     key_type progress_counter = 0;
     key_type workload_size = n;
+    // auto start = std::chrono::high_resolution_clock::now();
     for (key_type i = 0; i < n; i++, progress_counter++) {
         tree.osmInsert(data[i] + 1, data[i] + 1);
     }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // auto duration =
+    //     std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    // spdlog::info("Insert duration = {}", duration.count());
 
     int cap = tree.getOsmBufCap();
     int t = tree.getOsmBufSize();
@@ -410,6 +415,8 @@ int main(int argc, char *argv[]) {
     OsmBufferCounters read_counters = tree.getBufferCounters();
 
     print_stats(insert_counters, read_counters, nops);
+
+    std::cout << tree << std::endl;
 
 #ifdef OSMTIMER
     outfile << k << "," << l << "," << n << "," << tree.osmTimer.insert_time

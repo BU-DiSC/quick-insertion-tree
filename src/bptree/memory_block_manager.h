@@ -9,6 +9,7 @@
 #ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
 #endif
+#include <cstdint>
 
 struct Block {
     uint8_t block_buf[BLOCK_SIZE_BYTES]{};

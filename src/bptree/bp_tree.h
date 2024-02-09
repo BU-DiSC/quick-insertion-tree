@@ -1,6 +1,8 @@
 #ifndef BP_TREE_H
 #define BP_TREE_H
 
+#include <algorithm>
+#include <cstring>
 #include <optional>
 
 // #define LIL_FAT

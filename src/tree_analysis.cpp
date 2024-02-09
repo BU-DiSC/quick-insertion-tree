@@ -6,8 +6,8 @@
 #include "bptree/bp_tree.h"
 #include "bptree/config.h"
 
-using key_type = unsigned long;
-using value_type = unsigned long;
+using key_type = unsigned;
+using value_type = unsigned;
 
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
@@ -54,15 +54,18 @@ void workload(bp_tree<key_type, value_type> &tree,
     while (idx < num_load) {
         tree.insert(*it++ + offset, idx++);
     }
-    auto duration = std::chrono::high_resolution_clock::now() - start;
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count();
+    std::cout << "duration = " << duration.count() << std::endl;
 
     std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     while (idx < num_load + raw_writes) {
         tree.insert(*it++ + offset, idx++);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count();
 
     std::cerr << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
@@ -97,7 +100,8 @@ void workload(bp_tree<key_type, value_type> &tree,
         tree.contains(data[range_distribution(generator) % data.size()] +
                       offset);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count();
 
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
@@ -106,7 +110,8 @@ void workload(bp_tree<key_type, value_type> &tree,
         tree.insert(data[range_distribution(generator) % data.size()] + offset,
                     0);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count();
 
     size_t leaf_accesses = 0;
@@ -118,7 +123,8 @@ void workload(bp_tree<key_type, value_type> &tree,
             data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count() << ", ";
     if (conf.short_range) {
         results << (leaf_accesses - 1 + conf.short_range) /
@@ -134,7 +140,8 @@ void workload(bp_tree<key_type, value_type> &tree,
             data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count() << ", ";
     if (conf.mid_range) {
         results << (leaf_accesses - 1 + conf.mid_range) /
@@ -150,7 +157,8 @@ void workload(bp_tree<key_type, value_type> &tree,
             data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     results << ", " << duration.count() << ", ";
     if (conf.long_range) {
         results << (leaf_accesses - 1 + conf.long_range) /
