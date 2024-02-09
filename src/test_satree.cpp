@@ -1,4 +1,5 @@
 #include <spdlog/spdlog.h>
+#include <utils/stats.h>
 
 #include <algorithm>
 #include <fstream>
@@ -54,7 +55,6 @@ void print_stats(OsmBufferCounters insert_counters, OsmBufferCounters counters,
                           to_string(insert_counters.num_adaptive_fail)});
 
     std::cout << insert_stats << std::endl;
-
     tabulate::Table query_stats;
     query_stats.add_row({"# point lookups", to_string(nops)});
     query_stats.add_row({"SWARE Buffer"});
