@@ -10,10 +10,13 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <queue>
 
 // #include "betree.h"
+#include <utilities/lib/stats/stats.h>
+
 #include <cmath>
 
 #include "../bptree/bp_tree.h"
@@ -89,26 +92,19 @@ unsigned long sort_time = 0;
 unsigned long topInsert_time = 0;
 #endif
 
-extern long top_inserts;
-long top_inserts = 0;
-
-extern long num_flushes;
-long num_flushes = 0;
-
-extern unsigned long num_tree_scan;
-extern unsigned long num_tree_found;
-unsigned long num_tree_scan = 0;
-unsigned long num_tree_found = 0;
-
-extern unsigned long tree_zone_queries;
-extern unsigned long tree_zone_positive;
-unsigned long tree_zone_queries = 0;
-unsigned long tree_zone_positive = 0;
-
-extern unsigned long tot_tree_range;
-unsigned long tot_tree_range = 0;
-extern unsigned long tot_buffer_range;
-unsigned long tot_buffer_range = 0;
+class OsmTreeCounters : public utils::stats::Counters<unsigned long> {
+   public:
+    OsmTreeCounters() {
+        stats["top_inserts"] = 0;
+        stats["num_flushes"] = 0;
+        stats["num_tree_scan"] = 0;
+        stats["num_tree_found"] = 0;
+        stats["tree_zone_queries"] = 0;
+        stats["tree_zone_positive"] = 0;
+        stats["tot_tree_range"] = 0;
+        stats["tot_buffer_range"] = 0;
+    }
+};
 
 template <typename key_type, typename value_type>
 class OsmTree : public bp_tree<key_type, value_type> {
@@ -120,6 +116,8 @@ class OsmTree : public bp_tree<key_type, value_type> {
     OsmTimer osmTimer;
 
 #endif
+    OsmTreeCounters tree_counters;
+
     using node_id_t = uint32_t;
     using node_t = bp_node<node_id_t, key_type, value_type>;
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
@@ -175,7 +173,8 @@ class OsmTree : public bp_tree<key_type, value_type> {
                 for (Iterator it = ibegin; it != iend; ++it, s++) {
                     this->insert(it->first, it->second);
                 }
-                top_inserts += s;
+
+                tree_counters.stats["top_inserts"] += s;
                 this->insert(iend->first, iend->second);
 #ifdef OSMP
                 auto stop_top = std::chrono::high_resolution_clock::now();
@@ -250,7 +249,7 @@ class OsmTree : public bp_tree<key_type, value_type> {
                     bool f = osmLoad(elements_to_flush + start_index,
                                      elements_to_flush + start_index + n - 1);
                     sorted--;
-                    num_flushes++;
+                    tree_counters.stats["num_flushes"]++;
                     start_index += n;
 
                     if (start_index >= num_to_flush) {
@@ -331,7 +330,7 @@ class OsmTree : public bp_tree<key_type, value_type> {
                     bool f = osmLoad(elements_to_flush + start_index,
                                      elements_to_flush + start_index + n - 1);
                     i--;
-                    num_flushes++;
+                    tree_counters.stats["num_flushes"]++;
                     start_index += n;
 
                     if (start_index >= num_to_flush) {
@@ -396,14 +395,14 @@ class OsmTree : public bp_tree<key_type, value_type> {
         }
 
         // perform tree scans
-        num_tree_scan += 1;
+        tree_counters.stats["num_tree_scan"] += 1;
         flag = false;
         // bool within_tree_range =
         //     (key >= this->getMinimumKey() && key <= this->fp_max);
         bool within_tree_range = key <= this->fp_max;
-        tree_zone_queries += 1;
+        tree_counters.stats["tree_zone_queries"] += 1;
         if (within_tree_range) {
-            tree_zone_positive += 1;
+            tree_counters.stats["tree_zone_positive"] += 1;
 #ifdef OSMP
             auto start_tree = std::chrono::high_resolution_clock::now();
 #endif
@@ -427,42 +426,10 @@ class OsmTree : public bp_tree<key_type, value_type> {
         }
 
         if (flag) {
-            num_tree_found += 1;
+            tree_counters.stats["num_tree_found"] += 1;
         }
         return flag;
     }
-
-    //     std::vector<std::pair<key_type, value_type>> osmRangeQuery(key_type
-    //     low,key_type high)
-    //     {
-    // #ifdef OSMTIMER
-    //         auto start = std::chrono::high_resolution_clock::now();
-    // #endif
-
-    //         std::vector<std::pair<key_type, value_type>> elements =
-    //         osmBuffer->rangeQuery(low, high); tot_buffer_range +=
-    //         elements.size();
-
-    //         // if not found in buffer, call query function from tree
-    //         bool within_tree_range = (!(high < this->getMinimumKey()) &&
-    //         !(low > this->getMaximumKey())); if (within_tree_range)
-    //         {
-    //             std::vector<std::pair<key_type, value_type>> tree_elements =
-    //             this->rangeQuery(low, high); tot_tree_range +=
-    //             tree_elements.size();
-
-    //             elements.insert(elements.end(), tree_elements.begin(),
-    //             tree_elements.end());
-    //         }
-    // #ifdef OSMTIMER
-    //         auto stop = std::chrono::high_resolution_clock::now();
-    //         auto duration =
-    //         std::chrono::duration_cast<std::chrono::nanoseconds>(stop -
-    //         start); osmTimer.range_query_time += duration.count();
-    // #endif
-
-    //         return elements;
-    //     }
 
     int getOsmBufCap() { return osmBuffer->getOsmBufCap(); }
 

@@ -3,7 +3,7 @@
 
 #include <math.h>
 #include <string.h>
-#include <utils/stats.h>
+#include <utilities/lib/stats/stats.h>
 
 #include <algorithm>
 #include <cassert>
@@ -427,7 +427,7 @@ class OsmBuffer {
     void sortOsmBuf() {
         auto start = std::chrono::high_resolution_clock::now();
         if (out_of_order_elements != 0) {
-            counters.stats.total_sort += 1;
+            counters.stats["total_sort"] += 1;
 
             int k_limit_1 = 10 / 100.0 * osmCap;
             int k_limit_2 = 5 / 100 * osmCap;
@@ -440,32 +440,31 @@ class OsmBuffer {
                 out_of_order_elements < k_limit_2 ||
                 max_discrepancy < l_limit_2) {
                 bool flag = adaptiveSortOsmBuf();
-                counters.stats.num_adaptive += 1;
+                counters.stats["num_adaptive"] += 1;
                 if (!flag) {
                     stlSortOsmBuf();
-                    counters.stats.num_adaptive_fail += 1;
-                    counters.stats.num_quick += 1;
+                    counters.stats["num_adaptive_fail"] += 1;
+                    counters.stats["num_quick"] += 1;
                 }
             }
 
             else {
                 stlSortOsmBuf();
-                counters.stats.num_quick += 1;
+                counters.stats["num_quick"] += 1;
             }
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
-        // counters.stats.sort_buffer_time += duration.count();
     }
 
     void sortOsmBufNew() {
         auto start = std::chrono::high_resolution_clock::now();
         if (out_of_order_elements != 0) {
             auto start_merge = std::chrono::high_resolution_clock::now();
-            counters.stats.total_sort += 1;
+            counters.stats["total_sort"] += 1;
             if (atleast_one_subsorted) {
-                counters.stats.num_merge += 1;
+                counters.stats["num_merge"] += 1;
                 int last_boundary = subsorted_boundaries[subsorted_size - 1];
                 // first sort the unsorted block starting from last_boundary+1
                 int start_index = (num_per_zone * (last_boundary + 1));
@@ -514,7 +513,7 @@ class OsmBuffer {
                 auto duration_merge =
                     std::chrono::duration_cast<std::chrono::nanoseconds>(
                         stop_merge - start_merge);
-                counters.stats.merge_sort_time += duration_merge.count();
+                counters.stats["merge_sort_time"] += duration_merge.count();
             } else {
                 auto start_gen = std::chrono::high_resolution_clock::now();
                 int k_limit_1 = 10 / 100.0 * osmCap;
@@ -528,29 +527,29 @@ class OsmBuffer {
                     out_of_order_elements < k_limit_2 ||
                     max_discrepancy < l_limit_2) {
                     bool flag = adaptiveSortOsmBuf();
-                    counters.stats.num_adaptive += 1;
+                    counters.stats["num_adaptive"] += 1;
                     if (!flag) {
                         stlSortOsmBuf();
-                        counters.stats.num_adaptive_fail += 1;
-                        counters.stats.num_quick += 1;
+                        counters.stats["num_adaptive_fail"] += 1;
+                        counters.stats["num_quick"] += 1;
                     }
                 }
 
                 else {
                     stlSortOsmBuf();
-                    counters.stats.num_quick += 1;
+                    counters.stats["num_quick"] += 1;
                 }
                 auto stop_gen = std::chrono::high_resolution_clock::now();
                 auto duration_gen =
                     std::chrono::duration_cast<std::chrono::nanoseconds>(
                         stop_gen - start_gen);
-                counters.stats.gen_sort_time += duration_gen.count();
+                counters.stats["gen_sort_time"] += duration_gen.count();
             }
         }
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
-        counters.stats.sort_buffer_time += duration.count();
+        counters.stats["sort_buffer_time"] += duration.count();
     }
 
     void modifySortedBoundaries(int number_of_pages_flushed) {
@@ -937,10 +936,10 @@ class OsmBuffer {
                               _Key key, int start_boundary) {
         for (int i = start_boundary; i <= current_zone; i++) {
             // increment #. of zones scanned
-            counters.stats.num_zones_queried += 1;
+            counters.stats["num_zones_queried"] += 1;
             if (key >= zones[i].first && key <= zones[i].second) {
                 // increment #. of zones that returned positive
-                counters.stats.num_zones_positive += 1;
+                counters.stats["num_zones_positive"] += 1;
 
                 qualifying_zones[num_qualified] = i;
                 num_qualified++;
@@ -1009,7 +1008,7 @@ class OsmBuffer {
    public:
     bool query(_Key key) {
         bool flag = false;
-        counters.stats.osm_fence_queries += 1;
+        counters.stats["osm_fence_queries"] += 1;
         std::string str_key = std::to_string(key);
         // if we are within buffer range...
 
@@ -1017,7 +1016,7 @@ class OsmBuffer {
         bool within_buf_range = true;
 #ifdef ZONES
         within_buf_range = key >= buf_min && key <= buf_max;
-        counters.stats.osm_fence_positive += 1;
+        counters.stats["osm_fence_positive"] += 1;
 #endif
         // if (key >= buf_min && key <= buf_max)
         if (within_buf_range) {
@@ -1028,15 +1027,15 @@ class OsmBuffer {
             within_unsorted_section_range =
                 !sorted_buffer && (key >= unsorted_min && key <= unsorted_max);
             // increment #. of unsorted section zonemap queries
-            counters.stats.unsorted_zonemap_queries += 1;
+            counters.stats["unsorted_zonemap_queries"] += 1;
 #endif
 
             if (within_unsorted_section_range) {
                 // increment #. of unsorted section zonemap positives
-                counters.stats.unsorted_zonemap_positive += 1;
+                counters.stats["unsorted_zonemap_positive"] += 1;
 
                 // this means there is some unsortedness.
-                counters.stats.num_seq_scan += 1;
+                counters.stats["num_seq_scan"] += 1;
 
                 // now we will query the global bf
                 // we want to always continue probe if we don't have a global BF
@@ -1058,7 +1057,7 @@ class OsmBuffer {
                 bf_scan_time += duration_bf.count();
 #endif
                 // increment number of times global bf was global_bf_queried
-                counters.stats.global_bf_queried += 1;
+                counters.stats["global_bf_queried"] += 1;
 #endif
                 // if global BF says yes, then element is potentially in
                 // unsorted section of the buffer
@@ -1067,7 +1066,7 @@ class OsmBuffer {
                     // if gbf returned a positive result
 #ifdef GLOBALBF
                     // increment #. of times global bf returned positive
-                    counters.stats.global_bf_positive += 1;
+                    counters.stats["global_bf_positive"] += 1;
 #endif
 
                     int filled_pages = 0;
@@ -1169,10 +1168,10 @@ class OsmBuffer {
                     // search within qualifying zones
                     // for (int i = 0; i < num_qualified; i++)
                     for (int i = current_zone; i >= last_boundary + 1; i--) {
-                        counters.stats.num_zones_queried += 1;
+                        counters.stats["num_zones_queried"] += 1;
                         // check if zone qualifies
                         if (key >= zones[i].first && key <= zones[i].second) {
-                            counters.stats.num_zones_positive += 1;
+                            counters.stats["num_zones_positive"] += 1;
                             // first query this zone's BF
                             bool zoneBFResult = true;
 #ifdef SUBBFS
@@ -1196,26 +1195,26 @@ class OsmBuffer {
 #endif
 
                             // increment #. of sublevel BF queries
-                            counters.stats.sublevel_bf_queried += 1;
+                            counters.stats["sublevel_bf_queried"] += 1;
 #endif
                             if (zoneBFResult) {
 // increment #. of sublevel BF positives
 #ifdef SUBBFS
-                                counters.stats.sublevel_bf_positive += 1;
+                                counters.stats["sublevel_bf_positive"] += 1;
 #endif
                                 flag = false;
                                 // flag = searchWithinZone(key,
                                 // qualifying_zones[i]);
                                 flag = searchWithinZone(key, i);
                                 // increment #. of sequential scans for zones
-                                counters.stats.seq_zone_queries += 1;
+                                counters.stats["seq_zone_queries"] += 1;
 
                                 if (flag) {
                                     result = true;
 
                                     // increment #. of sequential zone scan
                                     // positives
-                                    counters.stats.seq_zone_positive += 1;
+                                    counters.stats["seq_zone_positive"] += 1;
 
                                     // we can do early stopping now since we
                                     // scan from right
@@ -1234,8 +1233,8 @@ class OsmBuffer {
 #endif
                     // since we found the element, return true
                     if (result) {
-                        counters.stats.num_seq_found += 1;
-                        counters.stats.num_unsorted_positive += 1;
+                        counters.stats["num_seq_found"] += 1;
+                        counters.stats["num_unsorted_positive"] += 1;
 
                         return true;
                     }
@@ -1285,7 +1284,7 @@ class OsmBuffer {
                         // block
                         bool block_interpolation_result = false;
                         int f = interpolationSearchKey(key, start_i, end_i);
-                        counters.stats.subblock_interpolation_queries += 1;
+                        counters.stats["subblock_interpolation_queries"] += 1;
 
                         // let's interpret the result of the interpolation
                         // search
@@ -1297,8 +1296,8 @@ class OsmBuffer {
                         // if we found the key in this block, we can simply stop
                         // the scan here itself
                         if (block_interpolation_result) {
-                            counters.stats.subblock_interpolation_positive += 1;
-                            counters.stats.num_unsorted_positive += 1;
+                            counters.stats["subblock_interpolation_positive"] += 1;
+                            counters.stats["num_unsorted_positive"] += 1;
 #ifdef OSMP
                             auto stop_unsorted_inter =
                                 std::chrono::high_resolution_clock::now();
@@ -1342,12 +1341,12 @@ class OsmBuffer {
             within_sorted_section_range =
                 previous_boundary > 0 &&
                 (key >= sorted_min && key <= sorted_max);
-            counters.stats.sorted_zonemap_queries += 1;
+            counters.stats["sorted_zonemap_queries"] += 1;
 #endif
 
             if (within_sorted_section_range) {
-                counters.stats.sorted_zonemap_positive += 1;
-                counters.stats.num_bin_scan += 1;
+                counters.stats["sorted_zonemap_positive"] += 1;
+                counters.stats["num_bin_scan"] += 1;
 #ifdef OSMP
                 auto start_bin = std::chrono::high_resolution_clock::now();
 #endif
@@ -1367,7 +1366,7 @@ class OsmBuffer {
                 bin_search_time += duration_bin.count();
 #endif
                 if (flag) {
-                    counters.stats.num_bin_found += 1;
+                    counters.stats["num_bin_found"] += 1;
 
                     return true;
                 }
