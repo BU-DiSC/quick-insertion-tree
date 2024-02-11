@@ -5,8 +5,7 @@
 #include <shared_mutex>
 #include <vector>
 #include <set>
-// #define LIL_FAT
-// #define TAIL_FAT
+#include <cassert>
 
 #ifdef LOL_FAT
 #ifdef FAST_PATH
@@ -46,78 +45,91 @@ using BlockManager = DiskBlockManager;
 
 #include "bp_node.h"
 
+#ifndef MAX_DEPTH
 #define MAX_DEPTH 10
+#endif
 
-struct reset_stats
-{
+struct reset_stats {
     uint8_t fails;
     uint8_t threshold;
 
-    explicit reset_stats(uint8_t t)
-    {
+    explicit reset_stats(uint8_t t) {
         fails = 0;
         threshold = t;
     }
 
-    void success()
-    {
+    void success() {
         fails = 0;
     }
 
-    bool failure()
-    {
+    bool failure() {
         fails++;
-        if (fails >= threshold)
-        {
+        if (fails >= threshold) {
             return true;
         }
         return false;
     }
 
-    void reset()
-    {
+    void reset() {
         fails = 0;
     }
 };
 
-template <typename key_type, typename value_type>
-class bp_tree
-{
-    friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree)
-    {
-        os << tree.ctr_size << ", " << +tree.ctr_depth << ", " << tree.manager << ", "
+template<typename key_type, typename value_type>
+class bp_tree {
+    friend std::ostream &operator<<(std::ostream &os, const bp_tree &tree) {
+        os << tree.ctr_size << ", " << +tree.depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
-#ifdef REDISTRIBUTE
+           #ifdef REDISTRIBUTE
            << tree.ctr_redistribute
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_split
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_iqr
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_soft
-#endif
+           #endif
            << ", "
-#ifdef LOL_RESET
+           #ifdef LOL_RESET
            << tree.ctr_hard
-#endif
+           #endif
            << ", "
-#ifdef FAST_PATH
+           #ifdef FAST_PATH
            << tree.ctr_fp
-#endif
-            ;
+           #endif
+                ;
         return os;
     }
 
     using node_id_t = uint32_t;
+
+    struct fp_step {
+        node_id_t id;
+        uint16_t size;
+    };
     using node_t = bp_node<node_id_t, key_type, value_type>;
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
-    using path_t = std::array<key_type, MAX_DEPTH>; // starts from leaf -> root and empty slots at the end for the tree to grow
+    class path_t {
+        struct step_t {
+            node_id_t id;
+            uint16_t size;
+        };
+
+        std::array<step_t, MAX_DEPTH> step;  // starts from leaf -> root and empty slots at the end for the tree to grow
+    public:
+        uint8_t locked_until{};  // nodes [0, locked_until) are locked
+        
+        // Const version of operator[]
+        step_t& operator[](uint8_t index) {
+            return step[index];
+        }
+    };
 
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
@@ -136,7 +148,7 @@ class bp_tree
     node_id_t fp_id;
     key_type fp_min;
     key_type fp_max;
-    path_t fp_path;
+    path_t fp_path{};
 #ifdef LOL_FAT
     uint16_t lol_size;
     mutable std::shared_mutex lol_prev_mutex;
@@ -152,7 +164,6 @@ class bp_tree
 
     // stats
     uint32_t ctr_size;
-    uint8_t ctr_depth; // path[ctr_depth - 1] is the root
     uint32_t ctr_internal;
     uint32_t ctr_leaves;
 #ifdef FAST_PATH
@@ -169,24 +180,15 @@ class bp_tree
     uint32_t ctr_redistribute;
 #endif
 #endif
+    uint8_t depth;
 
-#ifdef FAST_PATH
-    void update_paths(uint8_t depth, const key_type &key, uint32_t node_id, uint32_t new_node_id)
-    {
-        if (fp_path[depth] == node_id && fp_id != head_id && key <= fp_min)
-        {
-            fp_path[depth] = new_node_id;
-        }
-    }
-#endif
-    void create_new_root(const key_type &key, uint32_t node_id, std::set<node_id_t> &locked_nodes_in_path)
-    {
+    void create_new_root(const key_type &key, uint32_t node_id, std::set<node_id_t> &locked_nodes_in_path) {
         uint32_t old_root_id = root_id;
         root_id = manager.allocate();
         // lock root_id
         lock_node(root_id, false);
         node_t root;
-        root.init(manager.open_block(root_id), bp_node_type::INTERNAL);
+        root.init(manager.open_block(root_id), INTERNAL);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->size = 1;
@@ -194,10 +196,10 @@ class bp_tree
         root.children[0] = old_root_id;
         root.children[1] = node_id;
 #ifdef FAST_PATH
-        fp_path[ctr_depth] = root_id;
+        fp_path[depth] = {root_id, 2};
 #endif
-        ctr_depth++;
-        assert(ctr_depth < MAX_DEPTH);
+        depth++;
+        assert(depth < MAX_DEPTH);
         ctr_internal++;
 
         // now unlock both old_root and new root
@@ -206,21 +208,18 @@ class bp_tree
         locked_nodes_in_path.erase(old_root_id);
 
         // after unlocking the new root, we need to make sure that there are no locked_nodes_in_path that we left out
-        assert(locked_nodes_in_path.size() == 0);
+        assert(locked_nodes_in_path.empty());
     }
 
-    void lock_node(uint32_t node_id, bool shared = true) const
-    {
+    void lock_node(uint32_t node_id, bool shared = true) const {
         if (!shared)
             mutexes[node_id].lock();
         else
             mutexes[node_id].lock_shared();
     }
 
-    void unlock_nodes_in_path(std::set<node_id_t> &locked_nodes_in_path) const
-    {
-        for (auto itr : locked_nodes_in_path)
-        {
+    void unlock_nodes_in_path(std::set<node_id_t> &locked_nodes_in_path) const {
+        for (auto itr: locked_nodes_in_path) {
             mutexes[itr].unlock();
             if (itr == root_id)
                 root_mutex.unlock();
@@ -238,83 +237,72 @@ class bp_tree
      * @param shared:
      * @return key_type: the max key in the leaf
      */
-    key_type find_leaf(node_t &node, path_t &path, const key_type &key, std::set<node_id_t> &locked_nodes_in_path, bool shared = true) const
-    {
+    key_type find_leaf(node_t &node, path_t &path, const key_type &key, const bool shared = true) const {
         key_type leaf_max = {};
         // lock root here
         uint32_t child_id = root_id;
-        if (shared)
-        {
+        if (shared) {
             root_mutex.lock_shared();
-        }
-        else
-        {
+        } else {
             root_mutex.lock();
         }
         lock_node(child_id, shared);
         // from root to last internal level
-        for (uint8_t i = ctr_depth - 1; i > 0; --i)
-        {
-            path[i] = child_id;
+        for (uint8_t i = depth - 1; i > 0; --i) {
             node.load(manager.open_block(child_id));
+            path[i] = {child_id, node.info->size};
             assert(child_id == node.info->id);
-            assert(node.info->type == bp_node_type::INTERNAL);
+            assert(node.info->type == INTERNAL);
 
             // if node has enough space, we can actually unlock all preceding nodes in parent
-            if (shared || node.info->size < node_t::internal_capacity)
-                unlock_nodes_in_path(locked_nodes_in_path);
-            locked_nodes_in_path.insert(child_id);
+            // if (shared || node.info->size < node_t::internal_capacity)
+                // unlock_nodes_in_path(locked_nodes_in_path);
+            // locked_nodes_in_path.insert(child_id);
 
             uint16_t slot = node.child_slot(key);
-            if (slot != node.info->size)
-            {
+            if (slot != node.info->size) {
                 leaf_max = node.keys[slot];
             }
-
             child_id = node.children[slot];
+
             // lock new child_id
             lock_node(child_id, shared);
             // add child to locked nodes in path
-            locked_nodes_in_path.insert(child_id);
+            // locked_nodes_in_path.insert(child_id);
         }
-        path[0] = child_id;
         node.load(manager.open_block(child_id));
+        path[0] = {child_id, node.info->size};
         assert(child_id == node.info->id);
-        assert(node.info->type == bp_node_type::LEAF);
+        assert(node.info->type == LEAF);
         // leaf is locked - do not forget to unlock later
         return leaf_max;
     }
 
     // make a new function that locks every node in the fast path
-    void lock_fast_path(std::set<node_id_t> &locked_nodes_in_path)
-    {
-        uint32_t child_id = root_id;
+    void lock_fast_path(std::set<node_id_t> &locked_nodes_in_path) {
+        node_t node;
         root_mutex.lock();
-
-        for (uint8_t i = ctr_depth - 1; i > 0; --i)
-        {
-            child_id = path[i];
+        for (uint8_t i = depth - 1; i > 0; --i) {
+            uint32_t child_id = fp_path[i];
             lock_node(child_id, false);
             node.load(manager.open_block(child_id));
-            assert(node.info->type == bp_node_type::INTERNAL);
+            assert(node.info->type == INTERNAL);
             if (node.info->size < node_t::internal_capacity)
                 unlock_nodes_in_path(locked_nodes_in_path);
             locked_nodes_in_path.insert(child_id);
         }
     }
+
 #ifdef REDISTRIBUTE
-    void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key)
-    {
+    void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key) {
         node_t node;
-        for (uint8_t i = 1; i < ctr_depth; i++)
-        {
-            uint32_t node_id = path[i];
+        for (uint8_t i = 1; i < depth; i++) {
+            uint32_t node_id = path[i].id;
             node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
-            assert(node.info->type == bp_node_type::INTERNAL);
+            assert(node.info->type == INTERNAL);
             uint16_t index = node.child_slot(old_key) - 1;
-            if (index < node.info->size && node.keys[index] == old_key)
-            {
+            if (index < node.info->size && node.keys[index] == old_key) {
                 manager.mark_dirty(node_id);
                 node.keys[index] = new_key;
                 return;
@@ -324,27 +312,25 @@ class bp_tree
     }
 #endif
 
-    void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos, std::set<node_id_t> &locked_nodes_in_path)
-    {
+    void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos,
+                         std::set<node_id_t> &locked_nodes_in_path) {
         node_t node;
-        for (uint8_t i = 1; i < ctr_depth; i++)
-        {
-            uint32_t node_id = path[i];
+        for (uint8_t i = 1; i < depth; i++) {
+            uint32_t node_id = path[i].id;
             node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
-            assert(node.info->type == bp_node_type::INTERNAL);
+            assert(node.info->type == INTERNAL);
             uint16_t index = node.child_slot(key);
             assert(index == node_t::internal_capacity || node.keys[index] != key);
             manager.mark_dirty(node_id);
-            if (node.info->size < node_t::internal_capacity)
-            {
+            if (node.info->size < node_t::internal_capacity) {
                 // insert new key
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
                 std::memmove(node.children + index + 2, node.children + index + 1,
                              (node.info->size - index) * sizeof(uint32_t));
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
-                node.info->size++;
+                ++node.info->size;
 
                 // at this point, we can unlock all nodes in path
                 unlock_nodes_in_path(locked_nodes_in_path);
@@ -356,7 +342,7 @@ class bp_tree
             // lock new_node_id
             lock_node(new_node_id, false);
             node_t new_node;
-            new_node.init(manager.open_block(new_node_id), bp_node_type::INTERNAL);
+            new_node.init(manager.open_block(new_node_id), INTERNAL);
             manager.mark_dirty(new_node_id);
             ctr_internal++;
 
@@ -364,8 +350,7 @@ class bp_tree
             new_node.info->id = new_node_id;
             new_node.info->size = node_t::internal_capacity - node.info->size;
 
-            if (index < node.info->size)
-            {
+            if (index < node.info->size) {
                 std::memcpy(new_node.keys, node.keys + node.info->size, new_node.info->size * sizeof(key_type));
                 std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
                 node.keys[index] = key;
@@ -377,16 +362,12 @@ class bp_tree
 
                 key = node.keys[node.info->size];
                 // key = new_node.keys[0];
-            }
-            else if (index == node.info->size)
-            {
+            } else if (index == node.info->size) {
                 std::memcpy(new_node.keys, node.keys + node.info->size, new_node.info->size * sizeof(key_type));
                 std::memcpy(new_node.children + 1, node.children + 1 + node.info->size,
                             new_node.info->size * sizeof(uint32_t));
                 new_node.children[0] = child_id;
-            }
-            else
-            {
+            } else {
                 std::memcpy(new_node.keys, node.keys + node.info->size + 1,
                             (index - node.info->size - 1) * sizeof(key_type));
                 std::memcpy(new_node.keys + index - node.info->size, node.keys + index,
@@ -401,7 +382,11 @@ class bp_tree
                 key = node.keys[node.info->size];
             }
 #ifdef FAST_PATH
-            update_paths(i, key, node_id, new_node_id);
+            // update_paths(i, key, node_id, new_node_id);
+            if (fp_path[i].id == node_id && fp_id != head_id && key <= fp_min) {
+                fp_path[i].id = new_node_id;
+                fp_path[i].size = new_node.info->size;
+            }
 #endif
             child_id = new_node_id;
             // we can unlock node and new_node here
@@ -414,8 +399,7 @@ class bp_tree
     }
 
 #ifdef REDISTRIBUTE
-    void redistribute(const node_t &leaf, uint16_t index, const key_type &key, const value_type &value)
-    {
+    void redistribute(const node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
         assert(lol_prev_id != tail_id);
         ctr_redistribute++;
         // move values from leaf to leaf prev
@@ -424,10 +408,9 @@ class bp_tree
         node_t lol_prev;
         lol_prev.load(manager.open_block(lol_prev_id));
         assert(lol_prev_id == lol_prev.info->id);
-        assert(lol_prev.info->type == bp_node_type::LEAF);
-        if (index < items)
-        {
-            items--;
+        assert(lol_prev.info->type == LEAF);
+        if (index < items) {
+            --items;
             std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, index * sizeof(key_type));
             std::memcpy(lol_prev.keys + lol_prev_size + index + 1, leaf.keys + index, (items - index) * sizeof(key_type));
             lol_prev.keys[lol_prev_size + index] = key;
@@ -437,10 +420,8 @@ class bp_tree
 
             std::memmove(leaf.keys, leaf.keys + items, (lol_size - items) * sizeof(key_type));
             std::memmove(leaf.values, leaf.values + items, (lol_size - items) * sizeof(value_type));
-            items++;
-        }
-        else
-        {
+            ++items;
+        } else {
             std::memcpy(lol_prev.keys + lol_prev_size, leaf.keys, items * sizeof(key_type));
             std::memcpy(lol_prev.values + lol_prev_size, leaf.values, items * sizeof(key_type));
 
@@ -465,12 +446,11 @@ class bp_tree
     }
 #endif
 
-    bool leaf_insert(node_t &leaf, path_t &path, const key_type &key, const value_type &value, std::set<node_id_t> &locked_nodes_in_path)
-    {
+    bool leaf_insert(node_t &leaf, const path_t &path, const key_type &key, const value_type &value,
+                     std::set<node_id_t> &locked_nodes_in_path) {
         manager.mark_dirty(leaf.info->id);
         uint16_t index = leaf.value_slot(key);
-        if (index < leaf.info->size && leaf.keys[index] == key)
-        {
+        if (index < leaf.info->size && leaf.keys[index] == key) {
             // update value
             leaf.values[index] = value;
             // we can unlock all locked nodes in path (that includes the leaf)
@@ -478,22 +458,18 @@ class bp_tree
             return false;
         }
 
-        ctr_size++;
-        if (leaf.info->size < node_t::leaf_capacity)
-        {
+        ++ctr_size;
+        if (leaf.info->size < node_t::leaf_capacity) {
             // insert new key
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
             leaf.keys[index] = key;
             leaf.values[index] = value;
-            leaf.info->size++;
+            ++leaf.info->size;
 #ifdef LOL_FAT
-            if (leaf.info->id == fp_id)
-            {
+            if (leaf.info->id == fp_id) {
                 lol_size++;
-            }
-            else if (leaf.info->id != tail_id && leaf.info->next_id == fp_id)
-            {
+            } else if (leaf.info->id != tail_id && leaf.info->next_id == fp_id) {
                 lol_prev_id = leaf.info->id;
                 lol_prev_min = leaf.keys[0];
                 lol_prev_size = leaf.info->size;
@@ -509,68 +485,31 @@ class bp_tree
 #ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
         bool lol_move = false;
-        if (leaf.info->id == fp_id)
-        {
+        if (leaf.info->id == fp_id) {
             // when splitting leaf, normally we would do it in the middle
             // but for lol we want to split it where IQR suggests
-            if (lol_prev_id == tail_id)
-            {
+            if (lol_prev_id == tail_id) {
                 lol_move = true; // move from head
-            }
-            else if (lol_prev_size >= IQR_SIZE_THRESH)
-            {
+            } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
-                size_t d = dist(fp_min, lol_prev_min);
-#ifdef DOUBLE_IQR
-                size_t lower = IKR::lower_bound(d, lol_prev_size, lol_size);
-                uint16_t lower_pos = leaf.value_slot(fp_min + lower); // 0 < split_leaf_pos <= node_t::leaf_capacity
-                                                                      //                if (key < leaf.keys[split_leaf_pos]) {
-                                                                      //                    ++split_leaf_pos;
-                                                                      //                }
-                if (lower_pos > SPLIT_LEAF_POS)
-                {                                   // most of the values are certainly good
-                    split_leaf_pos = lower_pos - 1; // take one to the new leaf
-                    lol_move = true;                // also move lol
+                const size_t d = dist(fp_min, lol_prev_min);
+                size_t max_distance = IKR::max_distance(d, lol_prev_size, lol_size);
+                const uint16_t outlier_pos = leaf.value_slot(fp_min + max_distance); // 0 < split_leaf_pos <= node_t::leaf_capacity
+//                if (key < leaf.keys[split_leaf_pos]) {
+//                    ++split_leaf_pos;
+//                }
+                if (outlier_pos <= SPLIT_LEAF_POS) {
+                    split_leaf_pos = outlier_pos;  // keep these good values on current lol and do not move
+                } else {  // most of the values are certainly good
+                    split_leaf_pos = outlier_pos - 1;  // take one to the new leaf
+                    lol_move = true; // also move lol
                 }
-                else
-                {
-                    size_t upper = IKR::upper_bound(d, lol_prev_size, lol_size);
-                    uint16_t upper_pos = leaf.value_slot(fp_min + upper); // 0 < split_leaf_pos <= node_t::leaf_capacity
-                    if (upper_pos < SPLIT_LEAF_POS)
-                    { // most of the values are certainly bad
-                        split_leaf_pos = index <= upper_pos ? upper_pos + 1 : upper_pos;
-                    }
-                    else
-                    {
-                        split_leaf_pos = SPLIT_LEAF_POS;
-                        lol_move = upper_pos - SPLIT_LEAF_POS > SPLIT_LEAF_POS - lower_pos;
-                    }
+                if (index < outlier_pos) {
+                    ++split_leaf_pos; // this key will be also in the current leaf
                 }
-#else
-                size_t max_distance = IKR::upper_bound(d, lol_prev_size, lol_size);
-                uint16_t outlier_pos = leaf.value_slot(fp_min + max_distance); // 0 < split_leaf_pos <= node_t::leaf_capacity
-                                                                               //                if (key < leaf.keys[split_leaf_pos]) {
-                                                                               //                    ++split_leaf_pos;
-                                                                               //                }
-                if (outlier_pos <= SPLIT_LEAF_POS)
-                {
-                    split_leaf_pos = outlier_pos; // keep these good values on current lol and do not move
-                }
-                else
-                {                                     // most of the values are certainly good
-                    split_leaf_pos = outlier_pos - 1; // take one to the new leaf
-                    lol_move = true;                  // also move lol
-                }
-                if (index < outlier_pos)
-                {
-                    split_leaf_pos++; // this key will be also in the current leaf
-                }
-#endif
 //                split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef REDISTRIBUTE
-            }
-            else
-            {
+            } else {
                 redistribute(leaf, index, key, value);
                 // we are done with insertions here, so we can again unlock all nodes in path
                 unlock_nodes_in_path(locked_nodes_in_path);
@@ -585,7 +524,7 @@ class bp_tree
         // lock the new leaf
         lock_node(new_leaf_id, false);
         node_t new_leaf;
-        new_leaf.init(manager.open_block(new_leaf_id), bp_node_type::LEAF);
+        new_leaf.init(manager.open_block(new_leaf_id), LEAF);
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
@@ -596,8 +535,7 @@ class bp_tree
         leaf.info->next_id = new_leaf_id;
         new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
 
-        if (index < leaf.info->size)
-        {
+        if (index < leaf.info->size) {
             // get one more since the new key goes left
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1, new_leaf.info->size * sizeof(key_type));
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index - 1) * sizeof(key_type));
@@ -609,14 +547,11 @@ class bp_tree
 
 #ifdef LIL_FAT
             // if we insert to left node of split, we set the lil max
-            if (leaf.info->id == fp_id)
-            {
+            if (leaf.info->id == fp_id) {
                 fp_max = new_leaf.keys[0];
             }
 #endif
-        }
-        else
-        {
+        } else {
             uint16_t new_index = index - leaf.info->size;
             std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size, new_index * sizeof(key_type));
             new_leaf.keys[new_index] = key;
@@ -627,8 +562,7 @@ class bp_tree
             std::memcpy(new_leaf.values + new_index + 1, leaf.values + index,
                         (node_t::leaf_capacity - index) * sizeof(value_type));
 #ifdef LIL_FAT
-            if (leaf.info->id == fp_id)
-            {
+            if (leaf.info->id == fp_id) {
                 fp_id = new_leaf.info->id;
                 // if we insert to right split node, we set leaf min
                 fp_min = new_leaf.keys[0];
@@ -636,8 +570,7 @@ class bp_tree
             }
 #endif
         }
-        if (leaf.info->id == tail_id)
-        {
+        if (leaf.info->id == tail_id) {
             tail_id = new_leaf_id;
 #ifdef TAIL_FAT
             fp_min = new_leaf.keys[0];
@@ -645,17 +578,14 @@ class bp_tree
 #endif
         }
 #ifdef LOL_FAT
-        if (leaf.info->id == fp_id)
-        {
+        if (leaf.info->id == fp_id) {
             ctr_split++;
 #ifndef VARIABLE_SPLIT
             bool lol_move = fp_id == head_id || // move lol from head
                             (lol_prev_size >= IQR_SIZE_THRESH &&
-                             dist(new_leaf.keys[0], fp_min) <
-                                 IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, leaf.info->size));
+                             dist(new_leaf.keys[0], fp_min) < IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, leaf.info->size));
 #endif
-            if (lol_move)
-            {
+            if (lol_move) {
                 ctr_iqr++;
                 // lol believes that the new leaf is not an outlier
                 lol_prev_min = fp_min;
@@ -664,18 +594,14 @@ class bp_tree
                 fp_id = new_leaf_id;
                 fp_min = new_leaf.keys[0];
                 lol_size = new_leaf.info->size;
-                fp_path[0] = fp_id;
-            }
-            else
-            {
+                fp_path[0] = {fp_id, lol_size};
+            } else {
                 fp_max = new_leaf.keys[0];
                 lol_size = leaf.info->size;
             }
             // we can unlock lol_prev_mutex here
             lol_prev_mutex.unlock();
-        }
-        else if (new_leaf_id != tail_id && new_leaf.info->next_id == fp_id)
-        {
+        } else if (new_leaf_id != tail_id && new_leaf.info->next_id == fp_id) {
             lol_prev_id = new_leaf_id;
             lol_prev_min = new_leaf.keys[0];
             lol_prev_size = new_leaf.info->size;
@@ -692,19 +618,18 @@ class bp_tree
     }
 
 public:
-    bp_tree(dist_f cmp, BlockManager &m) :
+    bp_tree(dist_f cmp, BlockManager &m) : manager(m), mutexes(m.get_capacity()),
 #ifdef LOL_RESET
-                                           life(sqrt(node_t::leaf_capacity)),
-                                           ctr_hard(0),
+        life(sqrt(node_t::leaf_capacity)),
+        ctr_hard(0)
 #endif
-                                           manager(m), mutexes(m.get_capacity())
     {
         dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
 #ifdef FAST_PATH
         fp_id = root_id;
-        fp_path[0] = fp_id;
+        fp_path[0] = {fp_id, 0};
         fp_min = {};
         fp_max = {};
         ctr_fp = 0;
@@ -719,14 +644,14 @@ public:
         ctr_soft = 0;
 #endif
         node_t root;
-        root.init(manager.open_block(root_id), bp_node_type::LEAF);
+        root.init(manager.open_block(root_id), LEAF);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->next_id = root_id;
         root.info->size = 0;
 
         ctr_size = 0;
-        ctr_depth = 1;
+        depth = 1;
         ctr_internal = 0;
         ctr_leaves = 1;
 #ifdef REDISTRIBUTE
@@ -734,8 +659,7 @@ public:
 #endif
     }
 
-    bool insert(const key_type &key, const value_type &value)
-    {
+    bool insert(const key_type &key, const value_type &value) {
         node_t leaf;
         std::set<node_id_t> locked_nodes_in_path;
 #ifdef FAST_PATH
@@ -744,16 +668,15 @@ public:
 #endif
         // take a shared lock on the fast path mutex
         fp_mutex.lock_shared();
-        if ((fp_id == head_id || fp_min <= key) && (fp_id == tail_id || key < fp_max))
-        {
+        if ((fp_id == head_id || fp_min <= key) && (fp_id == tail_id || key < fp_max)) {
             ctr_fp++;
             leaf.load(manager.open_block(fp_id));
             assert(fp_id == leaf.info->id);
-            assert(leaf.info->type == bp_node_type::LEAF);
+            assert(leaf.info->type == LEAF);
 #ifdef LOL_RESET
             life.success();
 #endif
-            bool res = leaf_insert(leaf, fp_path, key, value, locked_nodes_in_path);
+            const bool res = leaf_insert(leaf, fp_path, key, value, locked_nodes_in_path);
             // unlock the fast path mutex
             fp_mutex.unlock_shared();
             return res;
@@ -764,8 +687,7 @@ public:
 #else
         path_t path;
 #endif
-
-        key_type leaf_max = find_leaf(leaf, path, key, locked_nodes_in_path, false);
+        key_type leaf_max = find_leaf(leaf, path, key, false);
 #ifdef LIL_FAT
         // update rest of lil
         fp_id = leaf.info->id;
@@ -780,13 +702,12 @@ public:
         // if the new inserted key goes to lol->next, check if lol->next is not an outlier
         // it might be the case that lol reached the previous outliers.
         if (lol_prev_id != tail_id && // lol->prev info exist
-                                      //            fp_id != head_id && // fp_min is valid
-            fp_id != tail_id &&       // fp_max is valid
-                                      //            leaf.info->id != tail_id && // don't go to tail
+//            fp_id != head_id && // fp_min is valid
+            fp_id != tail_id && // fp_max is valid
+//            leaf.info->id != tail_id && // don't go to tail
             fp_max == leaf.keys[0] && // leaf is lol->next
-                                      //            lol_prev_size >= IQR_SIZE_THRESH && lol_size >= IQR_SIZE_THRESH &&  // TODO: IQR doesn't have enough values but this kinda works
-            dist(fp_max, fp_min) < IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, lol_size))
-        {
+//            lol_prev_size >= IQR_SIZE_THRESH && lol_size >= IQR_SIZE_THRESH &&  // TODO: IQR doesn't have enough values but this kinda works
+            dist(fp_max, fp_min) < IKR::max_distance(dist(fp_min, lol_prev_min), lol_prev_size, lol_size)) {
             // move lol to lol->next = leaf
             lol_prev_min = fp_min;
             lol_prev_size = lol_size;
@@ -801,9 +722,7 @@ public:
             ctr_soft++;
 #ifdef LOL_RESET
             life.reset();
-        }
-        else if (life.failure())
-        {
+        } else if (life.failure()) {
             lol_prev_id = tail_id;
             fp_id = leaf.info->id;
             fp_min = leaf.keys[0];
@@ -814,7 +733,7 @@ public:
 #endif
         }
 #endif
-        bool res = leaf_insert(leaf, path, key, value, locked_nodes_in_path);
+        const bool res = leaf_insert(leaf, path, key, value, locked_nodes_in_path);
         // unlock fp_mutex
 #ifdef FAST_PATH
         fp_mutex.unlock_shared();
@@ -825,26 +744,22 @@ public:
         return res;
     }
 
-    size_t top_k(size_t count, const key_type &min_key) const
-    {
+    size_t top_k(size_t count, const key_type &min_key) const {
         node_t leaf;
         path_t path;
-        std::set<node_id_t> dummy_vec;
-        find_leaf(leaf, path, min_key, dummy_vec);
+        find_leaf(leaf, path, min_key);
         uint16_t index = leaf.value_slot(min_key);
         size_t loads = 1;
         uint16_t curr_size = leaf.info->size - index;
-        while (count > curr_size)
-        {
+        while (count > curr_size) {
             count -= curr_size;
-            if (leaf.info->id == tail_id)
-            {
+            if (leaf.info->id == tail_id) {
                 break;
             }
             uint32_t next_id = leaf.info->next_id;
             leaf.load(manager.open_block(next_id));
             assert(next_id == leaf.info->id);
-            assert(leaf.info->type == bp_node_type::LEAF);
+            assert(leaf.info->type == LEAF);
             curr_size = leaf.info->size;
             ++loads;
         }
@@ -853,23 +768,19 @@ public:
         return loads;
     }
 
-    size_t range(const key_type &min_key, const key_type &max_key) const
-    {
+    size_t range(const key_type &min_key, const key_type &max_key) const {
         size_t loads = 1;
         node_t leaf;
         path_t path;
-        std::set<node_id_t> dummy_vec;
-        find_leaf(leaf, path, min_key, dummy_vec);
-        while (leaf.keys[leaf.info->size - 1] < max_key)
-        {
-            if (leaf.info->id == tail_id)
-            {
+        find_leaf(leaf, path, min_key);
+        while (leaf.keys[leaf.info->size - 1] < max_key) {
+            if (leaf.info->id == tail_id) {
                 break;
             }
             uint32_t next_id = leaf.info->next_id;
             leaf.load(manager.open_block(next_id));
             assert(next_id == leaf.info->id);
-            assert(leaf.info->type == bp_node_type::LEAF);
+            assert(leaf.info->type == LEAF);
             ++loads;
         }
         // unlock the leaf here
@@ -877,15 +788,12 @@ public:
         return loads;
     }
 
-    std::optional<value_type> get(const key_type &key) const
-    {
+    std::optional<value_type> get(const key_type &key) const {
         node_t leaf;
         path_t path;
-        std::set<node_id_t> dummy_vec;
-        find_leaf(leaf, path, key, dummy_vec);
+        find_leaf(leaf, path, key);
         uint16_t index = leaf.value_slot(key);
-        if (index < leaf.info->size && leaf.keys[index] == key)
-        {
+        if (index < leaf.info->size && leaf.keys[index] == key) {
             key_type k = leaf.keys[index];
             // unlock the leaf here
             mutexes[leaf.info->id].unlock_shared();
@@ -894,8 +802,7 @@ public:
         return std::nullopt;
     }
 
-    bool contains(const key_type &key) const
-    {
+    bool contains(const key_type &key) const {
         return get(key).has_value();
     }
 };

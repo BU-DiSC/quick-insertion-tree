@@ -23,7 +23,7 @@ std::vector<key_type> read_file(const char *filename) {
 std::vector<key_type> read_bin(const char *filename) {
     std::ifstream inputFile(filename, std::ios::binary);
     inputFile.seekg(0, std::ios::end);
-    std::streampos fileSize = inputFile.tellg();
+    const std::streampos fileSize = inputFile.tellg();
     inputFile.seekg(0, std::ios::beg);
     std::vector<key_type> data(fileSize / sizeof(key_type));
     inputFile.read(reinterpret_cast<char*>(data.data()), fileSize);
@@ -31,15 +31,15 @@ std::vector<key_type> read_bin(const char *filename) {
 }
 
 void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const Config &conf, std::ofstream &results, const key_type &offset) {
-    unsigned num_inserts = data.size();
-    unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
-    unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
-    unsigned mixed_size = conf.mix_load_perc / 100.0 * num_inserts;
-    unsigned updates = conf.updates_perc / 100.0 * num_inserts;
-    unsigned num_load = num_inserts - raw_writes - mixed_size;
+    const unsigned num_inserts = data.size();
+    const unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
+    const unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
+    const unsigned mixed_size = conf.mix_load_perc / 100.0 * num_inserts;
+    const unsigned updates = conf.updates_perc / 100.0 * num_inserts;
+    const unsigned num_load = num_inserts - raw_writes - mixed_size;
 
     std::mt19937 generator(conf.seed);
-    std::uniform_int_distribution<int> distribution(0, 1);
+    std::uniform_int_distribution distribution(0, 1);
 
     unsigned mix_inserts = 0;
     unsigned mix_queries = 0;
@@ -75,15 +75,15 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         } else {
             key_type query_index = generator() % idx + offset;
             auto _start = std::chrono::high_resolution_clock::now();
-            bool res = tree.contains(query_index);
+            const bool res = tree.contains(query_index);
             query_time += std::chrono::high_resolution_clock::now() - _start;
             ctr_empty += !res;
             mix_queries++;
         }
     }
-    duration = (insert_time - start);
+    duration = insert_time - start;
     results << ", " << duration.count();
-    duration = (query_time - start);
+    duration = query_time - start;
     results << ", " << duration.count();
 
     std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
@@ -173,8 +173,8 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    const char *config_file = "config.toml";
-    const char *tree_dat = "tree.dat";
+    auto config_file = "config.toml";
+    auto tree_dat = "tree.dat";
 
     Config conf(config_file);
     BlockManager manager(tree_dat, conf.blocks_in_memory);

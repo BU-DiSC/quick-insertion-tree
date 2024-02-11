@@ -32,7 +32,7 @@ public:
     void load(void *buf) {
         info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
-        if (info->type == bp_node_type::LEAF) {
+        if (info->type == LEAF) {
             values = reinterpret_cast<value_type *>(keys + leaf_capacity);
         } else {
             children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
@@ -43,7 +43,7 @@ public:
         info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
         info->type = type;
-        if (info->type == bp_node_type::LEAF) {
+        if (info->type == LEAF) {
             values = reinterpret_cast<value_type *>(keys + leaf_capacity);
         } else {
             children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
@@ -56,14 +56,14 @@ public:
      * @return index of key slot
      */
     uint16_t value_slot(const key_type &key) const {
-        assert(info->type == bp_node_type::LEAF);
+        assert(info->type == LEAF);
         auto it = std::lower_bound(keys, keys + info->size, key);
 //       assert(it == std::lower_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
     }
 
     uint16_t child_slot(const key_type &key) const {
-        assert(info->type == bp_node_type::INTERNAL);
+        assert(info->type == INTERNAL);
         auto it = std::upper_bound(keys, keys + info->size, key);
 //        assert(it == std::upper_bound(keys, keys + info->size, key));
         return std::distance(keys, it);
