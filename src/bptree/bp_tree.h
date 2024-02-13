@@ -422,7 +422,9 @@ class bp_tree {
                 lol_size++;
             } else if (leaf.info->id != tail_id &&
                        leaf.info->next_id == fp_id) {
+#ifdef REDISTRIBUTE
                 lol_prev_id = leaf.info->id;
+#endif
                 lol_prev_min = leaf.keys[0];
                 lol_prev_size = leaf.info->size;
             }
@@ -448,10 +450,11 @@ class bp_tree {
                 uint16_t lower_pos = leaf.value_slot(
                     fp_min +
                     lower);  // 0 < split_leaf_pos <= node_t::leaf_capacity
-                             //                if (key <
-                             //                leaf.keys[split_leaf_pos]) {
-                             //                    ++split_leaf_pos;
-                             //                }
+                //                if (key <
+                //                leaf.keys[split_leaf_pos]) {
+                //                    ++split_leaf_pos;
+                //                }
+                // std::cout << "lower = " << lower_pos << std::endl;
                 if (lower_pos >
                     SPLIT_LEAF_POS) {  // most of the values are certainly good
                     split_leaf_pos = lower_pos - 1;  // take one to the new leaf
@@ -461,6 +464,7 @@ class bp_tree {
                     uint16_t upper_pos = leaf.value_slot(
                         fp_min +
                         upper);  // 0 < split_leaf_pos <= node_t::leaf_capacity
+                    // std::cout << "upper = " << upper_pos << std::endl;
                     if (upper_pos < SPLIT_LEAF_POS) {  // most of the values are
                                                        // certainly bad
                         split_leaf_pos =
@@ -514,6 +518,9 @@ class bp_tree {
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
+        if (!(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity)) {
+            std::cout << split_leaf_pos << std::endl;
+        }
         assert(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
         leaf.info->size = split_leaf_pos;
         new_leaf.info->id = new_leaf_id;
@@ -765,9 +772,7 @@ class bp_tree {
             // move lol to lol->next = leaf
             lol_prev_min = fp_min;
             lol_prev_size = lol_size;
-#ifdef REDISTRIBUTE
             lol_prev_id = fp_id;
-#endif
             fp_id = leaf.info->id;
             fp_min = fp_max;
             fp_max = leaf_max;

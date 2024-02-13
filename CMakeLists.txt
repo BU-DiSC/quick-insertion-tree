@@ -78,7 +78,7 @@ target_compile_definitions(quit PRIVATE LOL_FAT)
 target_compile_definitions(quit PRIVATE VARIABLE_SPLIT)
 target_compile_definitions(quit PRIVATE REDISTRIBUTE)
 target_compile_definitions(quit PRIVATE DOUBLE_IQR)
-target_compile_definitions(quit PRIVATE LOL_RESET)
+# target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
 #target_compile_definitions(quit PRIVATE BENCHMARK)
 
@@ -90,6 +90,9 @@ target_compile_definitions(sabtree PRIVATE SPDLOG_STATS)
 target_compile_definitions(sabtree PRIVATE TABULATE_COUNTERS)
 
 target_compile_options(sabtree PUBLIC 
+$<$<BOOL:${DEBUG}>:-g>)
+
+target_compile_options(quit PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)
 
 target_include_directories(sabtree PUBLIC

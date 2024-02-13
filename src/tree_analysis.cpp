@@ -52,7 +52,11 @@ void workload(bp_tree<key_type, value_type> &tree,
     std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
     while (idx < num_load) {
-        tree.insert(*it++ + offset, idx++);
+        // tree.insert(*it++ + offset, idx++);
+        auto key = *it++ + offset;
+        tree.insert(key, key);
+        // std::cout << idx << std::endl;
+        idx++;
     }
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -192,7 +196,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    const char *config_file = "../config.toml";
+    const char *config_file = "config.toml";
     const char *tree_dat = "tree.dat";
 
     Config conf(config_file);

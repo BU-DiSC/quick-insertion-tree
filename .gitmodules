@@ -1,3 +1,4 @@
 [submodule "external/utilities"]
 path = external/utilities
 url = git@github.com:ramananeesh/utils.git
+branch = main
