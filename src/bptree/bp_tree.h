@@ -480,6 +480,11 @@ class bp_tree {
 #endif
         }
         if (leaf.info->id == tail_id) {
+#ifdef LOL_FAT
+            if (lol_prev_id == tail_id) {
+                lol_prev_id = new_leaf_id;
+            }
+#endif
             tail_id = new_leaf_id;
 #ifdef TAIL_FAT
             fp_min = new_leaf.keys[0];
