@@ -131,6 +131,7 @@ class bp_tree {
     path_t fp_path;
 #ifdef LOL_FAT
     node_id_t lol_prev_id;
+    bool lol_prev_valid;
 #ifdef LOL_RESET
     reset_stats life;
 #endif
@@ -320,6 +321,7 @@ class bp_tree {
     void redistribute(const node_t &leaf, uint16_t index, const key_type &key,
                       const value_type &value) {
         assert(lol_prev_id != tail_id);
+        assert(lol_prev_valid);
         ctr_redistribute++;
         // move values from leaf to leaf prev
         uint16_t items =
@@ -422,6 +424,7 @@ class bp_tree {
                 lol_size++;
             } else if (leaf.info->id != tail_id &&
                        leaf.info->next_id == fp_id) {
+                lol_prev_valid = true;
 #ifdef REDISTRIBUTE
                 lol_prev_id = leaf.info->id;
 #endif
@@ -442,6 +445,7 @@ class bp_tree {
             // but for lol we want to split it where IQR suggests
             if (lol_prev_id == tail_id) {
                 lol_move = true;  // move from head
+                assert(!lol_prev_valid);
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
                 size_t d = dist(fp_min, lol_prev_min);
@@ -596,11 +600,13 @@ class bp_tree {
                 fp_min = new_leaf.keys[0];
                 lol_size = new_leaf.info->size;
                 fp_path[0] = fp_id;
+                lol_prev_valid = true;
             } else {
                 fp_max = new_leaf.keys[0];
                 lol_size = leaf.info->size;
             }
         } else if (new_leaf_id != tail_id && new_leaf.info->next_id == fp_id) {
+            lol_prev_valid = true;
             lol_prev_id = new_leaf_id;
             lol_prev_min = new_leaf.keys[0];
             lol_prev_size = new_leaf.info->size;
@@ -645,6 +651,7 @@ class bp_tree {
         ctr_split = 0;
         ctr_iqr = 0;
         ctr_soft = 0;
+        lol_prev_valid = false;
 #endif
         node_t root;
         root.init(manager.open_block(root_id), bp_node_type::LEAF);
@@ -754,7 +761,8 @@ class bp_tree {
         // if the new inserted key goes to lol->next, check if lol->next is not
         // an outlier it might be the case that lol reached the previous
         // outliers.
-        if (lol_prev_id !=
+        if (lol_prev_valid &&
+            lol_prev_id !=
                 tail_id &&  // lol->prev info exist
                             //            fp_id != head_id && // fp_min is valid
             fp_id != tail_id &&  // fp_max is valid
@@ -782,6 +790,7 @@ class bp_tree {
 #ifdef LOL_RESET
             life.reset();
         } else if (life.failure()) {
+            lol_prev_valid = false;
             lol_prev_id = tail_id;
             fp_id = leaf.info->id;
             fp_min = leaf.keys[0];

@@ -78,7 +78,7 @@ target_compile_definitions(quit PRIVATE LOL_FAT)
 target_compile_definitions(quit PRIVATE VARIABLE_SPLIT)
 target_compile_definitions(quit PRIVATE REDISTRIBUTE)
 target_compile_definitions(quit PRIVATE DOUBLE_IQR)
-# target_compile_definitions(quit PRIVATE LOL_RESET)
+target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
 #target_compile_definitions(quit PRIVATE BENCHMARK)
 
