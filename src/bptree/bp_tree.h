@@ -124,6 +124,7 @@ class bp_tree {
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
     static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
+    static constexpr node_id_t INVALID_NODE_ID = -1;
 
     dist_f dist;
 
@@ -172,9 +173,9 @@ class bp_tree {
 #endif
     uint8_t depth;
 
-    void create_new_root(const key_type &key, uint32_t node_id) {
+    void create_new_root(const key_type &key, node_id_t node_id) {
         root_mutex.lock();
-        uint32_t old_root_id = root_id;
+        node_id_t old_root_id = root_id;
         root_id = manager.allocate();
         // lock root_id
         mutexes[root_id].lock();
@@ -209,13 +210,13 @@ class bp_tree {
      */
     void find_leaf_shared(node_t &node, const key_type &key) const {
         root_mutex.lock_shared();
-        uint32_t node_id = root_id;
+        node_id_t node_id = root_id;
         mutexes[node_id].lock_shared();
         root_mutex.unlock_shared();
 
         node.load(manager.open_block(node_id));
         while (node.info->type == INTERNAL) {
-            const uint32_t parent_id = node_id;
+            const node_id_t parent_id = node_id;
             const uint16_t slot = node.child_slot(key);
             node_id = node.children[slot];
             mutexes[node_id].lock_shared();
@@ -227,7 +228,7 @@ class bp_tree {
     key_type find_leaf_exclusive(node_t &node, path_t &path, const key_type &key) const {
         key_type leaf_max = {};
         root_mutex.lock_shared();
-        uint32_t node_id = root_id;
+        node_id_t node_id = root_id;
         uint8_t oldest_lock = depth - 1;
         mutexes[node_id].lock();
         root_mutex.unlock_shared();
@@ -261,7 +262,7 @@ class bp_tree {
     void fp_lock() {
         root_mutex.lock_shared();
         uint8_t i = depth - 1;
-        uint32_t node_id = fp_path.step[i].id;
+        node_id_t node_id = fp_path.step[i].id;
         mutexes[node_id].lock();
         root_mutex.lock_shared();
 
@@ -282,7 +283,7 @@ class bp_tree {
     void update_internal(const path_t &path, const key_type &old_key, const key_type &new_key) {
         node_t node;
         for (uint8_t i = 1; i < depth; i++) {
-            uint32_t node_id = path.step[i].id;
+            node_id_t node_id = path.step[i].id;
             node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == INTERNAL);
@@ -297,10 +298,10 @@ class bp_tree {
     }
 #endif
 
-    void internal_insert(const path_t &path, key_type key, uint32_t child_id, uint16_t split_pos) {
+    void internal_insert(const path_t &path, key_type key, node_id_t child_id, uint16_t split_pos) {
         node_t node;
         for (uint8_t i = 1; i < depth; i++) {
-            const uint32_t node_id = path.step[i].id;
+            const node_id_t node_id = path.step[i].id;
             node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == INTERNAL);
@@ -321,7 +322,7 @@ class bp_tree {
             }
 
             // split the node
-            uint32_t new_node_id = manager.allocate();
+            node_id_t new_node_id = manager.allocate();
             // lock new_node_id
             mutexes[new_node_id].unlock();
             node_t new_node;
@@ -381,7 +382,7 @@ class bp_tree {
 
 #ifdef REDISTRIBUTE
     void redistribute(const node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
-        assert(lol_prev_id != tail_id);
+        assert(lol_prev_id != INVALID_NODE_ID);
         ctr_redistribute++;
         // move values from leaf to leaf prev
         uint16_t items = IQR_SIZE_THRESH - lol_prev_size; // items to be moved to lol prev
@@ -468,7 +469,7 @@ class bp_tree {
         if (leaf.info->id == fp_id) {
             // when splitting leaf, normally we would do it in the middle
             // but for lol we want to split it where IQR suggests
-            if (lol_prev_id == tail_id) {
+            if (lol_prev_id == INVALID_NODE_ID) {
                 lol_move = true; // move from head
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
@@ -500,7 +501,7 @@ class bp_tree {
 #endif
 #endif
         // split the leaf
-        uint32_t new_leaf_id = manager.allocate();
+        node_id_t new_leaf_id = manager.allocate();
         // lock the new leaf
         mutexes[new_leaf_id].lock();
         node_t new_leaf;
@@ -613,7 +614,7 @@ public:
         ctr_fp = 0;
 #endif
 #ifdef LOL_FAT
-        lol_prev_id = tail_id; // invalid lol->prev
+        lol_prev_id = INVALID_NODE_ID;
         lol_prev_min = {};
         lol_prev_size = 0;
         lol_size = 0;
@@ -674,7 +675,7 @@ public:
         lol_prev_mutex.lock();
         // if the new inserted key goes to lol->next, check if lol->next is not an outlier
         // it might be the case that lol reached the previous outliers.
-        if (lol_prev_id != tail_id && // lol->prev info exist
+        if (lol_prev_id != INVALID_NODE_ID && // lol->prev info exist
 //            fp_id != head_id && // fp_min is valid
             fp_id != tail_id && // fp_max is valid
 //            leaf.info->id != tail_id && // don't go to tail
@@ -684,9 +685,7 @@ public:
             // move lol to lol->next = leaf
             lol_prev_min = fp_min;
             lol_prev_size = lol_size;
-#ifdef REDISTRIBUTE
             lol_prev_id = fp_id;
-#endif
             fp_id = leaf.info->id;
             fp_min = fp_max;
             fp_max = leaf_max;
@@ -696,7 +695,7 @@ public:
 #ifdef LOL_RESET
             life.reset();
         } else if (life.failure()) {
-            lol_prev_id = tail_id;
+            lol_prev_id = INVALID_NODE_ID;
             fp_id = leaf.info->id;
             fp_min = leaf.keys[0];
             fp_max = leaf_max;
@@ -727,7 +726,7 @@ public:
             if (leaf.info->id == tail_id) {
                 break;
             }
-            uint32_t next_id = leaf.info->next_id;
+            node_id_t next_id = leaf.info->next_id;
             mutexes[next_id].lock_shared();
             mutexes[leaf.info->id].unlock_shared();
             leaf.load(manager.open_block(next_id));
@@ -748,7 +747,7 @@ public:
             if (leaf.info->id == tail_id) {
                 break;
             }
-            const uint32_t next_id = leaf.info->next_id;
+            const node_id_t next_id = leaf.info->next_id;
             mutexes[next_id].lock_shared();
             mutexes[leaf.info->id].unlock_shared();
             leaf.load(manager.open_block(next_id));

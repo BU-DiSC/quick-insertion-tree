@@ -89,7 +89,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
     std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
     start = std::chrono::high_resolution_clock::now();
-    for (unsigned int i = 0; i < raw_queries; i++) {
+    for (unsigned i = 0; i < raw_queries; i++) {
         tree.contains(data[range_distribution(generator) % data.size()] + offset);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
@@ -97,7 +97,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (unsigned int i = 0; i < updates; i++) {
+    for (unsigned i = 0; i < updates; i++) {
         tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
@@ -107,7 +107,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     size_t k = data.size() / 1000;
     std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (unsigned int i = 0; i < conf.short_range; i++) {
+    for (unsigned i = 0; i < conf.short_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
@@ -121,7 +121,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     k = data.size() / 100;
     std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (unsigned int i = 0; i < conf.mid_range; i++) {
+    for (unsigned i = 0; i < conf.mid_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
@@ -135,7 +135,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     k = data.size() / 10;
     std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
     start = std::chrono::high_resolution_clock::now();
-    for (unsigned int i = 0; i < conf.long_range; i++) {
+    for (unsigned i = 0; i < conf.long_range; i++) {
         const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
         leaf_accesses += tree.top_k(k, min_key);
     }
@@ -210,12 +210,12 @@ int main(int argc, char **argv) {
 #endif
 #endif
     ;
-    for (unsigned int i = 0; i < conf.runs; ++i) {
+    for (unsigned i = 0; i < conf.runs; ++i) {
         manager.reset();
         bp_tree<key_type, value_type> tree(cmp, manager);
         key_type offset = 0;
-        for (unsigned int j = 0; j < conf.repeat; ++j) {
-            for (unsigned int k = 0; k < data.size(); ++k) {
+        for (unsigned j = 0; j < conf.repeat; ++j) {
+            for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
                 results << (name.empty() ? "SIMPLE" : name) << ", " << argv[k+1] << ", " << offset;
                 workload(tree, input, conf, results, offset);
