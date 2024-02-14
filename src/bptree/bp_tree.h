@@ -357,7 +357,7 @@ class bp_tree {
 #ifdef LOL_FAT
             if (leaf.info->id == fp_id) {
                 lol_size++;
-            } else if (leaf.info->id != tail_id && leaf.info->next_id == fp_id) {
+            } else if (leaf.info->next_id == fp_id) {
                 lol_prev_id = leaf.info->id;
                 lol_prev_min = leaf.keys[0];
                 lol_prev_size = leaf.info->size;
@@ -474,11 +474,6 @@ class bp_tree {
 #endif
         }
         if (leaf.info->id == tail_id) {
-#ifdef LOL_FAT
-            if (lol_prev_id == INVALID_NODE_ID) {
-                lol_prev_id = new_leaf_id;
-            }
-#endif
             tail_id = new_leaf_id;
 #ifdef TAIL_FAT
             fp_min = new_leaf.keys[0];
@@ -508,7 +503,7 @@ class bp_tree {
                 fp_max = new_leaf.keys[0];
                 lol_size = leaf.info->size;
             }
-        } else if (new_leaf_id != tail_id && new_leaf.info->next_id == fp_id) {
+        } else if (new_leaf.info->next_id == fp_id) {
             lol_prev_id = new_leaf_id;
             lol_prev_min = new_leaf.keys[0];
             lol_prev_size = new_leaf.info->size;
