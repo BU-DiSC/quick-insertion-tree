@@ -13,7 +13,7 @@ struct Node {
     const uint32_t pos;
     Node *prev, *next;
 
-    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos) {
+    Node(uint32_t id, uint32_t pos) : id(id), pos(pos) {
         prev = nullptr;
         next = nullptr;
     }

@@ -74,7 +74,7 @@ struct reset_stats {
 
 template<typename key_type, typename value_type>
 class bp_tree {
-    friend std::ostream &operator<<(std::ostream &os, const bp_tree<key_type, value_type> &tree) {
+    friend std::ostream &operator<<(std::ostream &os, const bp_tree &tree) {
         os << tree.ctr_size << ", " << +tree.ctr_depth << ", " << tree.manager << ", "
            << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
            #ifdef REDISTRIBUTE
@@ -167,7 +167,7 @@ class bp_tree {
         uint32_t old_root_id = root_id;
         root_id = manager.allocate();
         node_t root;
-        root.init(manager.open_block(root_id), bp_node_type::INTERNAL);
+        root.init(manager.open_block(root_id), INTERNAL);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->size = 1;
@@ -248,7 +248,7 @@ class bp_tree {
             // split the node
             uint32_t new_node_id = manager.allocate();
             node_t new_node;
-            new_node.init(manager.open_block(new_node_id), bp_node_type::INTERNAL);
+            new_node.init(manager.open_block(new_node_id), INTERNAL);
             manager.mark_dirty(new_node_id);
             ctr_internal++;
 
@@ -433,7 +433,7 @@ class bp_tree {
         // split the leaf
         uint32_t new_leaf_id = manager.allocate();
         node_t new_leaf;
-        new_leaf.init(manager.open_block(new_leaf_id), bp_node_type::LEAF);
+        new_leaf.init(manager.open_block(new_leaf_id), LEAF);
         manager.mark_dirty(new_leaf_id);
         ctr_leaves++;
 
@@ -553,7 +553,7 @@ public:
         ctr_soft = 0;
 #endif
         node_t root;
-        root.init(manager.open_block(root_id), bp_node_type::LEAF);
+        root.init(manager.open_block(root_id), LEAF);
         manager.mark_dirty(root_id);
         root.info->id = root_id;
         root.info->next_id = root_id;
