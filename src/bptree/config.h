@@ -1,15 +1,16 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <iostream>
-#include <cstring>
 #include <algorithm>
+#include <cstring>
+#include <iostream>
 
 struct Config {
     size_t blocks_in_memory = 15000;
     unsigned raw_read_perc = 0;
     unsigned raw_write_perc = 0;
     unsigned mix_load_perc = 0;
+    unsigned mixed_reads_perc = 0;
     unsigned updates_perc = 0;
     unsigned short_range = 0;
     unsigned mid_range = 0;
@@ -25,10 +26,12 @@ struct Config {
         std::string line;
         while (std::getline(infile, line)) {
             // delete whitespace from line
-            line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+            line.erase(std::remove_if(line.begin(), line.end(), isspace),
+                       line.end());
             if (line.empty() || line[0] == '#') continue;
             std::string knob_name = line.substr(0, line.find('='));
-            std::string knob_value = line.substr(knob_name.length() + 1, line.size());
+            std::string knob_value =
+                line.substr(knob_name.length() + 1, line.size());
             if (knob_name == "BLOCKS_IN_MEMORY") {
                 blocks_in_memory = std::stoi(knob_value);
             } else if (knob_name == "RAW_READS_PERCENTAGE") {
@@ -51,6 +54,8 @@ struct Config {
                 repeat = std::stoi(knob_value);
             } else if (knob_name == "SEED") {
                 seed = std::stoi(knob_value);
+            } else if (knob_name == "MIXED_READ_PERCENTAGE") {
+                mixed_reads_perc = std::stoi(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }
