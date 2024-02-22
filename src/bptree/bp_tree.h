@@ -77,7 +77,7 @@ class bp_tree {
    protected:
     friend std::ostream &operator<<(std::ostream &os,
                                     const bp_tree<key_type, value_type> &tree) {
-        os << tree.ctr_size << ", " << +tree.ctr_depth << ", " << tree.manager
+        os << tree.ctr_size << ", " << tree.ctr_depth << ", " << tree.manager
            << ", " << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
 #ifdef REDISTRIBUTE
            << tree.ctr_redistribute

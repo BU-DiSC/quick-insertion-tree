@@ -90,7 +90,7 @@ target_compile_definitions(sabtree PRIVATE ZONES)
 target_compile_definitions(sabtree PRIVATE GLOBALBF)
 target_compile_definitions(sabtree PRIVATE SUBBFS)
 target_compile_definitions(sabtree PRIVATE SPDLOG_STATS)
-target_compile_definitions(sabtree PRIVATE TABULATE_COUNTERS)
+target_compile_definitions(sabtree PRIVATE SPDLOG_COUNTERS)
 
 target_compile_options(sabtree PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)

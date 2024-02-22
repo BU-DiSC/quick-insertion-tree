@@ -125,6 +125,9 @@ int main(int argc, char *argv[]) {
     cout << "# entries in data file = " << num << endl;
     cout << "size of data element = " << sizeof(data[0]) << endl;
 #endif
+#ifdef GLOBALBF
+    cout << "global bf" << endl;
+#endif
     int j = 0;
 
     key_type progress_counter = 0;
@@ -139,6 +142,8 @@ int main(int argc, char *argv[]) {
     progress_counter = 0;
 
     int nops = num_queries;
+
+    std::cout << tree << endl;
 
     OsmTreeCounters tree_insert_counters = tree.tree_counters;
     // display_stats<unsigned long>(tree_insert_counters, "Tree Insert Stats");
@@ -183,7 +188,7 @@ int main(int argc, char *argv[]) {
 #else
     cout << "time in nanoseconds for point query = "
          << tree.osmTimer.point_query_time << endl;
-    cout << "Not found keys = " << x << endl;
+    // cout << "Not found keys = " << x << endl;
 #endif
 #endif
 
@@ -198,7 +203,7 @@ int main(int argc, char *argv[]) {
 #ifdef SPDLOG_STATS
     spdlog::info("Keys not found = {}", x);
 #else
-    cout << "Not found keys = " << x << endl;
+    // cout << "Not found keys = " << x << endl;
 #endif
 #endif
 
