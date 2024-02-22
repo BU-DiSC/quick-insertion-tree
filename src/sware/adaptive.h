@@ -5,10 +5,11 @@
 
 #include "minheap.h"
 
-bool adaptive_sort(std::pair<uint, uint> R[], uint n, int k, int l,
-                   std::pair<uint, uint> OUT[]) {
+template <typename key_type>
+bool adaptive_sort(std::pair<key_type, key_type> R[], uint n, int k, int l,
+                   std::pair<key_type, key_type> OUT[]) {
     MinHeap S(n), G(n);
-    std::pair<int, int> *TMP = new std::pair<int, int>[n];
+    std::pair<key_type, key_type> *TMP = new std::pair<key_type, key_type>[n];
     int i_read, i_write;
 
     // insert first k+l+1 tuples from R into S
@@ -32,7 +33,7 @@ bool adaptive_sort(std::pair<uint, uint> R[], uint n, int k, int l,
         // get minimum element of heap
         // note extractMin() also removes element from heap
         // so this essentially performs S <- (S \ {last_written})
-        std::pair<int, int> last_written = S.extractMin();
+        std::pair<key_type, key_type> last_written = S.extractMin();
 
         // TMP.push_back(last_written);
         TMP[i_write] = last_written;
@@ -61,8 +62,8 @@ bool adaptive_sort(std::pair<uint, uint> R[], uint n, int k, int l,
 
     for (i_read = 0; i_read < n - G.size(); i_read++) {
         // second pass
-        std::pair<int, int> x = G.getMin();
-        std::pair<int, int> tmp = TMP[i_read];
+        std::pair<key_type, key_type> x = G.getMin();
+        std::pair<key_type, key_type> tmp = TMP[i_read];
         if (x.first > TMP[i_read].first || G.size() == 0) {
             // OUT.push_back(TMP[i_read]);
             OUT[i_write] = TMP[i_read];

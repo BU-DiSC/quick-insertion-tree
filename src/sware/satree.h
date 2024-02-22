@@ -129,6 +129,8 @@ class OsmTree : public bp_tree<key_type, value_type> {
         assert(_fillFactor > 0 && _fillFactor <= 1.0);
         fillFactor = _fillFactor;
         int num_per_zone = (LEAF_CAPACITY - 1 - 1) * fillFactor;
+        std::cout << "num_per_zone: " << num_per_zone << "\n";
+        std::cout << "leaf_capacity: " << LEAF_CAPACITY << "\n";
         osmBuffer = new OsmBuffer<key_type, value_type>(_osmCap, num_per_zone);
     }
 

@@ -364,7 +364,7 @@ class OsmBuffer {
 
         std::pair<_Key, _Value> *OUT = new std::pair<_Key, _Value>[n];
 
-        bool try_adaptive_sort = adaptive_sort(osmBuffer, n, k, l, OUT);
+        bool try_adaptive_sort = adaptive_sort<_Key>(osmBuffer, n, k, l, OUT);
 
         // if adaptive sort is successful, replace buffer with sorted order
         if (try_adaptive_sort) {
@@ -1296,7 +1296,8 @@ class OsmBuffer {
                         // if we found the key in this block, we can simply stop
                         // the scan here itself
                         if (block_interpolation_result) {
-                            counters.stats["subblock_interpolation_positive"] += 1;
+                            counters.stats["subblock_interpolation_positive"] +=
+                                1;
                             counters.stats["num_unsorted_positive"] += 1;
 #ifdef OSMP
                             auto stop_unsorted_inter =

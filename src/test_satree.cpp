@@ -24,6 +24,7 @@ std::vector<key_type> read_file(const char *filename) {
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
+        // key_type key = std::stoul(line);
         key_type key = std::stoul(line);
         data.push_back(key);
     }
@@ -60,7 +61,8 @@ int main(int argc, char *argv[]) {
     int l, num_nodes_for_buffer_pool, num_entries_buffer_can_hold;
     int fill_factor_p;
 
-    key_type k, n;
+    key_type k;
+    uint n;
 
     key_type num_queries;
 
@@ -128,7 +130,7 @@ int main(int argc, char *argv[]) {
     key_type progress_counter = 0;
     key_type workload_size = n;
     for (key_type i = 0; i < n; i++, progress_counter++) {
-        tree.osmInsert(data[i] + 1, data[i] + 1);
+        tree.osmInsert(data[i], data[i] + 1);
     }
 
     int cap = tree.getOsmBufCap();
@@ -157,9 +159,18 @@ int main(int argc, char *argv[]) {
 
     key_type x = 0;
     progress_counter = 0;
-    for (int i = 0; i < nops; i++, progress_counter++) {
-        uint query_index = (rand() % n) + 1;
-        bool flag = tree.osmQuery(query_index);
+    // for (int i = 0; i < nops; i++, progress_counter++) {
+    //     uint query_index = (rand() % n) + 1;
+    //     bool flag = tree.osmQuery(query_index);
+    //     if (!flag) {
+    //         x++;
+    //     }
+    // }
+    for (int i = 0; i < n; i++) {
+        if (i == 4539) {
+            cout << "found" << endl;
+        }
+        bool flag = tree.osmQuery(data[i]);
         if (!flag) {
             x++;
         }
