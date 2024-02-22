@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
     //         x++;
     //     }
     // }
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < nops; i++) {
         if (i == 4539) {
             cout << "found" << endl;
         }
