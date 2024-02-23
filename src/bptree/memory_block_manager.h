@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-
 #ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
 #endif
@@ -29,7 +28,7 @@ class InMemoryBlockManager {
    public:
     static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
-    InMemoryBlockManager(const char *filepath, uint32_t capacity)
+    InMemoryBlockManager(const char *filepath, const uint32_t capacity)
         : capacity(capacity) {
         std::cerr << "IN MEMORY" << std::endl;
         next_block_id = 0;
@@ -60,7 +59,7 @@ class InMemoryBlockManager {
      */
     void mark_dirty(uint32_t id) {}
 
-    void *open_block(uint32_t id) const {
+    [[nodiscard]] void *open_block(const uint32_t id) const {
         return internal_memory[id].block_buf;
     }
 };
