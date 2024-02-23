@@ -4,12 +4,13 @@
 #include <random>
 
 #include "bench_bptree.h"
+#include "bench_sabtree.h"
 #include "bptree/config.h"
 #include "index_bench.h"
 
 using key_type = unsigned;
 using value_type = unsigned;
-
+using namespace std;
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
     std::string line;
@@ -32,7 +33,7 @@ std::vector<key_type> read_bin(const char *filename) {
 }
 
 // bp_tree<key_type, value_type> &tree,
-void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
+void workload(index_bench::Index<key_type, value_type> *tree,
               const std::vector<key_type> &data, const Config &conf,
               std::ofstream &results, const key_type &offset) {
     const unsigned num_inserts = data.size();
@@ -64,7 +65,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     while (idx < num_load) {
         // tree.insert(*it++ + offset, idx++);
         auto key = *it++ + offset;
-        tree.insert(key, key);
+        tree->insert(key, key);
         // std::cout << idx << std::endl;
         idx++;
     }
@@ -76,7 +77,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     while (idx < num_load + raw_writes) {
-        tree.insert(*it++ + offset, idx++);
+        tree->insert(*it++ + offset, idx++);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -87,13 +88,13 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
         if (mix_queries >= mixed_reads ||
             (mix_inserts < mixed_size && distribution(generator))) {
-            tree.insert(*it++ + offset, idx++);
+            tree->insert(*it++ + offset, idx++);
 
             mix_inserts++;
         } else {
             key_type query_index = generator() % idx + offset;
 
-            const bool res = tree.contains(query_index);
+            const bool res = tree->contains(query_index);
 
             ctr_empty += !res;
             mix_queries++;
@@ -107,8 +108,8 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
                                                                num_inserts - 1);
     start = std::chrono::high_resolution_clock::now();
     for (unsigned i = 0; i < raw_queries; i++) {
-        tree.contains(data[range_distribution(generator) % data.size()] +
-                      offset);
+        tree->contains(data[range_distribution(generator) % data.size()] +
+                       offset);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -117,8 +118,8 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned i = 0; i < updates; i++) {
-        tree.insert(data[range_distribution(generator) % data.size()] + offset,
-                    0);
+        tree->insert(data[range_distribution(generator) % data.size()] + offset,
+                     0);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -131,7 +132,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     for (unsigned i = 0; i < conf.short_range; i++) {
         const key_type min_key =
             data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
+        leaf_accesses += tree->top_k(k, min_key);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -148,7 +149,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     for (unsigned i = 0; i < conf.mid_range; i++) {
         const key_type min_key =
             data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
+        leaf_accesses += tree->top_k(k, min_key);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -165,7 +166,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     for (unsigned i = 0; i < conf.long_range; i++) {
         const key_type min_key =
             data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
+        leaf_accesses += tree->top_k(k, min_key);
     }
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now() - start);
@@ -179,7 +180,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
 #ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data) {
-        if (!tree.contains(item)) {
+        if (!tree->contains(item)) {
             // std::cerr << item << " not found" << std::endl;
             // break;
             count++;
@@ -196,9 +197,10 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
 std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]"
-                  << std::endl;
+    if (argc < 3) {
+        std::cerr
+            << "Usage: ./tree_analysis <index> <input_file> [<input_file>...]"
+            << std::endl;
         return -1;
     }
 
@@ -209,11 +211,11 @@ int main(int argc, char **argv) {
     BlockManager manager(tree_dat, conf.blocks_in_memory);
 
     std::vector<std::vector<key_type>> data;
-    for (int i = 1; i < argc; i++) {
+    for (int i = 2; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_bin(argv[i]));
+        data.emplace_back(read_file(argv[i]));
     }
-    std::ofstream results("results.csv", std::ofstream::app);
+    std::ofstream results("results-1.csv", std::ofstream::app);
     std::string name =
         ""
 #ifdef TAIL_FAT
@@ -237,10 +239,29 @@ int main(int argc, char **argv) {
 #endif
 #endif
         ;
+#ifdef ZONES
+    std::cout << "zones enabled";
+#endif
+    std::string index = argv[1];
+    if (index == "sabtree") name = "SABTREE";
+
     for (unsigned i = 0; i < conf.runs; ++i) {
         manager.reset();
         // bp_tree<key_type, value_type> tree(cmp, manager);
-        index_bench::BPTreeIndex<key_type, value_type> tree(cmp, manager);
+        // index_bench::BPTreeIndex<key_type, value_type> tree(cmp, manager);
+        index_bench::Index<key_type, value_type> *tree;
+        if (index == "bptree") {
+            cout << index << endl;
+            tree = new index_bench::BPTreeIndex<key_type, value_type>(cmp,
+                                                                      manager);
+        } else if (index == "sabtree") {
+            cout << index << endl;
+            tree = new index_bench::SATreeIndex<key_type, value_type>(
+                cmp, manager, data[0].size() * 0.01,
+                conf.sware_fill_factor / 100.0);
+        } else {
+            throw std::runtime_error("Invalid index");
+        }
         key_type offset = 0;
         for (unsigned j = 0; j < conf.repeat; ++j) {
             for (unsigned k = 0; k < data.size(); ++k) {

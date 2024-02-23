@@ -77,9 +77,10 @@ target_compile_definitions(quit PRIVATE VARIABLE_SPLIT)
 target_compile_definitions(quit PRIVATE REDISTRIBUTE)
 target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
-#target_compile_definitions(quit PRIVATE BENCHMARK)
+# target_compile_definitions(quit PRIVATE BENCHMARK)
 
-add_executable(sabtree src/test_satree.cpp)
+add_executable(sabtree src/tree_analysis.cpp)
+target_compile_definitions(sabtree PRIVATE FAST_PATH)
 target_compile_definitions(sabtree PRIVATE INMEMORY)
 target_compile_definitions(sabtree PRIVATE OSMTIMER)
 target_compile_definitions(sabtree PRIVATE SPLIT80)
@@ -88,6 +89,18 @@ target_compile_definitions(sabtree PRIVATE GLOBALBF)
 target_compile_definitions(sabtree PRIVATE SUBBFS)
 target_compile_definitions(sabtree PRIVATE SPDLOG_STATS)
 target_compile_definitions(sabtree PRIVATE SPDLOG_COUNTERS)
+target_compile_definitions(sabtree PRIVATE BENCHMARK)
+
+add_executable(sab_actual src/test_satree.cpp)
+# target_compile_definitions(sab_actual PRIVATE FAST_PATH)
+target_compile_definitions(sab_actual PRIVATE INMEMORY)
+target_compile_definitions(sab_actual PRIVATE OSMTIMER)
+target_compile_definitions(sab_actual PRIVATE SPLIT80)
+target_compile_definitions(sab_actual PRIVATE ZONES)
+target_compile_definitions(sab_actual PRIVATE GLOBALBF)
+target_compile_definitions(sab_actual PRIVATE SUBBFS)
+target_compile_definitions(sab_actual PRIVATE SPDLOG_STATS)
+target_compile_definitions(sab_actual PRIVATE SPDLOG_COUNTERS)
 
 target_compile_options(sabtree PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)
@@ -99,7 +112,30 @@ target_include_directories(sabtree PUBLIC
     ${PROJECT_SOURCE_DIR}/external
 )
 
+target_include_directories(sab_actual PUBLIC
+    ${PROJECT_SOURCE_DIR}/external
+)
+
+
+target_include_directories(quit PUBLIC
+    ${PROJECT_SOURCE_DIR}/external
+)
+
 target_link_libraries(sabtree PUBLIC
+    spdlog::spdlog
+    cxxopts
+    tabulate
+    utilities
+)
+
+target_link_libraries(quit PUBLIC
+    spdlog::spdlog
+    cxxopts
+    tabulate
+    utilities
+)
+
+target_link_libraries(sab_actual PUBLIC
     spdlog::spdlog
     cxxopts
     tabulate

@@ -234,7 +234,9 @@ class OsmBuffer {
 
     bool isOsmBufFull() { return osmBufSize == osmCap; }
 
-    void stlSortOsmBuf() { std::sort(osmBuffer, osmBuffer + osmBufSize); }
+    void stlSortOsmBuf() {
+        std::stable_sort(osmBuffer, osmBuffer + osmBufSize);
+    }
 
     int getNumPerZone() { return num_per_zone; }
 

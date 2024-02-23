@@ -132,9 +132,16 @@ int main(int argc, char *argv[]) {
 
     key_type progress_counter = 0;
     key_type workload_size = n;
+    auto start = std::chrono::high_resolution_clock::now();
     for (key_type i = 0; i < n; i++, progress_counter++) {
         tree.osmInsert(data[i], data[i] + 1);
     }
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    cout << "Time = "
+         << std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start)
+                .count()
+         << endl;
 
     int cap = tree.getOsmBufCap();
     int t = tree.getOsmBufSize();
@@ -145,13 +152,6 @@ int main(int argc, char *argv[]) {
 
     std::cout << tree << endl;
 
-    OsmTreeCounters tree_insert_counters = tree.tree_counters;
-    // display_stats<unsigned long>(tree_insert_counters, "Tree Insert Stats");
-
-    OsmBufferCounters buffer_insert_counters = tree.getBufferCounters();
-    // display_stats<unsigned long>(buffer_insert_counters, "Tree Buffer
-    // Stats");
-
 #ifdef OSMTIMER
 #ifdef SPDLOG_STATS
     spdlog::info("Time taken for insert (nanoseconds) = {}",
@@ -161,6 +161,12 @@ int main(int argc, char *argv[]) {
          << endl;
 #endif
 #endif
+
+    OsmTreeCounters tree_insert_counters = tree.tree_counters;
+    display_stats<unsigned long>(tree_insert_counters, "Tree Insert Stats");
+
+    OsmBufferCounters buffer_insert_counters = tree.getBufferCounters();
+    display_stats<unsigned long>(buffer_insert_counters, "Tree Buffer Stats");
 
     key_type x = 0;
     progress_counter = 0;

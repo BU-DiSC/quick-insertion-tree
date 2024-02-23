@@ -18,6 +18,7 @@ struct Config {
     unsigned runs = 1;
     unsigned repeat = 1;
     unsigned seed = 1234;
+    unsigned sware_fill_factor = 95;
 
     explicit Config(const char *file) {
         if (file == nullptr) return;
@@ -56,6 +57,8 @@ struct Config {
                 seed = std::stoi(knob_value);
             } else if (knob_name == "MIXED_READ_PERCENTAGE") {
                 mixed_reads_perc = std::stoi(knob_value);
+            } else if (knob_name == "SWARE_FILL_FACTOR") {
+                sware_fill_factor = std::stoi(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }

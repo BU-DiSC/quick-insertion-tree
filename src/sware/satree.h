@@ -1,6 +1,8 @@
 #ifndef OSMTREE_H
 #define OSMTREE_H
+#ifndef FAST_PATH
 #define FAST_PATH
+#endif
 #include <math.h>
 #include <string.h>
 
