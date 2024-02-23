@@ -3,8 +3,10 @@
 #include <fstream>
 #include <random>
 
-#include "bptree/bp_tree.h"
+// #include "bptree/bp_tree.h"
+#include "bench_bptree.h"
 #include "bptree/config.h"
+#include "index_bench.h"
 
 using key_type = unsigned;
 using value_type = unsigned;
@@ -30,7 +32,8 @@ std::vector<key_type> read_bin(const char *filename) {
     return data;
 }
 
-void workload(bp_tree<key_type, value_type> &tree,
+// bp_tree<key_type, value_type> &tree,
+void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
               const std::vector<key_type> &data, const Config &conf,
               std::ofstream &results, const key_type &offset) {
     const unsigned num_inserts = data.size();
@@ -162,9 +165,6 @@ void workload(bp_tree<key_type, value_type> &tree,
     }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
-#ifdef LOL_RESET
-    std::cout << "hard resets = " << tree.get_reset_hard() << std::endl;
-#endif
 #ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data) {
@@ -231,7 +231,8 @@ int main(int argc, char **argv) {
         ;
     for (unsigned i = 0; i < conf.runs; ++i) {
         manager.reset();
-        bp_tree<key_type, value_type> tree(cmp, manager);
+        // bp_tree<key_type, value_type> tree(cmp, manager);
+        index_bench::BPTreeIndex<key_type, value_type> tree(cmp, manager);
         key_type offset = 0;
         for (unsigned j = 0; j < conf.repeat; ++j) {
             for (unsigned k = 0; k < data.size(); ++k) {
