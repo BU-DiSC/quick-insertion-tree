@@ -617,12 +617,13 @@ class bp_tree {
 
    public:
     bp_tree(dist_f cmp, BlockManager &m)
-        :
+        : manager(m)
 #ifdef LOL_RESET
+          ,
           life(sqrt(node_t::leaf_capacity)),
           ctr_hard(0),
 #endif
-          manager(m) {
+    {
         dist = cmp;
         root_id = manager.allocate();
         head_id = tail_id = root_id;
