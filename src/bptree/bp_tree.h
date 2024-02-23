@@ -621,7 +621,7 @@ class bp_tree {
 #ifdef LOL_RESET
           ,
           life(sqrt(node_t::leaf_capacity)),
-          ctr_hard(0),
+          ctr_hard(0)
 #endif
     {
         dist = cmp;
