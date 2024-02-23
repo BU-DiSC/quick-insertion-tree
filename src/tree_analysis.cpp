@@ -176,7 +176,7 @@ void workload(index_bench::Index<key_type, value_type> *tree,
                        conf.long_range;  // ceil
     }
 
-    results << ", " << ctr_empty << ", " << tree << "\n";
+    results << ", " << ctr_empty << ", " << *tree << "\n";
 #ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data) {
