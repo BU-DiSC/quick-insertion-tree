@@ -13,7 +13,7 @@ class bp_node {
         node_id_type id;
         node_id_type next_id;
         uint16_t size;
-        bp_node_type type;
+        uint16_t type;
     };
 public:
     static constexpr uint16_t leaf_capacity = (BlockManager::block_size - sizeof(node_info)) /
