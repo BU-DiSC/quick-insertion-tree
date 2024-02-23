@@ -5,25 +5,28 @@
 #include "index_bench.h"
 
 namespace index_bench {
-template <typename KEY_TYPE, typename VALUE_TYPE>
-class BPTreeIndex : public Index<KEY_TYPE, VALUE_TYPE> {
-    using dist_f = std::size_t (*)(const KEY_TYPE &, const KEY_TYPE &);
+    template<typename KEY_TYPE, typename VALUE_TYPE>
+    class BPTreeIndex final : public Index<KEY_TYPE, VALUE_TYPE> {
+        using dist_f = std::size_t (*)(const KEY_TYPE &, const KEY_TYPE &);
 
-   public:
-    bp_tree<KEY_TYPE, VALUE_TYPE> _tree;
-    BPTreeIndex(dist_f cmp, BlockManager &m) : _tree(cmp, m) {}
+    public:
+        bp_tree<KEY_TYPE, VALUE_TYPE> _tree;
 
-    bool contains(KEY_TYPE key) override { return _tree.contains(key); }
+        BPTreeIndex(dist_f cmp, BlockManager &m) : _tree(cmp, m) {
+        }
 
-    void insert(KEY_TYPE key, VALUE_TYPE value) override {
-        _tree.insert(key, value);
-    }
+        bool contains(KEY_TYPE key) override { return _tree.contains(key); }
 
-    size_t top_k(size_t count, const KEY_TYPE &min_key) override {
-        return _tree.top_k(count, min_key);
-    }
+        void insert(KEY_TYPE key, VALUE_TYPE value) override {
+            _tree.insert(key, value);
+        }
 
-    void print(std::ostream &os) const { os << _tree; }
-};
-}  // namespace index_bench
+        size_t top_k(size_t count, const KEY_TYPE &min_key) override {
+            return _tree.top_k(count, min_key);
+        }
+
+        void print(std::ostream &os) const override { os << _tree; }
+    };
+}
+
 #endif

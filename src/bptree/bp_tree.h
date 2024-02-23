@@ -192,9 +192,8 @@ class bp_tree {
     key_type find_leaf(node_t &node, path_t &path, const key_type &key) const {
         key_type leaf_max = {};
         node_id_t child_id = root_id;
-        for (uint8_t i = ctr_depth - 1; i > 0;
-
-             --i) {  // from root to last internal level
+        for (uint8_t i = ctr_depth - 1; i > 0; --i) {
+            // from root to last internal level
             path[i] = child_id;
             node.load(manager.open_block(child_id));
             assert(child_id == node.info->id);
@@ -446,39 +445,10 @@ class bp_tree {
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
                 size_t d = dist(fp_min, lol_prev_min);
-#ifdef DOUBLE_IQR
-                size_t lower = IKR::lower_bound(d, lol_prev_size, lol_size);
-                const uint16_t lower_pos = leaf.value_slot(
-                    fp_min +
-                    lower);  // 0 < split_leaf_pos <= node_t::leaf_capacity
-                //                if (key < leaf.keys[split_leaf_pos]) {
-                //                    ++split_leaf_pos;
-                //                }
-                if (lower_pos >
-                    SPLIT_LEAF_POS) {  // most of the values are certainly good
-                    split_leaf_pos = lower_pos - 1;  // take one to the new leaf
-                    lol_move = true;                 // also move lol
-                } else {
-                    size_t upper = IKR::upper_bound(d, lol_prev_size, lol_size);
-                    const uint16_t upper_pos = leaf.value_slot(
-                        fp_min +
-                        upper);  // 0 < split_leaf_pos <= node_t::leaf_capacity
-                    if (upper_pos < SPLIT_LEAF_POS) {  // most of the values are
-                                                       // certainly bad
-                        split_leaf_pos =
-                            index <= upper_pos ? upper_pos + 1 : upper_pos;
-                    } else {
-                        split_leaf_pos = SPLIT_LEAF_POS;
-                        lol_move = upper_pos - SPLIT_LEAF_POS >
-                                   SPLIT_LEAF_POS - lower_pos;
-                    }
-                }
-#else
                 size_t max_distance =
                     IKR::upper_bound(d, lol_prev_size, lol_size);
-                uint16_t outlier_pos = leaf.value_slot(
-                    fp_min + max_distance);  // 0 < split_leaf_pos <=
-                                             // node_t::leaf_capacity
+                uint16_t outlier_pos = leaf.value_slot(fp_min + max_distance);
+                // 0 < split_leaf_pos <= node_t::leaf_capacity
                 //                if (key < leaf.keys[split_leaf_pos]) {
                 //                    ++split_leaf_pos;
                 //                }
@@ -486,7 +456,8 @@ class bp_tree {
                     split_leaf_pos =
                         outlier_pos;  // keep these good values on current lol
                                       // and do not move
-                } else {              // most of the values are certainly good
+                } else {
+                    // most of the values are certainly good
                     split_leaf_pos =
                         outlier_pos - 1;  // take one to the new leaf
                     lol_move = true;      // also move lol
@@ -495,7 +466,6 @@ class bp_tree {
                     split_leaf_pos++;  // this key will be also in the current
                                        // leaf
                 }
-#endif
 //                split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef REDISTRIBUTE
             } else {
@@ -842,9 +812,6 @@ class bp_tree {
     }
 
     bool contains(const key_type &key) const { return get(key).has_value(); }
-#ifdef LOL_RESET
-    uint32_t get_reset_hard() { return ctr_hard; }
-#endif
 };
 
 #endif

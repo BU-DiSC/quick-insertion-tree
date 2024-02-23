@@ -3,7 +3,6 @@
 #include <fstream>
 #include <random>
 
-// #include "bptree/bp_tree.h"
 #include "bench_bptree.h"
 #include "bptree/config.h"
 #include "index_bench.h"
@@ -84,7 +83,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     results << ", " << duration.count();
 
     std::cerr << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
-    auto mixed_start = std::chrono::high_resolution_clock::now();
+    start = std::chrono::high_resolution_clock::now();
     while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
         if (mix_queries >= mixed_reads ||
             (mix_inserts < mixed_size && distribution(generator))) {
@@ -100,7 +99,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
             mix_queries++;
         }
     }
-    auto mixed_stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
 
     std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
@@ -212,7 +211,7 @@ int main(int argc, char **argv) {
     std::vector<std::vector<key_type>> data;
     for (int i = 1; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_file(argv[i]));
+        data.emplace_back(read_bin(argv[i]));
     }
     std::ofstream results("results.csv", std::ofstream::app);
     std::string name =
@@ -228,9 +227,6 @@ int main(int argc, char **argv) {
 #endif
 #ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
-#ifdef DOUBLE_IQR
-        "_DOUBLE_IQR"
-#endif
 #ifdef REDISTRIBUTE
         "_REDISTRIBUTE"
 #endif
