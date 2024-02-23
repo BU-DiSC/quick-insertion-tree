@@ -652,6 +652,7 @@ class bp_tree {
 #ifdef LOL_RESET
             life.reset();
         } else if (life.failure()) {
+            ++ctr_hard;
             lol_prev_id = INVALID_NODE_ID;
             fp_id = leaf.info->id;
             fp_min = leaf.keys[0];
