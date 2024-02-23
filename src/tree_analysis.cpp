@@ -162,6 +162,9 @@ void workload(bp_tree<key_type, value_type> &tree,
     }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
+#ifdef LOL_RESET
+    std::cout << "hard resets = " << tree.get_reset_hard() << std::endl;
+#endif
 #ifndef BENCHMARK
     unsigned count = 0;
     for (const auto &item : data) {
