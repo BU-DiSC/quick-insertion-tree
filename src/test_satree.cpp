@@ -178,9 +178,6 @@ int main(int argc, char *argv[]) {
     //     }
     // }
     for (int i = 0; i < nops; i++) {
-        if (i == 4539) {
-            cout << "found" << endl;
-        }
         bool flag = tree.osmQuery(data[i]);
         if (!flag) {
             x++;

@@ -77,7 +77,7 @@ target_compile_definitions(quit PRIVATE VARIABLE_SPLIT)
 target_compile_definitions(quit PRIVATE REDISTRIBUTE)
 target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
-# target_compile_definitions(quit PRIVATE BENCHMARK)
+target_compile_definitions(quit PRIVATE BENCHMARK)
 
 add_executable(sabtree src/tree_analysis.cpp)
 target_compile_definitions(sabtree PRIVATE FAST_PATH)
