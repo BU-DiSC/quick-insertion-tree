@@ -1,8 +1,8 @@
 #ifndef BP_TREE_H
 #define BP_TREE_H
 
-#include <optional>
 #include <algorithm>
+#include <optional>
 
 #ifdef LOL_FAT
 #ifdef FAST_PATH
@@ -411,10 +411,13 @@ class bp_tree {
                 lol_move = true;  // move from head
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
-                size_t max_distance = IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, lol_size);
+                size_t max_distance = IKR::upper_bound(
+                    dist(fp_min, lol_prev_min), lol_prev_size, lol_size);
                 uint16_t outlier_pos = leaf.value_slot2(fp_min + max_distance);
                 if (outlier_pos <= SPLIT_LEAF_POS) {
-                    split_leaf_pos = outlier_pos;  // keep these good values on current lol and do not move
+                    split_leaf_pos =
+                        outlier_pos;  // keep these good values on current lol
+                                      // and do not move
                 } else {
                     // most of the values are certainly good
                     if (outlier_pos - 10 < SPLIT_LEAF_POS)
@@ -424,7 +427,8 @@ class bp_tree {
                     lol_move = true;  // also move lol
                 }
                 if (index < outlier_pos) {
-                    split_leaf_pos++;  // this key will be also in the current leaf
+                    split_leaf_pos++;  // this key will be also in the current
+                                       // leaf
                 }
             } else {
 #ifdef REDISTRIBUTE
@@ -496,6 +500,7 @@ class bp_tree {
 #ifdef TAIL_FAT
             fp_min = new_leaf.keys[0];
             fp_path[0] = new_leaf_id;
+            fp_id = new_leaf_id;
 #endif
         }
 #ifdef LOL_FAT
@@ -536,7 +541,7 @@ class bp_tree {
         return true;
     }
 
-public:
+   public:
     bp_tree(dist_f cmp, BlockManager &m)
         : manager(m)
 #ifdef LOL_RESET
@@ -628,7 +633,7 @@ public:
         if (lol_prev_id != INVALID_NODE_ID &&  // lol->prev info exist
                                                //            fp_id != head_id &&
                                                //            // fp_min is valid
-            fp_id != tail_id &&  // fp_max is valid
+            fp_id != tail_id &&                // fp_max is valid
             //            leaf.info->id != tail_id && // don't go to tail
             fp_max == leaf.keys[0] &&  // leaf is lol->next
             //            lol_prev_size >= IQR_SIZE_THRESH && lol_size >=
