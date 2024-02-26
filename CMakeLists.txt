@@ -22,6 +22,12 @@ target_compile_definitions(lol PRIVATE LOL_FAT)
 target_compile_definitions(lol PRIVATE INMEMORY)
 target_compile_definitions(lol PRIVATE BENCHMARK)
 
+add_executable(lol_r src/tree_analysis.cpp)
+target_compile_definitions(lol_r PRIVATE LOL_FAT)
+target_compile_definitions(lol_r PRIVATE LOL_RESET)
+target_compile_definitions(lol_r PRIVATE INMEMORY)
+target_compile_definitions(lol_r PRIVATE BENCHMARK)
+
 add_executable(lol_v src/tree_analysis.cpp)
 target_compile_definitions(lol_v PRIVATE LOL_FAT)
 target_compile_definitions(lol_v PRIVATE VARIABLE_SPLIT)

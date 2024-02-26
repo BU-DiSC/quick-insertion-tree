@@ -185,13 +185,13 @@ std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]"
-                  << std::endl;
+        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]" << std::endl;
         return -1;
     }
 
     auto config_file = "config.toml";
     auto tree_dat = "tree.dat";
+    auto results_csv = "results.csv";
 
     Config conf(config_file);
     BlockManager manager(tree_dat, conf.blocks_in_memory);
@@ -201,7 +201,8 @@ int main(int argc, char **argv) {
         std::cerr << "Reading " << argv[i] << std::endl;
         data.emplace_back(read_bin(argv[i]));
     }
-    std::ofstream results("results.csv", std::ofstream::app);
+    std::ofstream results(results_csv, std::ofstream::app);
+
     std::string name =
         ""
 #ifdef TAIL_FAT
@@ -225,6 +226,13 @@ int main(int argc, char **argv) {
 #endif
 #endif
         ;
+
+    if (name.empty()) {
+        name = "SIMPLE";
+    } else if (name == "LOL_REDISTRIBUTE_VARIABLE_RESET") {
+        name = "QUIT";
+    }
+
     for (unsigned i = 0; i < conf.runs; ++i) {
         manager.reset();
         // bp_tree<key_type, value_type> tree(cmp, manager);

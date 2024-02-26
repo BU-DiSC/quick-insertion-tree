@@ -2,6 +2,7 @@
 #define BP_TREE_H
 
 #include <optional>
+#include <algorithm>
 
 #ifdef LOL_FAT
 #ifdef FAST_PATH
@@ -410,33 +411,27 @@ class bp_tree {
                 lol_move = true;  // move from head
             } else if (lol_prev_size >= IQR_SIZE_THRESH) {
                 // If IQR has enough information
-                size_t d = dist(fp_min, lol_prev_min);
-                size_t max_distance =
-                    IKR::upper_bound(d, lol_prev_size, lol_size);
-                uint16_t outlier_pos = leaf.value_slot(fp_min + max_distance);
-                // 0 < split_leaf_pos <= node_t::leaf_capacity
-                //                if (key < leaf.keys[split_leaf_pos]) {
-                //                    ++split_leaf_pos;
-                //                }
+                size_t max_distance = IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, lol_size);
+                uint16_t outlier_pos = leaf.value_slot2(fp_min + max_distance);
                 if (outlier_pos <= SPLIT_LEAF_POS) {
-                    split_leaf_pos =
-                        outlier_pos;  // keep these good values on current lol
-                                      // and do not move
+                    split_leaf_pos = outlier_pos;  // keep these good values on current lol and do not move
                 } else {
                     // most of the values are certainly good
-                    split_leaf_pos =
-                        outlier_pos - 1;  // take one to the new leaf
-                    lol_move = true;      // also move lol
+                    if (outlier_pos - 10 < SPLIT_LEAF_POS)
+                        split_leaf_pos = SPLIT_LEAF_POS;
+                    else
+                        split_leaf_pos = outlier_pos - 10;
+                    lol_move = true;  // also move lol
                 }
                 if (index < outlier_pos) {
-                    split_leaf_pos++;  // this key will be also in the current
-                                       // leaf
+                    split_leaf_pos++;  // this key will be also in the current leaf
                 }
-//                split_leaf_pos = SPLIT_LEAF_POS;
-#ifdef REDISTRIBUTE
             } else {
+#ifdef REDISTRIBUTE
                 redistribute(leaf, index, key, value);
                 return true;
+#else
+                lol_move = true;
 #endif
             }
         }
@@ -541,7 +536,7 @@ class bp_tree {
         return true;
     }
 
-   public:
+public:
     bp_tree(dist_f cmp, BlockManager &m)
         : manager(m)
 #ifdef LOL_RESET
@@ -596,7 +591,11 @@ class bp_tree {
         node_t leaf;
 #ifdef FAST_PATH
 #ifdef PLOT_FAST
-        std::cout << key << ',' << ctr_fp << std::endl;
+        std::cout << key << ','
+                  << (fp_id != head_id ? std::to_string(fp_min) : "") << ','
+                  << (fp_id != tail_id ? std::to_string(fp_max) : "") << ','
+                  << (lol_prev_id != INVALID_NODE_ID ? "" : "INVALID")
+                  << std::endl;
 #endif
         if ((fp_id == head_id || fp_min <= key) &&
             (fp_id == tail_id || key < fp_max)) {
