@@ -1,5 +1,5 @@
 EXEC=$1
-D=5
+D=$2
 $EXEC -a 1 -b 1 -P 0 -S 1234 -N ${D}000000 -K 0 -L 0 -o workloads/${D}_0_0
 for K in 1 3 5 10 25 50; do
     L=100
