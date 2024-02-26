@@ -184,20 +184,23 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
 std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: ./tree_analysis <input_file> [<input_file>...]" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: ./tree_analysis <output_file> <input_file> "
+                     "[<input_file>...]"
+                  << std::endl;
         return -1;
     }
 
     auto config_file = "config.toml";
     auto tree_dat = "tree.dat";
-    auto results_csv = "results.csv";
+    auto results_csv = argv[1];
+    std::cout << "Writing results to: " << results_csv << std::endl;
 
     Config conf(config_file);
     BlockManager manager(tree_dat, conf.blocks_in_memory);
 
     std::vector<std::vector<key_type>> data;
-    for (int i = 1; i < argc; i++) {
+    for (int i = 2; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
         data.emplace_back(read_bin(argv[i]));
     }
@@ -242,7 +245,7 @@ int main(int argc, char **argv) {
             for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
                 results << (name.empty() ? "SIMPLE" : name) << ", "
-                        << argv[k + 1] << ", " << offset;
+                        << argv[k + 2] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();
