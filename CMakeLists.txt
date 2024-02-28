@@ -92,7 +92,7 @@ target_compile_definitions(sabtree PRIVATE SPDLOG_COUNTERS)
 target_compile_definitions(sabtree PRIVATE BENCHMARK)
 
 add_executable(sab_actual src/test_satree.cpp)
-# target_compile_definitions(sab_actual PRIVATE FAST_PATH)
+target_compile_definitions(sab_actual PRIVATE FAST_PATH)
 target_compile_definitions(sab_actual PRIVATE INMEMORY)
 target_compile_definitions(sab_actual PRIVATE OSMTIMER)
 target_compile_definitions(sab_actual PRIVATE SPLIT80)

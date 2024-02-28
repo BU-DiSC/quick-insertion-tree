@@ -2,21 +2,22 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <string>
 
 #include "bench_bptree.h"
 #include "bench_sabtree.h"
 #include "bptree/config.h"
 #include "index_bench.h"
 
-using key_type = unsigned;
-using value_type = unsigned;
+using key_type = double;
+using value_type = double;
 using namespace std;
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
     std::string line;
     std::ifstream ifs(filename);
     while (std::getline(ifs, line)) {
-        key_type key = std::stoul(line);
+        key_type key = std::stod(line);
         data.push_back(key);
     }
     return data;
@@ -58,7 +59,7 @@ void workload(index_bench::Index<key_type, value_type> *tree,
     unsigned mix_queries = 0;
     uint32_t ctr_empty = 0;
 
-    value_type idx = 0;
+    unsigned idx = 0;
     auto it = data.cbegin();
     std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -92,9 +93,11 @@ void workload(index_bench::Index<key_type, value_type> *tree,
 
             mix_inserts++;
         } else {
-            key_type query_index = generator() % idx + offset;
+            // key_type query_index = generator() % idx + offset;
+            unsigned query_index = generator() % idx + offset;
 
-            const bool res = tree->contains(query_index);
+            // const bool res = tree->contains(query_index);
+            const bool res = tree->contains(data[query_index]);
 
             ctr_empty += !res;
             mix_queries++;
@@ -213,7 +216,8 @@ int main(int argc, char **argv) {
     std::vector<std::vector<key_type>> data;
     for (int i = 3; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_bin(argv[i]));
+        // data.emplace_back(read_bin(argv[i]));
+        data.emplace_back(read_file(argv[i]));
     }
     string results_file = argv[2];
     std::ofstream results(results_file, std::ofstream::app);
