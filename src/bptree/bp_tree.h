@@ -636,17 +636,13 @@ class bp_tree {
             fp_id != tail_id &&                // fp_max is valid
             //            leaf.info->id != tail_id && // don't go to tail
             fp_max == leaf.keys[0] &&  // leaf is lol->next
-            //            lol_prev_size >= IQR_SIZE_THRESH && lol_size >=
-            //            IQR_SIZE_THRESH &&  // TODO: IQR doesn't have enough
-            //            values but this kinda works
-            dist(fp_max, fp_min) < IKR::upper_bound(dist(fp_min, lol_prev_min),
-                                                    lol_prev_size, lol_size)) {
+            // TODO: IQR doesn't have enough values but this kinda works
+            // lol_prev_size >= IQR_SIZE_THRESH && lol_size >= IQR_SIZE_THRESH &&
+            dist(fp_max, fp_min) < IKR::upper_bound(dist(fp_min, lol_prev_min), lol_prev_size, lol_size)) {
             // move lol to lol->next = leaf
             lol_prev_min = fp_min;
             lol_prev_size = lol_size;
-#ifdef REDISTRIBUTE
             lol_prev_id = fp_id;
-#endif
             fp_id = leaf.info->id;
             fp_min = fp_max;
             fp_max = leaf_max;
