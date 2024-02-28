@@ -197,9 +197,9 @@ void workload(index_bench::Index<key_type, value_type> *tree,
 std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
+    if (argc < 4) {
         std::cerr
-            << "Usage: ./tree_analysis <index> <input_file> [<input_file>...]"
+            << "Usage: ./tree_analysis <index> <results_file> <input_file> [<input_file>...]"
             << std::endl;
         return -1;
     }
@@ -211,11 +211,12 @@ int main(int argc, char **argv) {
     BlockManager manager(tree_dat, conf.blocks_in_memory);
 
     std::vector<std::vector<key_type>> data;
-    for (int i = 2; i < argc; i++) {
+    for (int i = 3; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
-        data.emplace_back(read_file(argv[i]));
+        data.emplace_back(read_bin(argv[i]));
     }
-    std::ofstream results("results-1.csv", std::ofstream::app);
+    string results_file = argv[2];
+    std::ofstream results(results_file, std::ofstream::app);
     std::string name =
         ""
 #ifdef TAIL_FAT
@@ -267,7 +268,7 @@ int main(int argc, char **argv) {
             for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
                 results << (name.empty() ? "SIMPLE" : name) << ", "
-                        << argv[k + 1] << ", " << offset;
+                        << argv[k + 3] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();
