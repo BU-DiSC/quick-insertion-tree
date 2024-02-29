@@ -106,8 +106,7 @@ class bp_tree {
                    MAX_DEPTH>;  // starts from leaf -> root and empty slots at
                                 // the end for the tree to grow
 
-    static constexpr uint16_t SPLIT_INTERNAL_POS =
-        node_t::internal_capacity / 2;
+    static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
     static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
     static constexpr node_id_t INVALID_NODE_ID = -1;
@@ -115,7 +114,7 @@ class bp_tree {
     dist_f dist;
 
     BlockManager &manager;
-    node_id_t root_id;
+    const node_id_t root_id;
     node_id_t head_id;
     node_id_t tail_id;
 #ifdef FAST_PATH
@@ -156,17 +155,33 @@ class bp_tree {
 #endif
 
     void create_new_root(const key_type &key, node_id_t node_id) {
-        node_id_t old_root_id = root_id;
-        root_id = manager.allocate();
+        node_id_t left_node_id = manager.allocate();
         node_t root;
-        root.init(manager.open_block(root_id), INTERNAL);
+        root.load(manager.open_block(root_id));
+        node_t left_node;
+        left_node.load(manager.open_block(left_node_id));
+        std::memcpy(left_node.info, root.info, BLOCK_SIZE_BYTES);
+        left_node.info->id = left_node_id;
+        manager.mark_dirty(left_node_id);
+
+        if (root.info->type == LEAF) {
+            root.to_internal();
+        }
         manager.mark_dirty(root_id);
-        root.info->id = root_id;
         root.info->size = 1;
         root.keys[0] = key;
-        root.children[0] = old_root_id;
+        root.children[0] = left_node_id;
         root.children[1] = node_id;
+        if (root_id == head_id) {
+            head_id = left_node_id;
+        }
 #ifdef FAST_PATH
+        if (fp_path[ctr_depth-1] == root_id) {
+            if (fp_id == root_id) {
+                fp_id = left_node_id;
+            }
+            fp_path[ctr_depth-1] = left_node_id;
+        }
         fp_path[ctr_depth] = root_id;
 #endif
         ctr_depth++;
@@ -218,8 +233,7 @@ class bp_tree {
     }
 #endif
 
-    void internal_insert(const path_t &path, key_type key, node_id_t child_id,
-                         uint16_t split_pos) {
+    void internal_insert(const path_t &path, key_type key, node_id_t child_id, uint16_t split_pos) {
         node_t node;
         for (uint8_t i = 1; i < ctr_depth; i++) {
             node_id_t node_id = path[i];
@@ -227,15 +241,12 @@ class bp_tree {
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_type::INTERNAL);
             uint16_t index = node.child_slot(key);
-            assert(index == node_t::internal_capacity ||
-                   node.keys[index] != key);
+            assert(index == node_t::internal_capacity || node.keys[index] != key);
             manager.mark_dirty(node_id);
             if (node.info->size < node_t::internal_capacity) {
                 // insert new key
-                std::memmove(node.keys + index + 1, node.keys + index,
-                             (node.info->size - index) * sizeof(key_type));
-                std::memmove(node.children + index + 2,
-                             node.children + index + 1,
+                std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
+                std::memmove(node.children + index + 2, node.children + index + 1,
                              (node.info->size - index) * sizeof(uint32_t));
                 node.keys[index] = key;
                 node.children[index + 1] = child_id;
@@ -543,7 +554,7 @@ class bp_tree {
 
    public:
     bp_tree(dist_f cmp, BlockManager &m)
-        : manager(m)
+        : manager(m), root_id(m.allocate())
 #ifdef LOL_RESET
           ,
           life(sqrt(node_t::leaf_capacity)),
@@ -551,7 +562,6 @@ class bp_tree {
 #endif
     {
         dist = cmp;
-        root_id = manager.allocate();
         head_id = tail_id = root_id;
 #ifdef FAST_PATH
         fp_id = root_id;
@@ -596,11 +606,7 @@ class bp_tree {
         node_t leaf;
 #ifdef FAST_PATH
 #ifdef PLOT_FAST
-        std::cout << key << ','
-                  << (fp_id != head_id ? std::to_string(fp_min) : "") << ','
-                  << (fp_id != tail_id ? std::to_string(fp_max) : "") << ','
-                  << (lol_prev_id != INVALID_NODE_ID ? "" : "INVALID")
-                  << std::endl;
+        std::cout << key << ',' << ctr_fp << std::endl;
 #endif
         if ((fp_id == head_id || fp_min <= key) &&
             (fp_id == tail_id || key < fp_max)) {

@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
     auto config_file = "config.toml";
     auto tree_dat = "tree.dat";
     auto results_csv = argv[1];
-    std::cout << "Writing results to: " << results_csv << std::endl;
+    std::cerr << "Writing results to: " << results_csv << std::endl;
 
     Config conf(config_file);
     BlockManager manager(tree_dat, conf.blocks_in_memory);

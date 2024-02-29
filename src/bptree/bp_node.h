@@ -50,6 +50,16 @@ public:
         }
     }
 
+    void to_leaf() {
+        info->type = LEAF;
+        values = reinterpret_cast<value_type *>(keys + leaf_capacity);
+    }
+
+    void to_internal() {
+        info->type = INTERNAL;
+        children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
+    }
+
     /**
      * Function finds suitable index where key can be placed in the current node
      * @param key
