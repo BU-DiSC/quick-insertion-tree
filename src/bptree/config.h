@@ -18,6 +18,9 @@ struct Config {
     unsigned runs = 1;
     unsigned repeat = 1;
     unsigned seed = 1234;
+    unsigned num_r_threads = 1;
+    unsigned num_w_threads = 1;
+    std::string results_csv = "results.csv";
 
     explicit Config(const char *file) {
         if (file == nullptr) return;
@@ -25,13 +28,10 @@ struct Config {
         std::ifstream infile(file);
         std::string line;
         while (std::getline(infile, line)) {
-            // delete whitespace from line
-            line.erase(std::remove_if(line.begin(), line.end(), isspace),
-                       line.end());
+            line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
             if (line.empty() || line[0] == '#') continue;
             std::string knob_name = line.substr(0, line.find('='));
-            std::string knob_value =
-                line.substr(knob_name.length() + 1, line.size());
+            std::string knob_value = line.substr(knob_name.length() + 1, line.size());
             if (knob_name == "BLOCKS_IN_MEMORY") {
                 blocks_in_memory = std::stoi(knob_value);
             } else if (knob_name == "RAW_READS_PERCENTAGE") {
@@ -56,6 +56,12 @@ struct Config {
                 seed = std::stoi(knob_value);
             } else if (knob_name == "MIXED_READ_PERCENTAGE") {
                 mixed_reads_perc = std::stoi(knob_value);
+            } else if (knob_name == "RESULTS_FILE") {
+                results_csv = knob_value.substr(1, knob_value.size() - 2);
+            } else if (knob_name == "NUM_R_THREADS") {
+                num_r_threads = std::stoi(knob_value);
+            } else if (knob_name == "NUM_W_THREADS") {
+                num_w_threads = std::stoi(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }

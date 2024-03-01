@@ -7,13 +7,14 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <atomic>
 
 struct Node {
     uint32_t id;
     const uint32_t pos;
     Node *prev, *next;
 
-    Node(uint32_t id, uint32_t pos) : id(id), pos(pos) {
+    Node(uint32_t _id, uint32_t _pos) : id(_id), pos(_pos) {
         prev = nullptr;
         next = nullptr;
     }
@@ -147,7 +148,7 @@ class DiskBlockManager {
     }
 
     const uint32_t capacity;
-    uint32_t next_block_id;
+    std::atomic<uint32_t> next_block_id;
     Block *internal_memory;
     LRUCache cache;
     int fd;
@@ -204,7 +205,7 @@ public:
 
     void flush() {
         // write dirty blocks back to disk
-        for (const auto &id: dirty_nodes) {
+        for (const auto &id : dirty_nodes) {
             uint32_t pos = cache.get(id);
             write_block(id, pos);
         }
@@ -251,6 +252,12 @@ public:
             read_block(id, pos);
         }
         return internal_memory[pos].block_buf;
+    }
+
+    // getter for capacity
+    uint32_t get_capacity() const
+    {
+        return capacity;
     }
 };
 

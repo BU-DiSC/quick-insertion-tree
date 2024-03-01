@@ -34,28 +34,9 @@ def plot(fname):
         plt.savefig(fname + '.png')
 
 
-def plot2(fname):
-    with open(fname) as file:
-        csv_reader = csv.reader(file)
-        keys = []
-        fast = []
-        for row in csv_reader:
-            if len(row) != 2:
-                print(row)
-                continue
-            keys.append(int(row[0]))
-            fast.append(int(row[1]))
-
-        plt.figure(figsize=(12, 6), dpi=200)
-        plt.scatter(range(len(keys)), keys, s=.1, label='key')
-        plt.plot(range(len(fast)), fast, label='fast')
-        plt.legend()
-        plt.savefig(fname + '.png')
-
-
 def main():
-    for f in ['simple', 'tail', 'lil', 'lol', 'lol_r', 'lol_v', 'lol_vr', 'quit']:
-        plot2(f'{f}.csv')
+    plot('lol_v.csv')
+    plot('quit.csv')
 
 
 if __name__ == '__main__':

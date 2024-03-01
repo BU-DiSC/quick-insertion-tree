@@ -41,6 +41,7 @@ def main():
             workload = f"{tokens[1]}_{tokens[2]}"
             k = int(tokens[1])
             l = int(tokens[2])
+            rr = int(rr)
             preload = int(preload)
             leaves = int(leaves)
             internal = int(internal)
@@ -51,6 +52,7 @@ def main():
             if tree not in data:
                 data[tree] = {
                     "WORKLOAD": [workload],
+                    "RR": [rr],
                     "K": [k],
                     "L": [l],
                     "PRELOAD": [preload],
@@ -63,6 +65,7 @@ def main():
                 }
             else:
                 data[tree]["WORKLOAD"].append(workload)
+                data[tree]["RR"].append(rr)
                 data[tree]["K"].append(k)
                 data[tree]["L"].append(l)
                 data[tree]["PRELOAD"].append(preload)
@@ -75,20 +78,46 @@ def main():
 
     for name in (
         "PRELOAD",
-        "LEAVES",
-        "INTERNAL",
-        "FAST",
-        "REDISTRIBUTE",
-        "SOFT_RESET",
-        "HARD_RESET",
+        # "LEAVES",
+        "RR",
+        # "INTERNAL",
+        # "FAST",
+        # "REDISTRIBUTE",
+        # "SOFT_RESET",
+        # "HARD_RESET",
     ):
         plt.figure(figsize=(12, 6), dpi=200)
         plt.title(name)
         for tree, group in data.items():
-            plt.plot(group["WORKLOAD"], group[name], label=tree)
+            if "#" not in tree:
+                plt.plot(group["WORKLOAD"], group[name], label=tree)
         plt.legend()
         plt.xticks(rotation=45)
         plt.savefig(f"{name}.png")
+        plt.clf()
+        import numpy as np
+
+        sortedness = ("0", "5", "25", "100")
+        values = {tree: group[name] for tree, group in data.items()}
+
+        x = np.arange(len(sortedness))  # the label locations
+        width = 0.05  # the width of the bars
+        multiplier = 0
+
+        fig, ax = plt.subplots(layout='constrained', figsize=(12, 6), dpi=200)
+
+        for attribute, measurement in values.items():
+            offset = width * multiplier
+            ax.bar(x + offset, measurement, width, label=attribute)
+            # ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        # ax.set_ylabel('Length (mm)')
+        # ax.set_title('Penguin attributes by sortedness')
+        ax.set_xticks(x + width, sortedness)
+        ax.legend(loc='upper left', ncols=3)
+        plt.savefig(f"{name}2.png")
         plt.clf()
 
 
