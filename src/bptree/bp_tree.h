@@ -246,7 +246,7 @@ class bp_tree {
         for (uint8_t i = locked; i > 0; --i) {
             auto node_id = fp_path[i].id;
             auto size = fp_path[i].size;
-            mutexes[node_id].try_lock();
+            mutexes[node_id].lock();
             if (size < node_t::internal_capacity) {
                 for (uint8_t j = locked; j > i; --j) {
                     auto temp_id = fp_path[j].id;
@@ -436,7 +436,7 @@ class bp_tree {
 #endif
 
     bool leaf_insert(node_t &leaf, const path_t &path, const key_type &key,
-                     const value_type &value) {
+                     const value_type &value, bool fast = false) {
         std::unique_lock leaf_lock(mutexes[leaf.info->id], std::adopt_lock);
         manager.mark_dirty(leaf.info->id);
         uint16_t index = leaf.value_slot(key);
@@ -475,7 +475,9 @@ class bp_tree {
 #ifdef VARIABLE_SPLIT
         bool fp_move = false;
         if (leaf.info->id == fp_id) {
-            lock_path();
+            if (fast) {
+                lock_path();
+            }
             // when splitting leaf, normally we would do it in the middle
             // but for fp we want to split it where IQR suggests
             if (fp_prev_id == INVALID_NODE_ID) {
@@ -707,7 +709,7 @@ public:
 #ifdef LOL_RESET
             life.success();
 #endif
-            return leaf_insert(leaf, fp_path, key, value);
+            return leaf_insert(leaf, fp_path, key, value, true);
         }
 #endif
 #ifdef LIL_FAT
@@ -760,7 +762,9 @@ public:
 #endif
         }
 #endif
+#ifdef FAST_PATH
         fp_lock.unlock();
+#endif
         return leaf_insert(leaf, path, key, value);
     }
 
