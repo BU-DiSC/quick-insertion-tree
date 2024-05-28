@@ -288,7 +288,7 @@ class bp_tree {
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_type::INTERNAL);
             uint16_t index = node.child_slot(key);
-            assert(index == node_t::internal_capacity || node.keys[index] != key);
+            assert(index == node.info->size || node.keys[index] != key);
             manager.mark_dirty(node_id);
             if (node.info->size < node_t::internal_capacity) {
                 // insert new key
@@ -436,7 +436,11 @@ class bp_tree {
 #endif
 
     bool leaf_insert(node_t &leaf, const path_t &path, const key_type &key,
-                     const value_type &value, bool fast = false) {
+                     const value_type &value
+#ifdef FAST_PATH
+    , bool fast = false
+#endif
+                     ) {
         std::unique_lock leaf_lock(mutexes[leaf.info->id], std::adopt_lock);
         manager.mark_dirty(leaf.info->id);
         uint16_t index = leaf.value_slot(key);
@@ -768,7 +772,7 @@ public:
         return leaf_insert(leaf, path, key, value);
     }
 
-    size_t top_k(size_t count, const key_type &min_key) const {
+    size_t select_k(size_t count, const key_type &min_key) const {
         assert(false);
         node_t leaf;
         find_leaf_shared(leaf, min_key);

@@ -26,6 +26,10 @@ struct Config {
         if (file == nullptr) return;
 
         std::ifstream infile(file);
+        if (!infile) {
+            std::cerr << "Error: could not open config file " << file << std::endl;
+            return;
+        }
         std::string line;
         while (std::getline(infile, line)) {
             line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());

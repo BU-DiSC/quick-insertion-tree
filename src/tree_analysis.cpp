@@ -91,130 +91,148 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     unsigned mix_queries = 0;
     uint32_t ctr_empty = 0;
 
+    results << ", ";
 //    std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
-    Line line(data, num_load);
-    auto start = std::chrono::high_resolution_clock::now();
-    {
-        std::vector<std::thread> threads;
+    if (num_load > 0) {
+        Line line(data, num_load);
+        auto start = std::chrono::high_resolution_clock::now();
+        {
+            std::vector<std::thread> threads;
 
-        for (int i = 0; i < conf.num_w_threads; ++i) {
-            threads.emplace_back(insert_worker, i, std::ref(tree), std::ref(line), std::ref(offset));
-        }
+            for (int i = 0; i < conf.num_w_threads; ++i) {
+                threads.emplace_back(insert_worker, i, std::ref(tree), std::ref(line), std::ref(offset));
+            }
 
-        for (auto &thread: threads) {
-            thread.join();
+            for (auto &thread: threads) {
+                thread.join();
+            }
         }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        results << duration.count();
     }
-    auto duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
     value_type idx = num_load;
 
     auto it = data.cbegin();
 //    std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    while (idx < num_load + raw_writes) {
-        tree.insert(*it++ + offset, idx++);
+    results << ", ";
+    if (raw_writes > 0) {
+        auto start = std::chrono::high_resolution_clock::now();
+        while (idx < num_load + raw_writes) {
+            tree.insert(*it++ + offset, idx++);
+        }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        results << duration.count();
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
 
 //    std::cerr << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
-        if (mix_queries >= mixed_reads ||
-            (mix_inserts < mixed_size && distribution(generator))) {
-            tree.insert(*it++ + offset, idx++);
+    results << ", ";
+    if (mixed_size > 0) {
+        auto start = std::chrono::high_resolution_clock::now();
+        while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
+            if (mix_queries >= mixed_reads ||
+                (mix_inserts < mixed_size && distribution(generator))) {
+                tree.insert(*it++ + offset, idx++);
 
-            mix_inserts++;
-        } else {
-            key_type query_index = generator() % idx + offset;
+                mix_inserts++;
+            } else {
+                key_type query_index = generator() % idx + offset;
 
-            const bool res = tree.contains(query_index);
+                const bool res = tree.contains(query_index);
 
-            ctr_empty += !res;
-            mix_queries++;
+                ctr_empty += !res;
+                mix_queries++;
+            }
         }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        results << duration.count();
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
 
 //    std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
     std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
-    std::vector<key_type> queries;
-    for (unsigned i = 0; i < raw_queries; i++) {
-        queries.emplace_back(data[range_distribution(generator) % data.size()]);
-    }
-    Line line2(queries, raw_queries);
-    start = std::chrono::high_resolution_clock::now();
-    {
-        std::vector<std::thread> threads;
-
-        for (int i = 0; i < conf.num_r_threads; ++i) {
-            threads.emplace_back(query_worker, i, std::ref(tree), std::ref(line2), std::ref(offset));
+    results << ", ";
+    if (raw_queries > 0) {
+        std::vector<key_type> queries;
+        for (unsigned i = 0; i < raw_queries; i++) {
+            queries.emplace_back(data[range_distribution(generator) % data.size()]);
         }
+        Line line(queries, raw_queries);
+        auto start = std::chrono::high_resolution_clock::now();
+        {
+            std::vector<std::thread> threads;
 
-        for (auto &thread: threads) {
-            thread.join();
+            for (int i = 0; i < conf.num_r_threads; ++i) {
+                threads.emplace_back(query_worker, i, std::ref(tree), std::ref(line), std::ref(offset));
+            }
+
+            for (auto &thread: threads) {
+                thread.join();
+            }
         }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        results << duration.count();
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
 
 //    std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    for (unsigned i = 0; i < updates; i++) {
-        tree.insert(data[range_distribution(generator) % data.size()] + offset,
-                    0);
+    results << ", ";
+    if (updates > 0) {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (unsigned i = 0; i < updates; i++) {
+            tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
+        }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        results << duration.count();
     }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count();
 
-    size_t leaf_accesses = 0;
-    size_t k = data.size() / 1000;
+    results << ", ";
+    if (conf.short_range > 0) {
+        size_t leaf_accesses = 0;
+        size_t k = data.size() / 1000;
 //    std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    for (unsigned i = 0; i < conf.short_range; i++) {
-        const key_type min_key =
-            data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
-    }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", ";
-    if (conf.short_range) {
-        results << (leaf_accesses - 1 + conf.short_range) /
-                       conf.short_range;  // ceil
+        auto start = std::chrono::high_resolution_clock::now();
+        for (unsigned i = 0; i < conf.short_range; i++) {
+            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            leaf_accesses += tree.select_k(k, min_key);
+        }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        auto accesses = (leaf_accesses - 1 + conf.mid_range) / conf.mid_range;  // ceil
+        results << duration.count() << ", " << accesses;
+    } else {
+        results << ", ";
     }
 
-    leaf_accesses = 0;
-    k = data.size() / 100;
+    results << ", ";
+    if (conf.mid_range > 0) {
+        size_t leaf_accesses = 0;
+        size_t k = data.size() / 100;
 //    std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    for (unsigned i = 0; i < conf.mid_range; i++) {
-        const key_type min_key =
-            data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
-    }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", ";
-    if (conf.mid_range) {
-        results << (leaf_accesses - 1 + conf.mid_range) /
-                       conf.mid_range;  // ceil
+        auto start = std::chrono::high_resolution_clock::now();
+        for (unsigned i = 0; i < conf.mid_range; i++) {
+            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            leaf_accesses += tree.select_k(k, min_key);
+        }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        auto accesses = (leaf_accesses - 1 + conf.mid_range) / conf.mid_range;  // ceil
+        results << duration.count() << ", " << accesses;
+    } else {
+        results << ", ";
     }
 
-    leaf_accesses = 0;
-    k = data.size() / 10;
+
+    results << ", ";
+    if (conf.mid_range > 0) {
+        size_t leaf_accesses = 0;
+        size_t k = data.size() / 10;
 //    std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
-    start = std::chrono::high_resolution_clock::now();
-    for (unsigned i = 0; i < conf.long_range; i++) {
-        const key_type min_key =
-            data[range_distribution(generator) % (data.size() - k)] + offset;
-        leaf_accesses += tree.top_k(k, min_key);
-    }
-    duration = std::chrono::high_resolution_clock::now() - start;
-    results << ", " << duration.count() << ", ";
-    if (conf.long_range) {
-        results << (leaf_accesses - 1 + conf.long_range) /
-                       conf.long_range;  // ceil
+        auto start = std::chrono::high_resolution_clock::now();
+        for (unsigned i = 0; i < conf.long_range; i++) {
+            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            leaf_accesses += tree.select_k(k, min_key);
+        }
+        auto duration = std::chrono::high_resolution_clock::now() - start;
+        auto accesses = (leaf_accesses - 1 + conf.long_range) / conf.long_range;  // ceil
+        results << duration.count() << ", " << accesses;
+    } else {
+        results << ", ";
     }
 
     results << ", " << ctr_empty << ", " << tree << "\n";
@@ -285,7 +303,7 @@ int main(int argc, char **argv) {
     } else if (name == "LOL_REDISTRIBUTE_VARIABLE_RESET") {
         name = "QUIT";
     }
-    std::cerr << name << conf.num_r_threads << std::endl;
+    std::cerr << name << '_' << conf.num_r_threads << '_' << conf.num_w_threads << std::endl;
 
     for (unsigned i = 0; i < conf.runs; ++i) {
         manager.reset();
@@ -295,7 +313,7 @@ int main(int argc, char **argv) {
         for (unsigned j = 0; j < conf.repeat; ++j) {
             for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
-                results << name << conf.num_r_threads << ", " << argv[k + 1] << ", " << offset;
+                results << name << '_' << conf.num_r_threads << '_' << conf.num_w_threads << ", " << argv[k + 1] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();

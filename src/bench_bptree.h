@@ -21,8 +21,8 @@ namespace index_bench {
             _tree.insert(key, value);
         }
 
-        size_t top_k(size_t count, const KEY_TYPE &min_key) override {
-            return _tree.top_k(count, min_key);
+        size_t select_k(size_t count, const KEY_TYPE &min_key) override {
+            return _tree.select_k(count, min_key);
         }
 
         void print(std::ostream &os) const override { os << _tree; }

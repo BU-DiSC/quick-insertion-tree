@@ -30,7 +30,7 @@ class InMemoryBlockManager {
 
     InMemoryBlockManager(const char *filepath, const uint32_t capacity)
         : capacity(capacity), next_block_id(0) {
-        std::cerr << "IN MEMORY" << std::endl;
+        std::cerr << "IN MEMORY (" << capacity << ')' << std::endl;
         internal_memory = new Block[capacity];
     }
 

@@ -11,7 +11,7 @@ namespace index_bench {
 
         virtual bool contains(KEY_TYPE key) = 0;
 
-        virtual size_t top_k(size_t count, const KEY_TYPE &min_key) = 0;
+        virtual size_t select_k(size_t count, const KEY_TYPE &min_key) = 0;
 
         virtual void print(std::ostream &str) const = 0;
 
