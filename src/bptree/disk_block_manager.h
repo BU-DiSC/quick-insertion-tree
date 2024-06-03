@@ -64,8 +64,6 @@ public:
     }
 
     Node *removeFromEnd() {
-        if (end == nullptr) return nullptr;
-
         Node *temp = end;
         if (end->prev) {
             end->prev->next = nullptr;
@@ -80,55 +78,44 @@ public:
 
 class LRUCache {
     const uint32_t capacity;
-    uint32_t size;
     LinkedList list;
     std::unordered_map<uint32_t, Node *> node_hash{};
 
 public:
 
-    explicit LRUCache(uint32_t cap) : capacity(cap), size(0) {}
+    explicit LRUCache(uint32_t cap) : capacity(cap) {}
 
     /**
      * Get a node from cache
      * @param id
      * @return position in internal memory
      */
-    uint32_t get(uint32_t id) {
-        auto it = node_hash.find(id);
-
-        if (it == node_hash.end()) {
-            return capacity;
+    std::pair<uint32_t, std::optional<uint32_t>> get(const uint32_t& key) {
+        auto it = node_hash.find(key);
+        if (it != node_hash.end()) {
+            list.moveToFront(it->second);
+            return {it->second->pos, std::nullopt};
         }
 
-        list.moveToFront(it->second);
-
-        return it->second->pos;
+        auto value = node_hash.size();
+        if (node_hash.size() < capacity) {
+            auto node = new Node(key, value);
+            list.addToFront(node);
+            node_hash[key] = node;
+            return {value, std::nullopt};
+        } else {
+            auto last = list.removeFromEnd();
+            node_hash.erase(last->id);
+            std::pair<uint32_t, uint32_t> res = {last->id, last->pos};
+            last->id = key;
+            list.addToFront(last);
+            node_hash[key] = last;
+            return res;
+        }
     }
 
-    /**
-     * Put a node in cache evicting the least recently used node if necessary
-     * @param id
-     * @param[out] pos
-     * @param[out] evicted_id
-     * @return true if an eviction occurred
-     */
-    bool put(uint32_t id, uint32_t &pos, uint32_t &evicted_id) {
-        Node *node;
-        bool eviction = size == capacity;
-        if (eviction) {
-            node = list.removeFromEnd();
-            evicted_id = node->id;
-            node_hash.erase(evicted_id);
-            node->id = id;
-        } else {
-            node = new Node(id, size);
-            size++;
-        }
-        pos = node->pos;
-        list.addToFront(node);
-        node_hash[id] = node;
-
-        return eviction;
+    bool contains(uint32_t id) {
+        return node_hash.find(id) != node_hash.end();
     }
 };
 
@@ -205,10 +192,18 @@ public:
     void flush() {
         // write dirty blocks back to disk
         for (const auto &id: dirty_nodes) {
-            uint32_t pos = cache.get(id);
+            auto [pos, evicted] = cache.get(id);
+            assert(!evicted.has_value());
             write_block(id, pos);
         }
         dirty_nodes.clear();
+    }
+
+    void reset() {
+        std::cerr << "size: " << next_block_id << std::endl;
+        next_block_id = 0;
+        cache.~LRUCache();
+        new(&cache) LRUCache(capacity);
     }
 
     /**
@@ -224,7 +219,7 @@ public:
      * @param id block id
      */
     void mark_dirty(uint32_t id) {
-        assert(cache.get(id) != capacity);
+//        assert(cache.contains(id));
         dirty_nodes.insert(id);
         ctr_mark_dirty++;
     }
@@ -235,13 +230,12 @@ public:
      * @return position of block in memory
      */
     void *open_block(uint32_t id) {
-        uint32_t pos = cache.get(id);
-        if (pos == capacity) {
-            uint32_t evicted_id;
-            bool eviction = cache.put(id, pos, evicted_id);
+        auto [pos, evicted] = cache.get(id);
+        if (evicted.has_value()) {
+            auto evicted_id = evicted.value();
 
             // write old block back to disk
-            if (eviction && dirty_nodes.find(evicted_id) != dirty_nodes.end()) {
+            if (dirty_nodes.find(evicted_id) != dirty_nodes.end()) {
                 // write block if dirty
                 write_block(evicted_id, pos);
                 dirty_nodes.erase(evicted_id);

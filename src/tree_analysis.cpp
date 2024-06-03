@@ -23,6 +23,7 @@ std::vector<key_type> read_file(const char *filename) {
 
 std::vector<key_type> read_bin(const char *filename) {
     std::ifstream inputFile(filename, std::ios::binary);
+    assert(inputFile.is_open());
     inputFile.seekg(0, std::ios::end);
     const std::streampos fileSize = inputFile.tellg();
     inputFile.seekg(0, std::ios::beg);
@@ -109,8 +110,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
     std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
     start = std::chrono::high_resolution_clock::now();
     for (unsigned i = 0; i < updates; i++) {
-        tree.insert(data[range_distribution(generator) % data.size()] + offset,
-                    0);
+        tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
     }
     duration = std::chrono::high_resolution_clock::now() - start;
     results << ", " << duration.count();
@@ -184,7 +184,7 @@ void workload(index_bench::BPTreeIndex<key_type, value_type> &tree,
 std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         std::cerr << "Usage: ./tree_analysis <output_file> <input_file> "
                      "[<input_file>...]"
                   << std::endl;
@@ -193,14 +193,15 @@ int main(int argc, char **argv) {
 
     auto config_file = "config.toml";
     auto tree_dat = "tree.dat";
-    auto results_csv = argv[1];
-    std::cerr << "Writing results to: " << results_csv << std::endl;
 
     Config conf(config_file);
     BlockManager manager(tree_dat, conf.blocks_in_memory);
 
+    auto results_csv = conf.results_csv;
+    std::cerr << "Writing results to: " << results_csv << std::endl;
+
     std::vector<std::vector<key_type>> data;
-    for (int i = 2; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
         data.emplace_back(read_bin(argv[i]));
     }
@@ -245,7 +246,7 @@ int main(int argc, char **argv) {
             for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
                 results << (name.empty() ? "SIMPLE" : name) << ", "
-                        << argv[k + 2] << ", " << offset;
+                        << argv[k + 1] << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();

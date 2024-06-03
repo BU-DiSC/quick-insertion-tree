@@ -7,6 +7,18 @@ enum bp_node_type {
     LEAF, INTERNAL
 };
 
+namespace ctr {
+    uint32_t load = 0;
+    uint32_t value_slot = 0;
+    uint32_t value_slot2 = 0;
+    uint32_t child_slot = 0;
+
+    std::ostream &log(std::ostream &os) {
+        os << ", " << load << ", " << value_slot << ", " << value_slot2 << ", " << child_slot;
+        return os;
+    }
+}
+
 template<typename node_id_type, typename key_type, typename value_type>
 class bp_node {
     struct node_info {
@@ -30,6 +42,7 @@ public:
     bp_node() = default;
 
     void load(void *buf) {
+        ++ctr::load;
         info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
         if (info->type == LEAF) {
@@ -67,18 +80,21 @@ public:
      */
     uint16_t value_slot(const key_type &key) const {
         assert(info->type == bp_node_type::LEAF);
+        ++ctr::value_slot;
         auto it = std::lower_bound(keys, keys + info->size, key);
         return std::distance(keys, it);
     }
 
     uint16_t value_slot2(const key_type &key) const {
         assert(info->type == bp_node_type::LEAF);
+        ++ctr::value_slot2;
         auto it = std::upper_bound(keys, keys + info->size, key);
         return std::distance(keys, it);
     }
 
     uint16_t child_slot(const key_type &key) const {
         assert(info->type == bp_node_type::INTERNAL);
+        ++ctr::child_slot;
         auto it = std::upper_bound(keys, keys + info->size, key);
         return std::distance(keys, it);
     }

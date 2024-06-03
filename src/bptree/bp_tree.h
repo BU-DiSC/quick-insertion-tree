@@ -3,8 +3,10 @@
 
 #include <algorithm>
 #include <optional>
+#include <cstring>
 
 #ifdef LOL_FAT
+#include <cmath>
 #ifdef FAST_PATH
 #error "FAST_PATH already defined"
 #endif
@@ -95,7 +97,7 @@ class bp_tree {
            << tree.ctr_fp
 #endif
             ;
-        return os;
+        return ctr::log(os);
     }
 
     using node_id_t = uint32_t;
@@ -241,7 +243,7 @@ class bp_tree {
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_type::INTERNAL);
             uint16_t index = node.child_slot(key);
-            assert(index == node_t::internal_capacity || node.keys[index] != key);
+            assert(index == node.info->size || node.keys[index] != key);
             manager.mark_dirty(node_id);
             if (node.info->size < node_t::internal_capacity) {
                 // insert new key

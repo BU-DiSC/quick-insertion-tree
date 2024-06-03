@@ -37,7 +37,7 @@ class InMemoryBlockManager {
     ~InMemoryBlockManager() { delete[] internal_memory; }
 
     void reset() {
-        memset(internal_memory, 0, (size_t)next_block_id * block_size);
+        // memset(internal_memory, 0, (size_t)next_block_id * block_size);
         next_block_id = 0;
     }
 
