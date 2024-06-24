@@ -1,5 +1,5 @@
 CXXFLAGS=-Isrc/bptree -std=c++17
-FLAGS= -DBENCHMARK -DINMEMORY
+FLAGS= -DINMEMORY
 TARGET=src/tree_analysis.cpp
 EXE_DIR=trees
 

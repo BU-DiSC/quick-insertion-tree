@@ -6,6 +6,14 @@
 #include <cstring>
 
 #ifdef LOL_FAT
+#ifdef REDISTRIBUTE
+#ifdef VARIABLE_SPLIT
+#ifdef LOL_RESET
+#define QUIT_FAT
+#endif
+#endif
+#endif
+
 #include <cmath>
 #ifdef FAST_PATH
 #error "FAST_PATH already defined"
@@ -68,52 +76,48 @@ struct reset_stats {
     void reset() { fails = 0; }
 };
 
-template <typename key_type, typename value_type>
+template<typename key_type, typename value_type>
 class bp_tree {
     friend std::ostream &operator<<(std::ostream &os, const bp_tree &tree) {
         os << tree.ctr_size << ", " << +tree.ctr_depth << ", " << tree.manager
            << ", " << tree.ctr_internal << ", " << tree.ctr_leaves << ", "
-#ifdef REDISTRIBUTE
+           #ifdef REDISTRIBUTE
            << tree.ctr_redistribute
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_split
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_iqr
-#endif
+           #endif
            << ", "
-#ifdef LOL_FAT
+           #ifdef LOL_FAT
            << tree.ctr_soft
-#endif
+           #endif
            << ", "
-#ifdef LOL_RESET
+           #ifdef LOL_RESET
            << tree.ctr_hard
-#endif
+           #endif
            << ", "
 #ifdef FAST_PATH
-           << tree.ctr_fp
+            << tree.ctr_fp
 #endif
-            ;
+                ;
         return ctr::log(os);
     }
 
     using node_id_t = uint32_t;
     using node_t = bp_node<node_id_t, key_type, value_type>;
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
-    using path_t =
-        std::array<node_id_t,
-                   MAX_DEPTH>;  // starts from leaf -> root and empty slots at
-                                // the end for the tree to grow
+    // starts from leaf -> root and empty slots at the end for the tree to grow
+    using path_t = std::array<node_id_t, MAX_DEPTH>;
 
     static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
     static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
     static constexpr uint16_t IQR_SIZE_THRESH = SPLIT_LEAF_POS;
     static constexpr node_id_t INVALID_NODE_ID = -1;
-
-    dist_f dist;
 
     BlockManager &manager;
     const node_id_t root_id;
@@ -125,6 +129,7 @@ class bp_tree {
     key_type fp_max;
     path_t fp_path;
 #ifdef LOL_FAT
+    dist_f dist;
     node_id_t lol_prev_id;
 #ifdef LOL_RESET
     reset_stats life;
@@ -554,16 +559,18 @@ class bp_tree {
         return true;
     }
 
-   public:
-    bp_tree(dist_f cmp, BlockManager &m)
-        : manager(m), root_id(m.allocate())
+#ifdef LOL_FAT
+    static std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
+#endif
+
+public:
+    explicit bp_tree(BlockManager &m) : manager(m), root_id(m.allocate())
 #ifdef LOL_RESET
           ,
           life(sqrt(node_t::leaf_capacity)),
           ctr_hard(0)
 #endif
     {
-        dist = cmp;
         head_id = tail_id = root_id;
 #ifdef FAST_PATH
         fp_id = root_id;
@@ -571,8 +578,8 @@ class bp_tree {
         fp_min = {};
         fp_max = {};
         ctr_fp = 0;
-#endif
 #ifdef LOL_FAT
+        dist = cmp;
         lol_prev_id = INVALID_NODE_ID;
         lol_prev_min = {};
         lol_prev_size = 0;
@@ -580,6 +587,7 @@ class bp_tree {
         ctr_split = 0;
         ctr_iqr = 0;
         ctr_soft = 0;
+#endif
 #endif
         node_t root;
         root.init(manager.open_block(root_id), LEAF);

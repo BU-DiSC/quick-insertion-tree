@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <optional>
 
 struct Node {
     uint32_t id;
@@ -182,9 +183,7 @@ public:
     }
 
     ~DiskBlockManager() {
-#ifndef BENCHMARK
         flush();
-#endif
         delete[] internal_memory;
         close(fd);
     }
