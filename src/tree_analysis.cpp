@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <atomic>
 
 #include "bptree/config.h"
 #include "bptree/bp_tree.h"
@@ -31,7 +32,42 @@ std::vector<key_type> read_bin(const char *filename) {
     return data;
 }
 
-// bp_tree<key_type, value_type> &tree,
+class Ticket {
+    std::atomic<unsigned> _idx;
+//    unsigned _idx;
+    const size_t size;
+public:
+    unsigned get() {
+        unsigned idx = _idx++;
+        return idx < size ? idx : size;
+    }
+
+    Ticket(size_t first, size_t size) : _idx(first), size(size) {}
+    explicit Ticket(size_t size) : _idx(0), size(size) {}
+};
+
+void insert_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, Ticket &line,
+                   const key_type &offset) {
+    auto idx = line.get();
+    const auto &size = data.size();
+    while (idx < size) {
+        const key_type &key = data[idx] + offset;
+        tree.insert(key, 0);
+        idx = line.get();
+    }
+}
+
+void query_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, Ticket &line,
+                  const key_type &offset) {
+    unsigned idx = line.get();
+    const auto &size = data.size();
+    while (idx < size) {
+        const key_type &key = data[idx];
+        tree.contains(key + offset);
+        idx = line.get();
+    }
+}
+
 void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const Config &conf,
               std::ofstream &results, const key_type &offset) {
     const unsigned num_inserts = data.size();
@@ -57,38 +93,36 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     unsigned mix_queries = 0;
     uint32_t ctr_empty = 0;
 
-    value_type idx = 0;
-    auto it = data.cbegin();
-
     results << ", ";
     if (num_load > 0) {
+        Ticket line(num_load);
         std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
-        while (idx < num_load) {
-            tree.insert(*it++ + offset, idx++);
-        }
+        insert_worker(tree, data, line, offset);
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
     }
 
     results << ", ";
     if (raw_writes > 0) {
+        Ticket line(num_load, num_load + raw_writes);
         std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
-        while (idx < num_load + raw_writes) {
-            tree.insert(*it++ + offset, idx++);
-        }
+        insert_worker(tree, data, line, offset);
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
     }
 
     results << ", ";
     if (mixed_size > 0) {
+        Ticket line(num_load + raw_writes, num_load + raw_writes + mixed_size);
         std::cerr << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
+            auto idx = line.get();
             if (mix_queries >= mixed_reads || (mix_inserts < mixed_size && distribution(generator))) {
-                tree.insert(*it++ + offset, idx++);
+                const key_type &key = data[idx] + offset;
+                tree.insert(key, idx++);
 
                 mix_inserts++;
             } else {
@@ -109,7 +143,8 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         std::cerr << "Raw read (" << raw_queries << "/" << num_inserts << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < raw_queries; i++) {
-            tree.contains(data[range_distribution(generator) % data.size()] + offset);
+            key_type key = data[range_distribution(generator) % data.size()] + offset;
+            tree.contains(key);
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
@@ -198,8 +233,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cerr << "Usage: ./tree_analysis <output_file> <input_file> "
-                     "[<input_file>...]" << std::endl;
+        std::cerr << "Usage: ./tree_analysis <input_file>..." << std::endl;
         return -1;
     }
 
@@ -228,25 +262,25 @@ int main(int argc, char **argv) {
             "SIMPLE"
 #else
 #ifdef QUIT_FAT
-            "QUIT"
+    "QUIT"
 #else
 #ifdef TAIL_FAT
-            "TAIL"
+    "TAIL"
 #else
 #ifdef LIL_FAT
-            "LIL"
+    "LIL"
 #else
 #ifdef LOL_FAT
-            "LOL"
-    #ifdef REDISTRIBUTE
-            "_REDISTRIBUTE"
-    #endif
-    #ifdef VARIABLE_SPLIT
-            "_VARIABLE"
-    #endif
-    #ifdef LOL_RESET
-            "_RESET"
-    #endif
+    "LOL"
+#ifdef REDISTRIBUTE
+    "_REDISTRIBUTE"
+#endif
+#ifdef VARIABLE_SPLIT
+    "_VARIABLE"
+#endif
+#ifdef LOL_RESET
+    "_RESET"
+#endif
 #endif
 #endif
 #endif

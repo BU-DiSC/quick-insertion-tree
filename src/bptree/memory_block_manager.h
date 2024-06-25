@@ -4,9 +4,11 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+
 #ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
 #endif
+
 #include <cstdint>
 
 struct Block {
@@ -14,8 +16,7 @@ struct Block {
 };
 
 class InMemoryBlockManager {
-    friend std::ostream &operator<<(std::ostream &os,
-                                    const InMemoryBlockManager &manager) {
+    friend std::ostream &operator<<(std::ostream &os, const InMemoryBlockManager &manager) {
         os << ", ";
         return os;
     }
@@ -24,11 +25,10 @@ class InMemoryBlockManager {
     uint32_t next_block_id;
     Block *internal_memory;
 
-   public:
+public:
     static constexpr uint32_t block_size = BLOCK_SIZE_BYTES;
 
-    InMemoryBlockManager(const char *filepath, const uint32_t capacity)
-        : capacity(capacity) {
+    InMemoryBlockManager(const char *filepath, const uint32_t capacity) : capacity(capacity) {
         std::cerr << "IN MEMORY" << std::endl;
         next_block_id = 0;
         internal_memory = new Block[capacity];
@@ -56,7 +56,8 @@ class InMemoryBlockManager {
      */
     void mark_dirty(uint32_t id) {}
 
-    [[nodiscard]] void *open_block(const uint32_t id) const {
+    [[nodiscard]]
+    void *open_block(const uint32_t id) const {
         return internal_memory[id].block_buf;
     }
 };
