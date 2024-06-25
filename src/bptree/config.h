@@ -21,6 +21,16 @@ struct Config {
     unsigned num_r_threads = 1;
     unsigned num_w_threads = 1;
     std::string results_csv = "results.csv";
+    bool binary_input = true;
+    bool validate = false;
+
+    static std::string str_val(const std::string &val) {
+        return val.substr(1, val.size() - 2);
+    }
+
+    static bool bool_val(const std::string &val) {
+        return val == "true";
+    }
 
     explicit Config(const char *file) {
         if (file == nullptr) return;
@@ -61,11 +71,15 @@ struct Config {
             } else if (knob_name == "MIXED_READ_PERCENTAGE") {
                 mixed_reads_perc = std::stoi(knob_value);
             } else if (knob_name == "RESULTS_FILE") {
-                results_csv = knob_value.substr(1, knob_value.size() - 2);
+                results_csv = str_val(knob_value);
             } else if (knob_name == "NUM_R_THREADS") {
                 num_r_threads = std::stoi(knob_value);
             } else if (knob_name == "NUM_W_THREADS") {
                 num_w_threads = std::stoi(knob_value);
+            } else if (knob_name == "BINARY_INPUT") {
+                binary_input = bool_val(knob_value);
+            } else if (knob_name == "VALIDATE") {
+                validate = bool_val(knob_value);
             } else {
                 std::cerr << "Invalid knob name: " << knob_name << std::endl;
             }

@@ -1,13 +1,24 @@
 #ifndef BP_TREE_H
 #define BP_TREE_H
 
+#include <algorithm>
 #include <optional>
+#include <cstring>
 #include <shared_mutex>
 #include <mutex>
 #include <vector>
 #include <cassert>
 
 #ifdef LOL_FAT
+#ifdef REDISTRIBUTE
+#ifdef VARIABLE_SPLIT
+#ifdef LOL_RESET
+#define QUIT_FAT
+#endif
+#endif
+#endif
+
+#include <cmath>
 #ifdef FAST_PATH
 #error "FAST_PATH already defined"
 #endif
@@ -621,8 +632,12 @@ class bp_tree {
         return true;
     }
 
+#ifdef LOL_FAT
+    static std::size_t cmp(const key_type &max, const key_type &min) { return max - min; }
+#endif
+
 public:
-    bp_tree(dist_f cmp, BlockManager &m)
+    bp_tree(BlockManager &m)
             : manager(m), mutexes(m.get_capacity()), root_id(m.allocate())
 #ifdef LOL_RESET
             ,
@@ -630,7 +645,6 @@ public:
               ctr_hard(0)
 #endif
     {
-        dist = cmp;
         head_id = tail_id = root_id;
 #ifdef FAST_PATH
         fp_id = root_id;
@@ -640,6 +654,7 @@ public:
         ctr_fp = 0;
 #endif
 #ifdef LOL_FAT
+        dist = cmp;
         fp_prev_id = INVALID_NODE_ID;
         fp_prev_min = {};
         fp_prev_size = 0;
