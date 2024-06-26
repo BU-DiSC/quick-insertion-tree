@@ -4,7 +4,19 @@
 #include <algorithm>
 #include <optional>
 #include <cstring>
+
+#ifdef ATOMIC_LOCK
+
+#include "atm.h"
+using atm::shared_mutex;
+
+#else
+
 #include <shared_mutex>
+using std::shared_mutex;
+
+#endif
+
 #include <mutex>
 #include <vector>
 #include <cassert>
@@ -131,12 +143,12 @@ class bp_tree {
     dist_f dist;
 
     BlockManager &manager;
-    mutable std::vector<std::shared_mutex> mutexes;
+    mutable std::vector<shared_mutex> mutexes;
     const node_id_t root_id;
     node_id_t head_id;
     node_id_t tail_id;
 #ifdef FAST_PATH
-    mutable std::shared_mutex fp_mutex;
+    mutable shared_mutex fp_mutex;
     node_id_t fp_id;
     key_type fp_min;
     key_type fp_max;
@@ -686,29 +698,6 @@ public:
         find_leaf_exclusive(leaf, path, key, leaf_max);
         return leaf_insert(leaf, path, key, value);
     }
-
-    std::string status() const {
-        std::string res;
-        for (int i = 0; i < ctr_leaves + ctr_internal; i++) {
-            if (mutexes[i].try_lock()) {
-                mutexes[i].unlock();
-            } else {
-                res += std::to_string(i) + " ";
-            }
-        }
-        return res;
-    }
-
-    struct Status {
-        const bp_tree *tree;
-        Status(const bp_tree *tree) : tree(tree) {}
-        ~Status() {
-            std::string res = tree->status();
-            if (!res.empty()) {
-                std::cout << "Error: " << res << std::endl;
-            }
-        }
-    };
 
     bool insert(const key_type &key, const value_type &value) {
 //        Status s(this);
