@@ -9,7 +9,7 @@ struct Config {
     size_t blocks_in_memory = 15000;
     unsigned raw_read_perc = 0;
     unsigned raw_write_perc = 0;
-    unsigned mix_load_perc = 0;
+    unsigned mixed_writes_perc = 0;
     unsigned mixed_reads_perc = 0;
     unsigned updates_perc = 0;
     unsigned short_range = 0;
@@ -52,8 +52,10 @@ struct Config {
                 raw_read_perc = std::stoi(knob_value);
             } else if (knob_name == "RAW_WRITES_PERCENTAGE") {
                 raw_write_perc = std::stoi(knob_value);
-            } else if (knob_name == "MIXED_LOAD_PERCENTAGE") {
-                mix_load_perc = std::stoi(knob_value);
+            } else if (knob_name == "MIXED_WRITES_PERCENTAGE") {
+                mixed_writes_perc = std::stoi(knob_value);
+            } else if (knob_name == "MIXED_READ_PERCENTAGE") {
+                mixed_reads_perc = std::stoi(knob_value);
             } else if (knob_name == "UPDATES_PERCENTAGE") {
                 updates_perc = std::stoi(knob_value);
             } else if (knob_name == "SHORT_RANGE_QUERIES") {
@@ -68,8 +70,6 @@ struct Config {
                 repeat = std::stoi(knob_value);
             } else if (knob_name == "SEED") {
                 seed = std::stoi(knob_value);
-            } else if (knob_name == "MIXED_READ_PERCENTAGE") {
-                mixed_reads_perc = std::stoi(knob_value);
             } else if (knob_name == "RESULTS_FILE") {
                 results_csv = str_val(knob_value);
             } else if (knob_name == "NUM_R_THREADS") {

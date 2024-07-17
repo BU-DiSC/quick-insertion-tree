@@ -36,7 +36,6 @@ std::vector<key_type> read_bin(const char *filename) {
 
 class Ticket {
     std::atomic<unsigned> _idx;
-//    unsigned _idx;
     const size_t size;
 public:
     unsigned get() {
@@ -47,6 +46,10 @@ public:
     Ticket(size_t first, size_t size) : _idx(first), size(size) {}
     explicit Ticket(size_t size) : _idx(0), size(size) {}
 };
+
+unsigned hash(unsigned num) {
+    return (num >> 1) + (num & 1) * 48;
+}
 
 void insert_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, Ticket &line,
                    const key_type &offset) {
@@ -75,36 +78,33 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     const unsigned num_inserts = data.size();
     const unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
     const unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
-    const unsigned mixed_size = conf.mix_load_perc / 100.0 * num_inserts;
-    /*
-     * mixed reads is a percentage of the mixed size.
-     * E.g., if we are going to do 20% of writes (from the total workload) in the mixed r-w phase for say 100M entries,
-     * then mixed_size = 20M = 20% of 100M = total writes in mixed phase.
-     * Now, if we define a read-write ratio of 90:10, then 10% writes = 20M,
-     * so 90% = 20M/10 * 90 = 180M reads= mixed_size/(100-mixed_reads_perc) * mixed_reads_perc
-     */
-    const unsigned mixed_reads = mixed_size / (100 - conf.mixed_reads_perc) * conf.mixed_reads_perc;
+    const unsigned mixed_writes = conf.mixed_writes_perc / 100.0 * num_inserts;
+    const unsigned mixed_reads = conf.mixed_reads_perc / 100.0 * num_inserts;
     const unsigned updates = conf.updates_perc / 100.0 * num_inserts;
-    const unsigned num_load = num_inserts - raw_writes - mixed_size;
+    assert(num_inserts >= raw_writes + mixed_writes);
+    const unsigned num_load = num_inserts - raw_writes - mixed_writes;
 
     std::mt19937 generator(conf.seed);
-    std::uniform_int_distribution distribution(0, 1);
-    std::uniform_int_distribution<unsigned> range_distribution(0, num_inserts - 1);
-
-    unsigned mix_inserts = 0;
-    unsigned mix_queries = 0;
     uint32_t ctr_empty = 0;
 
     results << ", ";
     if (num_load > 0) {
         Ticket line(num_load);
-        std::cerr << "Preloading (" << num_load << "/" << num_inserts << ")\n";
+        std::cerr << "Preloading (" << num_load << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         {
             std::vector<std::thread> threads;
 
             for (int i = 0; i < conf.num_w_threads; ++i) {
                 threads.emplace_back(insert_worker, std::ref(tree), std::ref(data), std::ref(line), std::ref(offset));
+
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                CPU_SET(hash(i), &cpuset);
+                int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+                if (rc != 0) {
+                    std::cerr << "Error calling pthread_setaffinity_np: " << rc << '\n';
+                }
             }
 
             for (auto &thread: threads) {
@@ -114,13 +114,11 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
     }
-    value_type idx = num_load;
 
-    auto it = data.cbegin();
     results << ", ";
     if (raw_writes > 0) {
         Ticket line(num_load, num_load + raw_writes);
-        std::cerr << "Raw write (" << raw_writes << "/" << num_inserts << ")\n";
+        std::cerr << "Raw write (" << raw_writes << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         insert_worker(tree, data, line, offset);
         auto duration = std::chrono::high_resolution_clock::now() - start;
@@ -128,15 +126,18 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     }
 
     results << ", ";
-    if (mixed_size > 0) {
-        Ticket line(num_load + raw_writes, num_load + raw_writes + mixed_size);
-        std::cerr << "Mixed load (2*" << mixed_size << "/" << num_inserts << ")\n";
+    if (mixed_writes > 0 || mixed_reads > 0) {
+        std::uniform_int_distribution coin(0, 1);
+        unsigned mix_inserts = 0;
+        unsigned mix_queries = 0;
+        Ticket line(num_load + raw_writes, num_load + raw_writes + mixed_writes);
+        std::cerr << "Mixed load (" << mixed_reads << '+' << mixed_writes << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
-        while (mix_inserts < mixed_size || mix_queries < mixed_reads) {
+        while (mix_inserts < mixed_writes || mix_queries < mixed_reads) {
             auto idx = line.get();
-            if (mix_queries >= mixed_reads || (mix_inserts < mixed_size && distribution(generator))) {
+            if (mix_queries >= mixed_reads || (mix_inserts < mixed_writes && coin(generator))) {
                 const key_type &key = data[idx] + offset;
-                tree.insert(key, idx++);
+                tree.insert(key, idx);
 
                 mix_inserts++;
             } else {
@@ -155,8 +156,9 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (raw_queries > 0) {
         std::vector<key_type> queries;
+        std::uniform_int_distribution<unsigned> index(0, num_inserts - 1);
         for (unsigned i = 0; i < raw_queries; i++) {
-            queries.emplace_back(data[range_distribution(generator) % data.size()]);
+            queries.emplace_back(data[index(generator)]);
         }
         Ticket line(raw_queries);
         auto start = std::chrono::high_resolution_clock::now();
@@ -165,6 +167,14 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
             for (int i = 0; i < conf.num_r_threads; ++i) {
                 threads.emplace_back(query_worker, std::ref(tree), std::ref(queries), std::ref(line), std::ref(offset));
+
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                CPU_SET(hash(i), &cpuset);
+                int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+                if (rc != 0) {
+                    std::cerr << "Error calling pthread_setaffinity_np: " << rc << '\n';
+                }
             }
 
             for (auto &thread: threads) {
@@ -177,10 +187,11 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     results << ", ";
     if (updates > 0) {
-        std::cerr << "Updates (" << updates << "/" << num_inserts << ")\n";
+        std::cerr << "Updates (" << updates << ")\n";
+        std::uniform_int_distribution<unsigned> index(0, num_inserts - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < updates; i++) {
-            tree.insert(data[range_distribution(generator) % data.size()] + offset, 0);
+            tree.insert(data[index(generator)] + offset, 0);
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
@@ -189,11 +200,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (conf.short_range > 0) {
         size_t leaf_accesses = 0;
-        size_t k = data.size() / 1000;
+        size_t k = num_inserts / 1000;
         std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
+        std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.short_range; i++) {
-            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            const key_type min_key = data[index(generator)] + offset;
             leaf_accesses += tree.select_k(k, min_key);
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
@@ -206,11 +218,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (conf.mid_range > 0) {
         size_t leaf_accesses = 0;
-        size_t k = data.size() / 100;
-//    std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
+        size_t k = num_inserts / 100;
+        std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
+        std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.mid_range; i++) {
-            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            const key_type min_key = data[index(generator)] + offset;
             leaf_accesses += tree.select_k(k, min_key);
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
@@ -224,11 +237,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (conf.long_range > 0) {
         size_t leaf_accesses = 0;
-        size_t k = data.size() / 10;
+        size_t k = num_inserts / 10;
         std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
+        std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.long_range; i++) {
-            const key_type min_key = data[range_distribution(generator) % (data.size() - k)] + offset;
+            const key_type min_key = data[index(generator)] + offset;
             leaf_accesses += tree.select_k(k, min_key);
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;

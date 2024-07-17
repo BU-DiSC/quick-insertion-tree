@@ -16,13 +16,11 @@ namespace atm {
 
         void lock_shared() {
             while (true) {
-                unsigned int expected = state.load(std::memory_order_acquire);
-                if (expected != LOCKED) {
-                    if (state.compare_exchange_weak(expected, expected + 1, std::memory_order_acquire))
-                        break;
-                } else {
-                    std::this_thread::yield();
+                numeric_type expected = state.load(std::memory_order_acquire);
+                if (expected != LOCKED && state.compare_exchange_weak(expected, expected + 1, std::memory_order_acquire)) {
+                    break;
                 }
+//                std::this_thread::yield();
             }
         }
 
@@ -32,10 +30,11 @@ namespace atm {
 
         void lock() {
             while (true) {
-                unsigned int expected = 0;
-                if (state.compare_exchange_weak(expected, LOCKED, std::memory_order_acquire))
+                numeric_type expected = 0;
+                if (state.compare_exchange_weak(expected, LOCKED, std::memory_order_acquire)) {
                     break;
-                std::this_thread::yield();
+                }
+//                std::this_thread::yield();
             }
         }
 

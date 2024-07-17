@@ -5,6 +5,7 @@
 #include <optional>
 #include <cstring>
 
+#define ATOMIC_LOCK
 #ifdef ATOMIC_LOCK
 
 #include "atm.h"
@@ -76,8 +77,7 @@ struct reset_stats {
     std::atomic<uint8_t> fails;
     const uint8_t threshold;
 
-    explicit reset_stats(uint8_t t) : threshold(t) {
-        fails = 0;
+    explicit reset_stats(uint8_t t) : threshold(t), fails(0) {
     }
 
     void success() { fails = 0; }
@@ -167,7 +167,7 @@ class bp_tree {
 
     // stats
     std::atomic<uint32_t> ctr_size;
-    std::atomic<uint8_t> ctr_depth;  // path[ctr_depth - 1] is the root
+    std::atomic<uint8_t> ctr_depth;
     std::atomic<uint32_t> ctr_internal;
     std::atomic<uint32_t> ctr_leaves;
 #ifdef FAST_PATH
@@ -207,6 +207,7 @@ class bp_tree {
             head_id = left_node_id;
         }
         uint8_t depth = ctr_depth;
+        assert(depth + 1 < MAX_DEPTH);
 #ifdef FAST_PATH
         if (fp_path[depth-1].id == root_id) {
             if (fp_id == root_id) {
@@ -216,7 +217,6 @@ class bp_tree {
         }
         fp_path[depth] = {root_id, 1};
 #endif
-        assert(depth + 1 < MAX_DEPTH);
         ctr_depth.fetch_add(1);
         ctr_internal.fetch_add(1, std::memory_order_relaxed);
         mutexes[root_id].unlock();
@@ -243,7 +243,6 @@ class bp_tree {
         uint8_t i = ctr_depth - 1;
         uint8_t locked = i;
         path[i] = {root_id, node.info->size};
-        path[ctr_depth] = {INVALID_NODE_ID, 0};
         while (node.info->type == bp_node_type::INTERNAL) {
             uint16_t slot = node.child_slot(key);
             if (slot != node.info->size) {
@@ -304,9 +303,9 @@ class bp_tree {
 
     void internal_insert(const path_t &path, key_type key, node_id_t child_id, uint16_t split_pos) {
         node_t node;
-        uint8_t depth = ctr_depth;
-        for (uint8_t i = 1; i < depth; i++) {
-            node_id_t node_id = path[i].id;
+        uint8_t i = 1;
+        while(true) {
+            node_id_t node_id = path[i++].id;
             node.load(manager.open_block(node_id));
             assert(node.info->id == node_id);
             assert(node.info->type == bp_node_type::INTERNAL);
@@ -387,10 +386,11 @@ class bp_tree {
                 fp_path[i] = {new_node_id, new_node.info->size};
             }
 #endif
-            if (node_id != root_id) {
-                mutexes[node_id].unlock();
-            }
             child_id = new_node_id;
+            if (node_id == root_id) {
+                break;
+            }
+            mutexes[node_id].unlock();
         }
         create_new_root(key, child_id);
     }
@@ -401,8 +401,7 @@ class bp_tree {
         assert(fp_prev_id != INVALID_NODE_ID);
         ctr_redistribute.fetch_add(1, std::memory_order_relaxed);
         // move values from leaf to leaf prev
-        uint16_t items =
-                IQR_SIZE_THRESH - fp_prev_size;  // items to be moved to fp prev
+        uint16_t items = IQR_SIZE_THRESH - fp_prev_size;  // items to be moved to fp prev
         manager.mark_dirty(fp_prev_id);
         node_t fp_prev;
         fp_prev.load(manager.open_block(fp_prev_id));
@@ -588,7 +587,7 @@ class bp_tree {
                         (node_t::leaf_capacity - index) * sizeof(value_type));
 #ifdef LIL_FAT
             if (leaf.info->id == fp_id) {
-                fp_id = new_leaf.info->id;
+                fp_id = new_leaf_id;
                 // if we insert to right split node, we set leaf min
                 fp_min = new_leaf.keys[0];
                 fp_path[0] = {fp_id, new_leaf.info->size};
@@ -636,11 +635,12 @@ class bp_tree {
 #endif
         if (leaf.info->id == root_id) {
             leaf_lock.release();
+            create_new_root(new_leaf.keys[0], new_leaf_id);
         } else {
             leaf_lock.unlock();
+            // insert new key to parent
+            internal_insert(path, new_leaf.keys[0], new_leaf_id, SPLIT_INTERNAL_POS);
         }
-        // insert new key to parent
-        internal_insert(path, new_leaf.keys[0], new_leaf_id, SPLIT_INTERNAL_POS);
         return true;
     }
 
@@ -649,12 +649,10 @@ class bp_tree {
 #endif
 
 public:
-    bp_tree(BlockManager &m)
-            : manager(m), mutexes(m.get_capacity()), root_id(m.allocate())
+    explicit bp_tree(BlockManager &m) : manager(m), mutexes(m.get_capacity()), root_id(m.allocate()), ctr_size(0),
+                                        ctr_depth(1), ctr_internal(0), ctr_leaves(1)
 #ifdef LOL_RESET
-            ,
-              life(sqrt(node_t::leaf_capacity)),
-              ctr_hard(0)
+            , life(sqrt(node_t::leaf_capacity)), ctr_hard(0)
 #endif
     {
         head_id = tail_id = root_id;
@@ -682,10 +680,6 @@ public:
         root.info->next_id = root_id;
         root.info->size = 0;
 
-        ctr_size = 0;
-        ctr_depth = 1;
-        ctr_internal = 0;
-        ctr_leaves = 1;
 #ifdef REDISTRIBUTE
         ctr_redistribute = 0;
 #endif
