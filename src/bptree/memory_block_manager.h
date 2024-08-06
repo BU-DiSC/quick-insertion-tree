@@ -5,9 +5,11 @@
 #include <cstring>
 #include <atomic>
 #include <iostream>
+
 #ifndef BLOCK_SIZE_BYTES
 #define BLOCK_SIZE_BYTES 4096
 #endif
+
 #include <cstdint>
 
 struct Block {
@@ -15,8 +17,7 @@ struct Block {
 };
 
 class InMemoryBlockManager {
-    friend std::ostream &operator<<(std::ostream &os,
-                                    const InMemoryBlockManager &manager) {
+    friend std::ostream &operator<<(std::ostream &os, const InMemoryBlockManager &) {
         os << ", ";
         return os;
     }
@@ -25,12 +26,10 @@ class InMemoryBlockManager {
     std::atomic<uint32_t> next_block_id;
     Block *internal_memory;
 
-   public:
+public:
     static constexpr size_t block_size = BLOCK_SIZE_BYTES;
 
-    InMemoryBlockManager(const char *filepath, const uint32_t capacity)
-        : capacity(capacity), next_block_id(0) {
-        std::cerr << "IN MEMORY (" << capacity << ')' << std::endl;
+    InMemoryBlockManager(const char *, const uint32_t cap) : capacity(cap), next_block_id(0) {
         internal_memory = new Block[capacity];
     }
 
@@ -52,15 +51,13 @@ class InMemoryBlockManager {
      * Mark a block as dirty
      * @param id block id
      */
-    void mark_dirty(uint32_t id) {}
+    void mark_dirty(uint32_t) {}
 
     [[nodiscard]] void *open_block(const uint32_t id) const {
         return internal_memory[id].block_buf;
     }
 
-    [[nodiscard]]
-    uint32_t get_capacity() const
-    {
+    [[nodiscard]] uint32_t get_capacity() const {
         return capacity;
     }
 };

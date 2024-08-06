@@ -29,6 +29,10 @@ public:
 
     bp_node() = default;
 
+    explicit bp_node(void *buf) {
+        load(buf);
+    }
+
     void load(void *buf) {
         info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
@@ -39,7 +43,7 @@ public:
         }
     }
 
-    void init(void *buf, const bp_node_type &type) {
+    bp_node(void *buf, const bp_node_type &type) {
         info = static_cast<node_info *>(buf);
         keys = reinterpret_cast<key_type *>(info + 1);
         info->type = type;
@@ -48,16 +52,6 @@ public:
         } else {
             children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
         }
-    }
-
-    void to_leaf() {
-        info->type = LEAF;
-        values = reinterpret_cast<value_type *>(keys + leaf_capacity);
-    }
-
-    void to_internal() {
-        info->type = INTERNAL;
-        children = reinterpret_cast<node_id_type *>(keys + internal_capacity);
     }
 
     /**

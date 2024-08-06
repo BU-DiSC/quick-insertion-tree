@@ -6,7 +6,7 @@
 #include <iostream>
 
 struct Config {
-    size_t blocks_in_memory = 15000;
+    unsigned blocks_in_memory = 15000;
     unsigned raw_read_perc = 0;
     unsigned raw_write_perc = 0;
     unsigned mixed_writes_perc = 0;
@@ -18,8 +18,7 @@ struct Config {
     unsigned runs = 1;
     unsigned repeat = 1;
     unsigned seed = 1234;
-    unsigned num_r_threads = 1;
-    unsigned num_w_threads = 1;
+    unsigned num_threads = 1;
     std::string results_csv = "results.csv";
     bool binary_input = true;
     bool validate = false;
@@ -72,10 +71,8 @@ struct Config {
                 seed = std::stoi(knob_value);
             } else if (knob_name == "RESULTS_FILE") {
                 results_csv = str_val(knob_value);
-            } else if (knob_name == "NUM_R_THREADS") {
-                num_r_threads = std::stoi(knob_value);
-            } else if (knob_name == "NUM_W_THREADS") {
-                num_w_threads = std::stoi(knob_value);
+            } else if (knob_name == "NUM_THREADS") {
+                num_threads = std::stoi(knob_value);
             } else if (knob_name == "BINARY_INPUT") {
                 binary_input = bool_val(knob_value);
             } else if (knob_name == "VALIDATE") {

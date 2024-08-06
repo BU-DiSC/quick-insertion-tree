@@ -35,16 +35,16 @@ std::vector<key_type> read_bin(const char *filename) {
 }
 
 class Ticket {
-    std::atomic<unsigned> _idx;
-    const size_t size;
+    std::atomic<size_t> _idx;
+    const size_t _size;
 public:
     unsigned get() {
         unsigned idx = _idx++;
-        return idx < size ? idx : size;
+        return idx < _size ? idx : _size;
     }
 
-    Ticket(size_t first, size_t size) : _idx(first), size(size) {}
-    explicit Ticket(size_t size) : _idx(0), size(size) {}
+    Ticket(size_t first, size_t size) : _idx(first), _size(size) {}
+    explicit Ticket(size_t size) : Ticket(0, size) {}
 };
 
 unsigned hash(unsigned num) {
@@ -90,12 +90,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (num_load > 0) {
         Ticket line(num_load);
-        std::cerr << "Preloading (" << num_load << ")\n";
+        std::cout << "Preloading (" << num_load << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         {
-            std::vector<std::thread> threads;
+            std::vector<std::jthread> threads;
 
-            for (int i = 0; i < conf.num_w_threads; ++i) {
+            for (unsigned i = 0; i < conf.num_threads; ++i) {
                 threads.emplace_back(insert_worker, std::ref(tree), std::ref(data), std::ref(line), std::ref(offset));
 
                 cpu_set_t cpuset;
@@ -106,10 +106,6 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
                     std::cerr << "Error calling pthread_setaffinity_np: " << rc << '\n';
                 }
             }
-
-            for (auto &thread: threads) {
-                thread.join();
-            }
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
@@ -118,7 +114,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
     if (raw_writes > 0) {
         Ticket line(num_load, num_load + raw_writes);
-        std::cerr << "Raw write (" << raw_writes << ")\n";
+        std::cout << "Raw write (" << raw_writes << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         insert_worker(tree, data, line, offset);
         auto duration = std::chrono::high_resolution_clock::now() - start;
@@ -131,7 +127,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
         unsigned mix_inserts = 0;
         unsigned mix_queries = 0;
         Ticket line(num_load + raw_writes, num_load + raw_writes + mixed_writes);
-        std::cerr << "Mixed load (" << mixed_reads << '+' << mixed_writes << ")\n";
+        std::cout << "Mixed load (" << mixed_reads << '+' << mixed_writes << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         while (mix_inserts < mixed_writes || mix_queries < mixed_reads) {
             auto idx = line.get();
@@ -161,11 +157,12 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
             queries.emplace_back(data[index(generator)]);
         }
         Ticket line(raw_queries);
+        std::cout << "Raw read (" << raw_queries << '+' << mixed_writes << ")\n";
         auto start = std::chrono::high_resolution_clock::now();
         {
-            std::vector<std::thread> threads;
+            std::vector<std::jthread> threads;
 
-            for (int i = 0; i < conf.num_r_threads; ++i) {
+            for (unsigned i = 0; i < conf.num_threads; ++i) {
                 threads.emplace_back(query_worker, std::ref(tree), std::ref(queries), std::ref(line), std::ref(offset));
 
                 cpu_set_t cpuset;
@@ -176,10 +173,6 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
                     std::cerr << "Error calling pthread_setaffinity_np: " << rc << '\n';
                 }
             }
-
-            for (auto &thread: threads) {
-                thread.join();
-            }
         }
         auto duration = std::chrono::high_resolution_clock::now() - start;
         results << duration.count();
@@ -187,7 +180,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     results << ", ";
     if (updates > 0) {
-        std::cerr << "Updates (" << updates << ")\n";
+        std::cout << "Updates (" << updates << ")\n";
         std::uniform_int_distribution<unsigned> index(0, num_inserts - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < updates; i++) {
@@ -199,9 +192,9 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     results << ", ";
     if (conf.short_range > 0) {
-        size_t leaf_accesses = 0;
-        size_t k = num_inserts / 1000;
-        std::cerr << "Range " << k << " (" << conf.short_range << ")\n";
+        unsigned leaf_accesses = 0;
+        unsigned k = num_inserts / 1000;
+        std::cout << "Range " << k << " (" << conf.short_range << ")\n";
         std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.short_range; i++) {
@@ -217,9 +210,9 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     results << ", ";
     if (conf.mid_range > 0) {
-        size_t leaf_accesses = 0;
-        size_t k = num_inserts / 100;
-        std::cerr << "Range " << k << " (" << conf.mid_range << ")\n";
+        unsigned leaf_accesses = 0;
+        unsigned k = num_inserts / 100;
+        std::cout << "Range " << k << " (" << conf.mid_range << ")\n";
         std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.mid_range; i++) {
@@ -236,9 +229,9 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
 
     results << ", ";
     if (conf.long_range > 0) {
-        size_t leaf_accesses = 0;
-        size_t k = num_inserts / 10;
-        std::cerr << "Range " << k << " (" << conf.long_range << ")\n";
+        unsigned leaf_accesses = 0;
+        unsigned k = num_inserts / 10;
+        std::cout << "Range " << k << " (" << conf.long_range << ")\n";
         std::uniform_int_distribution<unsigned> index(0, num_inserts - k - 1);
         auto start = std::chrono::high_resolution_clock::now();
         for (unsigned i = 0; i < conf.long_range; i++) {
@@ -264,9 +257,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
             }
         }
         if (count) {
-            std::cerr << "Error: " << count << " not found\n";
-        } else {
-            std::cerr << "All good\n";
+            std::cerr << "Error: " << count << " keys not found\n";
         }
     }
 }
@@ -284,11 +275,12 @@ int main(int argc, char **argv) {
     BlockManager manager(tree_dat, conf.blocks_in_memory);
 
     auto results_csv = conf.results_csv;
-    std::cerr << "Writing results to: " << results_csv << std::endl;
+    std::cout << "Writing results to: " << results_csv << std::endl;
 
     std::vector<std::vector<key_type>> data;
     for (int i = 1; i < argc; i++) {
-        std::cerr << "Reading " << argv[i] << std::endl;
+        std::filesystem::path fsPath(argv[i]);
+        std::cout << "Reading " << fsPath.filename().c_str() << std::endl;
         if (conf.binary_input) {
             data.emplace_back(read_bin(argv[i]));
         } else {
@@ -307,9 +299,6 @@ int main(int argc, char **argv) {
 #ifdef TAIL_FAT
             "TAIL"
 #else
-#ifdef LIL_FAT
-            "LIL"
-#else
     #ifdef LOL_FAT
     "LOL"
 #ifdef REDISTRIBUTE
@@ -325,7 +314,6 @@ int main(int argc, char **argv) {
 #endif
 #endif
 #endif
-#endif
     ;
 
     for (unsigned i = 0; i < conf.runs; ++i) {
@@ -335,7 +323,8 @@ int main(int argc, char **argv) {
         for (unsigned j = 0; j < conf.repeat; ++j) {
             for (unsigned k = 0; k < data.size(); ++k) {
                 const auto &input = data[k];
-                results << name << '_' << conf.num_r_threads << '_' << conf.num_w_threads << ", " << argv[k + 1] << ", " << offset;
+                std::filesystem::path fsPath(argv[k + 1]);
+                results << name << ", " << conf.num_threads << ", " << fsPath.filename().c_str() << ", " << offset;
                 workload(tree, input, conf, results, offset);
                 results.flush();
                 offset += input.size();

@@ -1,16 +1,14 @@
-CXXFLAGS=-Isrc/bptree -std=c++20
+CXXFLAGS=-Isrc/bptree -std=c++20 -Wall -Wextra
 FLAGS=-DINMEMORY
 TARGET=src/tree_analysis.cpp
 EXE_DIR=trees
 
-all: clean simple tail lil lol lol_r lol_v lol_vr quit
+all: clean simple tail lol lol_r lol_v lol_vr quit
 
 simple:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -o $(EXE_DIR)/simple
 tail:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DTAIL_FAT -o $(EXE_DIR)/tail
-lil:
-	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLIL_FAT -o $(EXE_DIR)/lil
 lol:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -o $(EXE_DIR)/lol
 lol_r:
@@ -22,14 +20,12 @@ lol_vr:
 quit:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
 
-all3: clean simple3 tail3 lil3 lol3 lol_r3 lol_v3 lol_vr3 quit3
+all3: clean simple3 tail3 lol3 lol_r3 lol_v3 lol_vr3 quit3
 
 simple3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -o $(EXE_DIR)/simple
 tail3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DTAIL_FAT -o $(EXE_DIR)/tail
-lil3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLIL_FAT -o $(EXE_DIR)/lil
 lol3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -o $(EXE_DIR)/lol
 lol_r3:
