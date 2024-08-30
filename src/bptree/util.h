@@ -1,58 +1,58 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <cassert>
 #include <iostream>
 #include <set>
-#include <cassert>
 
+template <typename T>
 class Locks {
-    using node_id_t = uint32_t;
-    using T = node_id_t;
-    std::set<T> shared;
-    std::set<T> exclusive;
+  std::set<T> shared;
+  std::set<T> exclusive;
 
 public:
-    ~Locks() {
-        if (!shared.empty()) {
-            std::cerr << "Shared: ";
-            for (const T &lock: shared) {
-                std::cerr << lock << ' ';
-            }
-            std::cerr << "\n";
-        }
-        if (!exclusive.empty()) {
-            std::cerr << "Exclusive: ";
-            for (const T &lock: exclusive) {
-                std::cerr << lock << ' ';
-            }
-            std::cerr << '\n';
-        }
-        assert(shared.empty() && exclusive.empty());
+  ~Locks() {
+    if (!shared.empty()) {
+      std::cerr << "Shared:";
+      for (const T &lock : shared) {
+        std::cerr << ' ' << lock;
+      }
+      std::cerr << '\n';
     }
+    if (!exclusive.empty()) {
+      std::cerr << "Exclusive:";
+      for (const T &lock : exclusive) {
+        std::cerr << ' ' << lock;
+      }
+      std::cerr << '\n';
+    }
+    assert(shared.empty());
+    assert(exclusive.empty());
+  }
 
-    void lock_shared(T lock) {
-        assert(shared.find(lock) == shared.end());
-        assert(exclusive.find(lock) == exclusive.end());
-        shared.insert(lock);
-    }
+  void lock_shared(T lock) {
+    assert(!shared.contains(lock));
+    assert(!exclusive.contains(lock));
+    shared.insert(lock);
+  }
 
-    void lock(T lock) {
-        assert(shared.find(lock) == shared.end());
-        assert(exclusive.find(lock) == exclusive.end());
-        exclusive.insert(lock);
-    }
+  void lock(T lock) {
+    assert(!shared.contains(lock));
+    assert(!exclusive.contains(lock));
+    exclusive.insert(lock);
+  }
 
-    void unlock_shared(T lock) {
-        assert(exclusive.find(lock) == exclusive.end());
-        assert(shared.find(lock) != shared.end());
-        shared.erase(lock);
-    }
+  void unlock_shared(T lock) {
+    assert(shared.contains(lock));
+    assert(!exclusive.contains(lock));
+    shared.erase(lock);
+  }
 
-    void unlock(T lock) {
-        assert(exclusive.find(lock) != exclusive.end());
-        assert(shared.find(lock) == shared.end());
-        exclusive.erase(lock);
-    }
+  void unlock(T lock) {
+    assert(!shared.contains(lock));
+    assert(exclusive.contains(lock));
+    exclusive.erase(lock);
+  }
 };
 
 #endif

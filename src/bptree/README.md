@@ -36,10 +36,6 @@ to `head_id`.
 This is the maximum value that the fast node accepts (exclusive). It is valid only when `fp_id` is not equal
 to `tail_id`.
 
-## fp_path
-
-This is the path from leaf to root. It can hold up to `MAX_DEPTH` node ids.
-
 ## lol_prev_id
 
 This is the id of the previous node of the fast node. It is invalid after a reset.

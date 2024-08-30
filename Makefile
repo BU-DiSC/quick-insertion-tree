@@ -20,7 +20,7 @@ lol_vr:
 quit:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
 
-all3: clean simple3 tail3 lol3 lol_r3 lol_v3 lol_vr3 quit3
+all3: clean simple3 tail3 lol3 lol_r3 lol_v3 quit3
 
 simple3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -o $(EXE_DIR)/simple
@@ -35,7 +35,8 @@ lol_v3:
 lol_vr3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -o $(EXE_DIR)/lol_vr
 quit3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
+	#$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
+	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DLOL_RESET -o $(EXE_DIR)/quit
 
 clean:
 	mkdir -p $(EXE_DIR)
