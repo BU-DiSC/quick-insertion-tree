@@ -13,6 +13,7 @@
 
 // using std::shared_mutex;
 using atm::shared_mutex;
+using atm::mutex;
 // using srv::shared_mutex;
 // using flg::shared_mutex;
 // using spn::shared_mutex;
@@ -104,7 +105,7 @@ class bp_tree {
   node_id_t head_id;
   node_id_t tail_id;
 #ifdef FAST_PATH
-  mutable shared_mutex fp_mutex;
+  mutable mutex fp_mutex;
 #ifdef LOL_FAT
   node_id_t fp_id;
 #endif
@@ -698,14 +699,18 @@ public:
   std::optional<value_type> get(const key_type &key) const {
     node_t leaf;
     find_leaf_shared(leaf, key);
+    std::shared_lock lock(mutexes[leaf.info->id], std::adopt_lock);
     uint16_t index = leaf.value_slot(key);
-    std::optional<value_type> res = index < leaf.info->size &&
-                                    (leaf.keys[index] == key ? std::make_optional(leaf.values[index]) : std::nullopt);
-    mutexes[leaf.info->id].unlock_shared();
-    return res;
+    return index < leaf.info->size && (leaf.keys[index] == key ? std::make_optional(leaf.values[index]) : std::nullopt);
   }
 
-  bool contains(const key_type &key) const { return get(key).has_value(); }
+  bool contains(const key_type &key) const {
+    node_t leaf;
+    find_leaf_shared(leaf, key);
+    std::shared_lock lock(mutexes[leaf.info->id], std::adopt_lock);
+    uint16_t index = leaf.value_slot(key);
+    return index < leaf.info->size && (leaf.keys[index] == key);
+  }
 };
 
 #endif

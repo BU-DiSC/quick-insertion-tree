@@ -42,3 +42,8 @@ $1 ../workloads/5_50_25
 $1 ../workloads/5_50_50
 $1 ../workloads/5_50_100
 $1 ../workloads/5_100_100
+
+#$1 ../workloads/5_0_0
+#$1 ../workloads/5_5_100
+#$1 ../workloads/5_25_100
+#$1 ../workloads/5_100_100

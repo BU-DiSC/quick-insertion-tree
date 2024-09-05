@@ -49,6 +49,21 @@ public:
     state.store(0, std::memory_order_release);
   }
 };
+
+class mutex {
+  std::atomic_flag _lock = ATOMIC_FLAG_INIT;
+
+public:
+  void lock() {
+    while (_lock.test_and_set(std::memory_order_acquire))
+      while (_lock.test(std::memory_order_relaxed))
+        ;
+  }
+
+  void unlock() {
+    _lock.clear(std::memory_order_release);
+  }
+};
 } // namespace atm
 
 namespace srv {
