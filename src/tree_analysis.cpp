@@ -315,6 +315,8 @@ int main(int argc, char **argv) {
 #endif
       ;
 
+  std::cout << "Running " << name << " with " << conf.num_threads << " threads\n";
+
   for (unsigned i = 0; i < conf.runs; ++i) {
     manager.reset();
     bp_tree<key_type, value_type> tree(manager);

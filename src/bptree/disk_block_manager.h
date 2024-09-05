@@ -146,7 +146,7 @@ class DiskBlockManager {
   uint32_t ctr_mark_dirty;
 
   void write_block(uint32_t id, uint32_t pos) {
-    assert(pos < capacity);
+//    assert(pos < capacity);
     off_t offset = id * block_size;
     pwrite(fd, internal_memory[pos].block_buf, block_size, offset);
     ctr_writes++;
@@ -187,7 +187,7 @@ public:
   }
 
   void mark_dirty(uint32_t id) {
-    assert(cache.get(id) != capacity);
+//    assert(cache.get(id) != capacity);
     dirty_nodes.insert(id);
     ctr_mark_dirty++;
   }

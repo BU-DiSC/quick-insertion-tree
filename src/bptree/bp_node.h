@@ -58,19 +58,19 @@ public:
   }
 
   uint16_t value_slot(const key_type &key) const {
-    assert(info->type == bp_node_type::LEAF);
+//    assert(info->type == bp_node_type::LEAF);
     auto it = std::lower_bound(keys, keys + info->size, key);
     return std::distance(keys, it);
   }
 
   uint16_t value_slot2(const key_type &key) const {
-    assert(info->type == bp_node_type::LEAF);
+//    assert(info->type == bp_node_type::LEAF);
     auto it = std::upper_bound(keys, keys + info->size, key);
     return std::distance(keys, it);
   }
 
   uint16_t child_slot(const key_type &key) const {
-    assert(info->type == bp_node_type::INTERNAL);
+//    assert(info->type == bp_node_type::INTERNAL);
     auto it = std::upper_bound(keys, keys + info->size, key);
     return std::distance(keys, it);
   }

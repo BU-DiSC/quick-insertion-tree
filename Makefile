@@ -18,24 +18,15 @@ lol_v:
 lol_vr:
 	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -o $(EXE_DIR)/lol_vr
 quit:
-	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
+	$(CXX) $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DLOL_RESET -o $(EXE_DIR)/quit
 
-all3: clean simple3 tail3 lol3 lol_r3 lol_v3 quit3
+all3: clean simple3 tail3 quit3
 
 simple3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -o $(EXE_DIR)/simple
 tail3:
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DTAIL_FAT -o $(EXE_DIR)/tail
-lol3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -o $(EXE_DIR)/lol
-lol_r3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DLOL_RESET -o $(EXE_DIR)/lol_r
-lol_v3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -o $(EXE_DIR)/lol_v
-lol_vr3:
-	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -o $(EXE_DIR)/lol_vr
 quit3:
-	#$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DREDISTRIBUTE -DLOL_RESET -o $(EXE_DIR)/quit
 	$(CXX) -O3 $(CXXFLAGS) $(TARGET) $(FLAGS) -DLOL_FAT -DVARIABLE_SPLIT -DLOL_RESET -o $(EXE_DIR)/quit
 
 clean:

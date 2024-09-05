@@ -11,8 +11,8 @@
 
 #include "mtx.h"
 
-using std::shared_mutex;
-// using atm::shared_mutex;
+// using std::shared_mutex;
+using atm::shared_mutex;
 // using srv::shared_mutex;
 // using flg::shared_mutex;
 // using spn::shared_mutex;
@@ -20,11 +20,9 @@ using std::shared_mutex;
 // using mtx::shared_mutex;
 
 #ifdef LOL_FAT
-#ifdef REDISTRIBUTE
 #ifdef VARIABLE_SPLIT
 #ifdef LOL_RESET
 #define QUIT_FAT
-#endif
 #endif
 #endif
 
@@ -44,10 +42,10 @@ struct reset_stats {
   void success() { fails = 0; }
 
   bool failure() {
-    fails++;
     if (fails >= threshold) {
       return true;
     }
+    ++fails;
     return false;
   }
 
@@ -77,7 +75,6 @@ using BlockManager = DiskBlockManager;
 #endif
 
 #include "bp_node.h"
-#include "util.h"
 
 template <typename key_type, typename value_type>
 class bp_tree {
@@ -166,11 +163,19 @@ class bp_tree {
                            , node_id_t leaf_id = INVALID_NODE_ID
 #endif
   ) const {
+//    locks.lock(root_id);
     mutexes[root_id].lock();
     path.reserve(height);
     node.load(manager.open_block(root_id));
 
     do {
+      if (node.info->size < node_t::internal_capacity) {
+        for (const auto &parent_id : path) {
+//          locks.unlock(parent_id);
+          mutexes[parent_id].unlock();
+        }
+        path.clear();
+      }
       path.push_back(node.info->id);
       uint16_t slot = node.child_slot(key);
 #ifdef LOL_FAT
@@ -183,16 +188,18 @@ class bp_tree {
       if (leaf_id != node_id)
 #endif
       {
+//        locks.lock(node_id);
         mutexes[node_id].lock();
       }
       node.load(manager.open_block(node_id));
-      if (node.info->size < node_t::internal_capacity) {
-        for (const auto &parent_id : path) {
-          mutexes[parent_id].unlock();
-        }
-        path.clear();
-      }
     } while (node.info->type == bp_node_type::INTERNAL);
+    if (node.info->size < node_t::leaf_capacity) {
+      for (const auto &parent_id : path) {
+//        locks.unlock(parent_id);
+        mutexes[parent_id].unlock();
+      }
+      path.clear();
+    }
   }
 
   void find_leaf_exclusive(node_t &node, const key_type &key
@@ -201,10 +208,11 @@ class bp_tree {
 #endif
   ) const {
     node_id_t parent_id = root_id;
+//    locks.lock_shared(root_id);
     mutexes[root_id].lock_shared();
     uint8_t i = height;
     node.load(manager.open_block(parent_id));
-    assert(node.info->type == INTERNAL);
+//    assert(node.info->type == INTERNAL);
     while (--i > 0) {
       const uint16_t slot = node.child_slot(key);
 #ifdef LOL_FAT
@@ -213,27 +221,36 @@ class bp_tree {
       }
 #endif
       const node_id_t child_id = node.children[slot];
+//      locks.lock_shared(child_id);
       mutexes[child_id].lock_shared();
+//      locks.unlock_shared(parent_id);
       mutexes[parent_id].unlock_shared();
       node.load(manager.open_block(child_id));
-      assert(node.info->type == INTERNAL);
+//      assert(node.info->type == INTERNAL);
       parent_id = child_id;
     }
     const uint16_t slot = node.child_slot(key);
+#ifdef LOL_FAT
+    if (slot < node.info->size) {
+      leaf_max = node.keys[slot];
+    }
+#endif
     const node_id_t leaf_id = node.children[slot];
+//    locks.lock(leaf_id);
     mutexes[leaf_id].lock();
+//    locks.unlock_shared(parent_id);
     mutexes[parent_id].unlock_shared();
     node.load(manager.open_block(leaf_id));
-    assert(node.info->type == LEAF);
+//    assert(node.info->type == LEAF);
   }
 
   void internal_insert(const path_t &path, key_type key, node_id_t child_id) {
     for (node_id_t node_id : std::ranges::reverse_view(path)) {
       node_t node(manager.open_block(node_id));
-      assert(node.info->id == node_id);
-      assert(node.info->type == bp_node_type::INTERNAL);
+//      assert(node.info->id == node_id);
+//      assert(node.info->type == bp_node_type::INTERNAL);
       uint16_t index = node.child_slot(key);
-      assert(index == node.info->size || node.keys[index] != key);
+//      assert(index == node.info->size || node.keys[index] != key);
       manager.mark_dirty(node_id);
       if (node.info->size < node_t::internal_capacity) {
         std::memmove(node.keys + index + 1, node.keys + index, (node.info->size - index) * sizeof(key_type));
@@ -241,6 +258,7 @@ class bp_tree {
         node.keys[index] = key;
         node.children[index + 1] = child_id;
         ++node.info->size;
+//        locks.unlock(node_id);
         mutexes[node_id].unlock();
         return;
       }
@@ -278,10 +296,12 @@ class bp_tree {
       }
       child_id = new_node_id;
       if (node_id != root_id) {
+//        locks.unlock(node_id);
         mutexes[node_id].unlock();
       }
     }
     create_new_root(key, child_id);
+//    locks.unlock(root_id);
     mutexes[root_id].unlock();
   }
 
@@ -292,8 +312,8 @@ class bp_tree {
     for (uint8_t i = 1; i < depth; i++) {
       node_id_t node_id = path[i];
       node.load(manager.open_block(node_id));
-      assert(node.info->id == node_id);
-      assert(node.info->type == bp_node_type::INTERNAL);
+//      assert(node.info->id == node_id);
+//      assert(node.info->type == bp_node_type::INTERNAL);
       uint16_t index = node.child_slot(old_key) - 1;
       if (index < node.info->size && node.keys[index] == old_key) {
         manager.mark_dirty(node_id);
@@ -305,14 +325,14 @@ class bp_tree {
   }
 
   void redistribute(const path_t &path, const node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
-    assert(fp_prev_id != INVALID_NODE_ID);
+//    assert(fp_prev_id != INVALID_NODE_ID);
 
     uint16_t items = IQR_SIZE_THRESH - fp_prev_size;
     manager.mark_dirty(fp_prev_id);
     node_t fp_prev;
     fp_prev.load(manager.open_block(fp_prev_id));
-    assert(fp_prev_id == fp_prev.info->id);
-    assert(fp_prev.info->type == bp_node_type::LEAF);
+//    assert(fp_prev_id == fp_prev.info->id);
+//    assert(fp_prev.info->type == bp_node_type::LEAF);
     if (index < items) {
       --items;
       std::memcpy(fp_prev.keys + fp_prev_size, leaf.keys, index * sizeof(key_type));
@@ -351,6 +371,7 @@ class bp_tree {
     if (index < leaf.info->size && leaf.keys[index] == key) {
       manager.mark_dirty(leaf.info->id);
       leaf.values[index] = value;
+//      locks.unlock(leaf.info->id);
       mutexes[leaf.info->id].unlock();
       return true;
     }
@@ -375,6 +396,7 @@ class bp_tree {
       fp_prev_size = leaf.info->size;
     }
 #endif
+//    locks.unlock(leaf.info->id);
     mutexes[leaf.info->id].unlock();
     return true;
   }
@@ -388,7 +410,14 @@ class bp_tree {
     if (leaf.info->id == fp_id) {
       if (fp_prev_id == INVALID_NODE_ID) {
         fp_move = true;
-      } else if (fp_prev_size >= IQR_SIZE_THRESH) {
+      } else if (fp_prev_size < IQR_SIZE_THRESH) {
+#ifdef REDISTRIBUTE
+        redistribute(path, leaf, index, key, value);
+        return;
+#else
+        fp_move = true;
+#endif
+      } else {
         size_t max_distance = IKR::upper_bound(dist(fp_min, fp_prev_min), fp_prev_size, fp_size);
         uint16_t outlier_pos = leaf.value_slot2(fp_min + max_distance);
         if (outlier_pos <= SPLIT_LEAF_POS) {
@@ -400,13 +429,6 @@ class bp_tree {
         if (index < outlier_pos) {
           split_leaf_pos++;
         }
-      } else {
-#ifdef REDISTRIBUTE
-        redistribute(path, leaf, index, key, value);
-        return;
-#else
-        fp_move = true;
-#endif
       }
     }
 #endif
@@ -415,7 +437,7 @@ class bp_tree {
     node_t new_leaf(manager.open_block(new_leaf_id), LEAF);
     manager.mark_dirty(new_leaf_id);
 
-    assert(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
+//    assert(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
     leaf.info->next_id = new_leaf_id;
     leaf.info->size = split_leaf_pos;
     new_leaf.info->id = new_leaf_id;
@@ -469,6 +491,7 @@ class bp_tree {
       fp_prev_size = new_leaf.info->size;
     }
 #endif
+//    locks.unlock(leaf.info->id);
     mutexes[leaf.info->id].unlock();
     internal_insert(path, new_leaf.keys[0], new_leaf_id);
   }
@@ -514,7 +537,7 @@ public:
     path_t path;
     uint16_t index;
     node_t leaf;
-    Locks<node_id_t> locks;
+//    Locks<node_id_t> locks;
 #ifdef FAST_PATH
 #ifdef LOL_FAT
     key_type leaf_max{};
@@ -523,15 +546,18 @@ public:
     const node_id_t &fp_id = tail_id;
 #endif
     std::unique_lock fp_lock(fp_mutex);
+//    std::cerr << std::setw(10) << key << std::setw(10) << (fp_id != head_id ? fp_min : 0) << std::setw(10) << (fp_id != tail_id ? fp_max : 0);
     if ((fp_id == head_id || fp_min <= key)
 #ifdef LOL_FAT
         && (fp_id == tail_id || key < fp_max)
 #endif
     ) {
+//      std::cerr << " hit" << std::endl;
+//      locks.lock(fp_id);
       mutexes[fp_id].lock();
       leaf.load(manager.open_block(fp_id));
-      assert(fp_id == leaf.info->id);
-      assert(leaf.info->type == bp_node_type::LEAF);
+//      assert(fp_id == leaf.info->id);
+//      assert(leaf.info->type == bp_node_type::LEAF);
 #ifdef LOL_RESET
       life.success();
 #endif
@@ -547,16 +573,64 @@ public:
 #endif
                           , fp_id);
     } else {
+//      std::cerr << " miss " << +life.fails << '/' << +life.threshold << std::endl;
+#ifdef LOL_RESET
+      bool reset = life.failure();
+      if (!reset)
+#endif
+      {
+        fp_lock.unlock();
+      }
 #endif
       find_leaf_exclusive(leaf, key
 #ifdef LOL_FAT
                           , leaf_max
 #endif
       );
+#ifdef LOL_RESET
+      if (reset) {
+        if (fp_id != tail_id && leaf.keys[0] == fp_max) {
+          fp_prev_id = fp_id;
+          fp_prev_size = fp_size;
+          fp_prev_min = fp_min;
+        } else {
+          fp_prev_id = INVALID_NODE_ID;
+        }
+        fp_id = leaf.info->id;
+        fp_min = leaf.keys[0];
+        fp_max = leaf_max;
+        fp_size = leaf.info->size;
+        life.reset();
+      }
+//      else
+#endif
+//      {
+//        // fp->prev info exist
+//        // fp_max is valid
+//        // leaf is fp->next
+//        // IQR has enough values
+//        if (fp_prev_id != INVALID_NODE_ID &&
+//            fp_id != tail_id &&
+//            fp_max == leaf.keys[0] &&
+//            fp_prev_size >= IQR_SIZE_THRESH && fp_size >= IQR_SIZE_THRESH &&
+//            dist(fp_max, fp_min) < IKR::upper_bound(dist(fp_min, fp_prev_min), fp_prev_size, fp_size)) {
+//          fp_prev_min = fp_min;
+//          fp_prev_size = fp_size;
+//          fp_prev_id = fp_id;
+//          fp_id = leaf.info->id;
+//          fp_min = fp_max;
+//          fp_max = leaf_max;
+//          fp_size = leaf.info->size;
+//#ifdef LOL_RESET
+//          life.reset();
+//#endif
+//        }
+//      }
       index = leaf.value_slot(key);
       if (leaf_insert(leaf, index, key, value)) {
         return;
       }
+//      locks.unlock(leaf.info->id);
       mutexes[leaf.info->id].unlock();
       find_leaf_exclusive(leaf, path, key
 #ifdef LOL_FAT
@@ -569,45 +643,12 @@ public:
     index = leaf.value_slot(key);
     if (leaf_insert(leaf, index, key, value)) {
       for (const auto &parent_id : path) {
+//        locks.unlock(parent_id);
         mutexes[parent_id].unlock();
       }
       return;
     }
     split_insert(leaf, index, path, key, value);
-#ifndef SOFT_RESET
-#ifdef LOL_FAT
-        // if the new inserted key goes to fp->next, check if fp->next is not
-        // an outlier it might be the case that fp reached the previous
-        // outliers.
-        if (fp_prev_id != INVALID_NODE_ID &&  // fp->prev info exist
-            // fp_id != head_id &&  // fp_min is valid
-            fp_id != tail_id &&  // fp_max is valid
-            // leaf.info->id != tail_id &&  // don't go to tail
-            fp_max == leaf.keys[0] &&  // leaf is fp->next
-            // TODO: IQR doesn't have enough values but this kinda works
-            // fp_prev_size >= IQR_SIZE_THRESH && fp_size >= IQR_SIZE_THRESH &&
-            dist(fp_max, fp_min) < IKR::upper_bound(dist(fp_min, fp_prev_min), fp_prev_size, fp_size)) {
-            // move fp to fp->next = leaf
-            fp_prev_min = fp_min;
-            fp_prev_size = fp_size;
-            fp_prev_id = fp_id;
-            fp_id = leaf.info->id;
-            fp_min = fp_max;
-            fp_max = leaf_max;
-            fp_size = leaf.info->size;
-#ifdef LOL_RESET
-            life.reset();
-        } else if (life.failure()) {
-            fp_prev_id = INVALID_NODE_ID;
-            fp_id = leaf.info->id;
-            fp_min = leaf.keys[0];
-            fp_max = leaf_max;
-            fp_size = leaf.info->size;
-            life.reset();
-#endif
-        }
-#endif
-#endif
   }
 
   uint32_t select_k(size_t count, const key_type &min_key) const {
@@ -625,8 +666,8 @@ public:
       mutexes[next_id].lock_shared();
       mutexes[leaf.info->id].unlock_shared();
       leaf.load(manager.open_block(next_id));
-      assert(next_id == leaf.info->id);
-      assert(leaf.info->type == bp_node_type::LEAF);
+//      assert(next_id == leaf.info->id);
+//      assert(leaf.info->type == bp_node_type::LEAF);
       curr_size = leaf.info->size;
       ++loads;
     }
@@ -646,8 +687,8 @@ public:
       mutexes[next_id].lock_shared();
       mutexes[leaf.info->id].unlock_shared();
       leaf.load(manager.open_block(next_id));
-      assert(next_id == leaf.info->id);
-      assert(leaf.info->type == bp_node_type::LEAF);
+//      assert(next_id == leaf.info->id);
+//      assert(leaf.info->type == bp_node_type::LEAF);
       ++loads;
     }
     mutexes[leaf.info->id].unlock_shared();

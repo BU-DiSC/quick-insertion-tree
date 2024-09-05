@@ -12,13 +12,13 @@ def plot(df, line, xaxis, yaxis):
     df.sort_values(by=['k', 'l'], inplace=True)
 
     for tree in df[line].unique():
-        if tree != 1:
-            continue
+        #if tree != 1:
+        #    continue
         exp = df[df[line] == tree]
         plt.plot(exp[xaxis], exp[yaxis], label=tree)
 
     # plt.ylim(0, 35e8)  # Set the y-axis limits from 0 to 35
-    plt.ylim(0, 2e9)  # Set the y-axis limits from 0 to 35
+    #plt.ylim(0, 2e9)  # Set the y-axis limits from 0 to 35
     plt.xticks(rotation=90)
     plt.legend()
     plt.tight_layout()
@@ -30,7 +30,10 @@ def main():
              'empty', 'size', 'depth', 'writes', 'dirty', 'internal', 'leaves',
              'redistribute', 'split', 'iqr', 'soft', 'hard', 'fp']
     # bench = 'tail'
-    bench = 'simple'
+    # bench = 'simple'
+    bench = 'simple_large'
+    # bench = 'quit'
+    # bench = 'results'
     df = pd.read_csv(f'../{bench}.csv', names=names)
     plot(df, 'threads', 'input', 'preload')
     plt.savefig(f'{bench}.svg')
