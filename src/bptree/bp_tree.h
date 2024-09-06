@@ -80,7 +80,7 @@ using BlockManager = DiskBlockManager;
 template <typename key_type, typename value_type>
 class bp_tree {
   friend std::ostream &operator<<(std::ostream &os, const bp_tree &tree) {
-    os << tree.ctr_fast << ", " << tree.ctr_fast_fail;
+    os << tree.ctr_fast << ", " << tree.ctr_fast_fail << ", " << tree.ctr_root_shared << ", " << tree.ctr_root_unique << ", " << tree.ctr_root;
     return os;
   }
 
@@ -122,11 +122,15 @@ class bp_tree {
 #ifdef LOL_RESET
   reset_stats life;
 #endif
-  std::atomic<uint32_t> ctr_fast;
-  std::atomic<uint32_t> ctr_fast_fail;
+  std::atomic<uint32_t> ctr_fast{};
+  std::atomic<uint32_t> ctr_fast_fail{};
+  mutable std::atomic<uint32_t> ctr_root_shared{};
+  mutable uint32_t ctr_root_unique{};
+  uint32_t ctr_root{};
   std::atomic<uint32_t> ctr_size;
 
   void create_new_root(const key_type &key, node_id_t right_node_id) {
+    ++ctr_root;
     node_id_t left_node_id = manager.allocate();
     node_t root(manager.open_block(root_id));
     node_t left_node(manager.open_block(left_node_id));
@@ -145,6 +149,7 @@ class bp_tree {
   void find_leaf_shared(node_t &node, const key_type &key) const {
     node_id_t node_id = root_id;
     mutexes[node_id].lock_shared();
+    ++ctr_root_shared;
     node.load(manager.open_block(node_id));
     do {
       const node_id_t parent_id = node_id;
@@ -164,10 +169,12 @@ class bp_tree {
                            , node_id_t leaf_id = INVALID_NODE_ID
 #endif
   ) const {
-//    locks.lock(root_id);
-    mutexes[root_id].lock();
+    node_id_t node_id = root_id;
+//    locks.lock(node_id);
+    mutexes[node_id].lock();
+    ++ctr_root_unique;
     path.reserve(height);
-    node.load(manager.open_block(root_id));
+    node.load(manager.open_block(node_id));
 
     do {
       if (node.info->size < node_t::internal_capacity) {
@@ -177,14 +184,14 @@ class bp_tree {
         }
         path.clear();
       }
-      path.push_back(node.info->id);
+      path.push_back(node_id);
       uint16_t slot = node.child_slot(key);
 #ifdef LOL_FAT
       if (slot != node.info->size) {
         leaf_max = node.keys[slot];
       }
 #endif
-      node_id_t node_id = node.children[slot];
+      node_id = node.children[slot];
 #ifdef FAST_PATH
       if (leaf_id != node_id)
 #endif
@@ -211,6 +218,7 @@ class bp_tree {
     node_id_t parent_id = root_id;
 //    locks.lock_shared(root_id);
     mutexes[root_id].lock_shared();
+    ++ctr_root_shared;
     uint8_t i = height;
     node.load(manager.open_block(parent_id));
 //    assert(node.info->type == INTERNAL);
@@ -532,6 +540,25 @@ public:
     root.info->next_id = root_id;
     root.info->size = 0;
     root.children[0] = head_id;
+  }
+
+  void insert_pessimistic(const key_type &key, const value_type &value) {
+    path_t path;
+    uint16_t index;
+    node_t leaf;
+    find_leaf_exclusive(leaf, path, key
+#ifdef LOL_FAT
+                          , leaf_max
+#endif
+    );
+    index = leaf.value_slot(key);
+    if (leaf_insert(leaf, index, key, value)) {
+      for (const auto &parent_id : path) {
+        mutexes[parent_id].unlock();
+      }
+      return;
+    }
+    split_insert(leaf, index, path, key, value);
   }
 
   void insert(const key_type &key, const value_type &value) {
