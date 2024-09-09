@@ -34,11 +34,10 @@ std::vector<key_type> read_bin(const char *filename) {
   return data;
 }
 
-class Ticket {
+struct Ticket {
   std::atomic<size_t> _idx;
   const size_t _size;
 
-public:
   unsigned get() {
     unsigned idx = _idx++;
     return idx < _size ? idx : _size;
@@ -54,7 +53,7 @@ unsigned hash(unsigned num) {
 
 void insert_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, Ticket &line, const key_type &offset) {
   auto idx = line.get();
-  const auto &size = data.size();
+  const auto &size = line._size;
   while (idx < size) {
     const key_type &key = data[idx] + offset;
     tree.insert(key, 0);
@@ -64,7 +63,7 @@ void insert_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_ty
 
 void query_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, Ticket &line, const key_type &offset) {
   unsigned idx = line.get();
-  const auto &size = data.size();
+  const auto &size = line._size;
   while (idx < size) {
     const key_type &key = data[idx];
     tree.contains(key + offset);
@@ -74,16 +73,17 @@ void query_worker(bp_tree<key_type, value_type> &tree, const std::vector<key_typ
 
 void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &data, const Config &conf, std::ofstream &results, const key_type &offset) {
   const unsigned num_inserts = data.size();
-  const unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
   const unsigned raw_writes = conf.raw_write_perc / 100.0 * num_inserts;
   const unsigned mixed_writes = conf.mixed_writes_perc / 100.0 * num_inserts;
-  const unsigned mixed_reads = conf.mixed_reads_perc / 100.0 * num_inserts;
-  const unsigned updates = conf.updates_perc / 100.0 * num_inserts;
   assert(num_inserts >= raw_writes + mixed_writes);
   const unsigned num_load = num_inserts - raw_writes - mixed_writes;
+  const unsigned raw_queries = conf.raw_read_perc / 100.0 * num_inserts;
+  const unsigned mixed_reads = conf.mixed_reads_perc / 100.0 * num_inserts;
+  const unsigned updates = conf.updates_perc / 100.0 * num_inserts;
 
   std::mt19937 generator(conf.seed);
   uint32_t ctr_empty = 0;
+  tree.reset_ctr();
 
   results << ", ";
   if (num_load > 0) {
@@ -114,7 +114,21 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     Ticket line(num_load, num_load + raw_writes);
     std::cout << "Raw write (" << raw_writes << ")\n";
     auto start = std::chrono::high_resolution_clock::now();
-    insert_worker(tree, data, line, offset);
+    {
+      std::vector<std::jthread> threads;
+
+      for (unsigned i = 0; i < conf.num_threads; ++i) {
+        threads.emplace_back(insert_worker, std::ref(tree), std::ref(data), std::ref(line), std::ref(offset));
+
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(hash(i), &cpuset);
+        int rc = pthread_setaffinity_np(threads[i].native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc != 0) {
+          std::cerr << "Error calling pthread_setaffinity_np: " << rc << '\n';
+        }
+      }
+    }
     auto duration = std::chrono::high_resolution_clock::now() - start;
     results << duration.count();
   }
@@ -242,7 +256,7 @@ void workload(bp_tree<key_type, value_type> &tree, const std::vector<key_type> &
     results << ", ";
   }
 
-  results << ", " << ctr_empty << ", " << tree << "\n";
+  results << ", " << ctr_empty << ", " << tree << '\n';
 
   if (conf.validate) {
     unsigned count = 0;
