@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mtx.h"
+//#include "util.h"
 
 // using std::shared_mutex;
 using atm::shared_mutex;
@@ -161,16 +162,13 @@ class bp_tree {
     } while (node.info->type == INTERNAL);
   }
 
-  void find_leaf_exclusive(node_t &node, path_t &path, const key_type &key
+  void find_leaf_exclusive(/*Locks<node_id_t> &locks, */node_t &node, path_t &path, const key_type &key
 #ifdef LOL_FAT
                            , key_type &leaf_max
 #endif
-#ifdef FAST_PATH
-                           , node_id_t leaf_id = INVALID_NODE_ID
-#endif
   ) const {
     node_id_t node_id = root_id;
-//    locks.lock(node_id);
+    // locks.lock(node_id);
     mutexes[node_id].lock();
     ++ctr_root_unique;
     path.reserve(height);
@@ -179,7 +177,7 @@ class bp_tree {
     do {
       if (node.info->size < node_t::internal_capacity) {
         for (const auto &parent_id : path) {
-//          locks.unlock(parent_id);
+          // locks.unlock(parent_id);
           mutexes[parent_id].unlock();
         }
         path.clear();
@@ -192,31 +190,26 @@ class bp_tree {
       }
 #endif
       node_id = node.children[slot];
-#ifdef FAST_PATH
-      if (leaf_id != node_id)
-#endif
-      {
-//        locks.lock(node_id);
-        mutexes[node_id].lock();
-      }
+      // locks.lock(node_id);
+      mutexes[node_id].lock();
       node.load(manager.open_block(node_id));
     } while (node.info->type == bp_node_type::INTERNAL);
     if (node.info->size < node_t::leaf_capacity) {
       for (const auto &parent_id : path) {
-//        locks.unlock(parent_id);
+        // locks.unlock(parent_id);
         mutexes[parent_id].unlock();
       }
       path.clear();
     }
   }
 
-  void find_leaf_exclusive(node_t &node, const key_type &key
+  void find_leaf_exclusive(/*Locks<node_id_t> &locks, */node_t &node, const key_type &key
 #ifdef LOL_FAT
                            , key_type &leaf_max
 #endif
   ) const {
     node_id_t parent_id = root_id;
-//    locks.lock_shared(root_id);
+    // locks.lock_shared(root_id);
     mutexes[root_id].lock_shared();
     ++ctr_root_shared;
     uint8_t i = height;
@@ -230,9 +223,9 @@ class bp_tree {
       }
 #endif
       const node_id_t child_id = node.children[slot];
-//      locks.lock_shared(child_id);
+      // locks.lock_shared(child_id);
       mutexes[child_id].lock_shared();
-//      locks.unlock_shared(parent_id);
+      // locks.unlock_shared(parent_id);
       mutexes[parent_id].unlock_shared();
       node.load(manager.open_block(child_id));
 //      assert(node.info->type == INTERNAL);
@@ -245,15 +238,15 @@ class bp_tree {
     }
 #endif
     const node_id_t leaf_id = node.children[slot];
-//    locks.lock(leaf_id);
+    // locks.lock(leaf_id);
     mutexes[leaf_id].lock();
-//    locks.unlock_shared(parent_id);
+    // locks.unlock_shared(parent_id);
     mutexes[parent_id].unlock_shared();
     node.load(manager.open_block(leaf_id));
 //    assert(node.info->type == LEAF);
   }
 
-  void internal_insert(const path_t &path, key_type key, node_id_t child_id) {
+  void internal_insert(/*Locks<node_id_t> &locks, */const path_t &path, key_type key, node_id_t child_id) {
     for (node_id_t node_id : std::ranges::reverse_view(path)) {
       node_t node(manager.open_block(node_id));
 //      assert(node.info->id == node_id);
@@ -267,7 +260,7 @@ class bp_tree {
         node.keys[index] = key;
         node.children[index + 1] = child_id;
         ++node.info->size;
-//        locks.unlock(node_id);
+        // locks.unlock(node_id);
         mutexes[node_id].unlock();
         return;
       }
@@ -305,12 +298,12 @@ class bp_tree {
       }
       child_id = new_node_id;
       if (node_id != root_id) {
-//        locks.unlock(node_id);
+        // locks.unlock(node_id);
         mutexes[node_id].unlock();
       }
     }
     create_new_root(key, child_id);
-//    locks.unlock(root_id);
+    // locks.unlock(root_id);
     mutexes[root_id].unlock();
   }
 
@@ -376,11 +369,15 @@ class bp_tree {
   }
 #endif
 
-  bool leaf_insert(node_t &leaf, uint16_t index, const key_type &key, const value_type &value) {
+  bool leaf_insert(/*Locks<node_id_t> &locks, */node_t &leaf, uint16_t index, const key_type &key, const value_type &value
+#ifdef LOL_FAT
+                   , bool fast
+#endif
+                   ) {
     if (index < leaf.info->size && leaf.keys[index] == key) {
       manager.mark_dirty(leaf.info->id);
       leaf.values[index] = value;
-//      locks.unlock(leaf.info->id);
+      // locks.unlock(leaf.info->id);
       mutexes[leaf.info->id].unlock();
       return true;
     }
@@ -397,25 +394,32 @@ class bp_tree {
     leaf.values[index] = value;
     ++leaf.info->size;
 #ifdef LOL_FAT
-    if (leaf.info->id == fp_id) {
-      ++fp_size;
-    } else if (leaf.info->next_id == fp_id) {
-      fp_prev_id = leaf.info->id;
-      fp_prev_min = leaf.keys[0];
-      fp_prev_size = leaf.info->size;
+    if (fast) {
+      if (leaf.info->id == fp_id) {
+        ++fp_size;
+      } else if (leaf.info->next_id == fp_id) {
+        fp_prev_id = leaf.info->id;
+        fp_prev_min = leaf.keys[0];
+        fp_prev_size = leaf.info->size;
+      }
     }
 #endif
-//    locks.unlock(leaf.info->id);
+    // locks.unlock(leaf.info->id);
     mutexes[leaf.info->id].unlock();
     return true;
   }
 
-  void split_insert(node_t &leaf, uint16_t index, const path_t &path, const key_type &key, const value_type &value) {
+  void split_insert(/*Locks<node_id_t> &locks, */node_t &leaf, uint16_t index, const path_t &path, const key_type &key, const value_type &value
+#ifdef LOL_FAT
+                    , bool fast
+#endif
+                    ) {
     ctr_size++;
     uint16_t split_leaf_pos = SPLIT_LEAF_POS;
 #ifdef LOL_FAT
 #ifdef VARIABLE_SPLIT
     bool fp_move = false;
+    if (fast) {
     if (leaf.info->id == fp_id) {
       if (fp_prev_id == INVALID_NODE_ID) {
         fp_move = true;
@@ -440,6 +444,7 @@ class bp_tree {
         }
       }
     }
+    }
 #endif
 #endif
     node_id_t new_leaf_id = manager.allocate();
@@ -447,11 +452,11 @@ class bp_tree {
     manager.mark_dirty(new_leaf_id);
 
 //    assert(1 <= split_leaf_pos && split_leaf_pos <= node_t::leaf_capacity);
-    leaf.info->next_id = new_leaf_id;
     leaf.info->size = split_leaf_pos;
     new_leaf.info->id = new_leaf_id;
     new_leaf.info->next_id = leaf.info->next_id;
     new_leaf.info->size = node_t::leaf_capacity + 1 - leaf.info->size;
+    leaf.info->next_id = new_leaf_id;
 
     if (index < leaf.info->size) {
       std::memcpy(new_leaf.keys, leaf.keys + leaf.info->size - 1, new_leaf.info->size * sizeof(key_type));
@@ -476,6 +481,7 @@ class bp_tree {
 #endif
     }
 #ifdef LOL_FAT
+    if (fast) {
     if (leaf.info->id == fp_id) {
 #ifndef VARIABLE_SPLIT
       bool fp_move =
@@ -499,10 +505,11 @@ class bp_tree {
       fp_prev_min = new_leaf.keys[0];
       fp_prev_size = new_leaf.info->size;
     }
+    }
 #endif
-//    locks.unlock(leaf.info->id);
+    // locks.unlock(leaf.info->id);
     mutexes[leaf.info->id].unlock();
-    internal_insert(path, new_leaf.keys[0], new_leaf_id);
+    internal_insert(/*locks, */path, new_leaf.keys[0], new_leaf_id);
   }
 
 #ifdef LOL_FAT
@@ -510,6 +517,14 @@ class bp_tree {
 #endif
 
 public:
+  void reset_ctr() {
+    ctr_fast = 0;
+    ctr_fast_fail = 0;
+    ctr_root_shared = 0;
+    ctr_root_unique = 0;
+    ctr_root = 0;
+  }
+
   explicit bp_tree(BlockManager &m) : manager(m), mutexes(m.get_capacity()), root_id(m.allocate()), height(1)
 #ifdef LOL_RESET
                                       , life(sqrt(node_t::leaf_capacity))
@@ -541,7 +556,7 @@ public:
     root.info->size = 0;
     root.children[0] = head_id;
   }
-
+#ifdef false
   void insert_pessimistic(const key_type &key, const value_type &value) {
     path_t path;
     uint16_t index;
@@ -560,7 +575,7 @@ public:
     }
     split_insert(leaf, index, path, key, value);
   }
-
+#endif
   void insert(const key_type &key, const value_type &value) {
     path_t path;
     uint16_t index;
@@ -568,6 +583,7 @@ public:
 //    Locks<node_id_t> locks;
 #ifdef FAST_PATH
 #ifdef LOL_FAT
+    bool fast;
     key_type leaf_max{};
 #endif
 #ifdef TAIL_FAT
@@ -580,8 +596,11 @@ public:
         && (fp_id == tail_id || key < fp_max)
 #endif
     ) {
+#ifdef LOL_FAT
+      fast = true;
+#endif
 //      std::cerr << " hit" << std::endl;
-//      locks.lock(fp_id);
+      // locks.lock(fp_id);
       mutexes[fp_id].lock();
       leaf.load(manager.open_block(fp_id));
 //      assert(fp_id == leaf.info->id);
@@ -590,17 +609,26 @@ public:
       life.success();
 #endif
       index = leaf.value_slot(key);
-      if (leaf_insert(leaf, index, key, value)) {
+      if (leaf_insert(/*locks, */leaf, index, key, value
+#ifdef LOL_FAT
+                      , true
+#endif
+                      )) {
         ++ctr_fast;
         return;
       }
       ++ctr_fast_fail;
-      find_leaf_exclusive(leaf, path, key
+      // locks.unlock(fp_id);
+      mutexes[fp_id].unlock();
+      find_leaf_exclusive(/*locks, */leaf, path, key
 #ifdef LOL_FAT
                           , leaf_max
 #endif
-                          , fp_id);
+                          );
     } else {
+#ifdef LOL_FAT
+      fast = false;
+#endif
 //      std::cerr << " miss " << +life.fails << '/' << +life.threshold << std::endl;
 #ifdef LOL_RESET
       bool reset = life.failure();
@@ -610,7 +638,7 @@ public:
         fp_lock.unlock();
       }
 #endif
-      find_leaf_exclusive(leaf, key
+      find_leaf_exclusive(/*locks, */leaf, key
 #ifdef LOL_FAT
                           , leaf_max
 #endif
@@ -629,6 +657,7 @@ public:
         fp_max = leaf_max;
         fp_size = leaf.info->size;
         life.reset();
+        fast = true;
       }
 //      else
 #endif
@@ -655,12 +684,16 @@ public:
 //        }
 //      }
       index = leaf.value_slot(key);
-      if (leaf_insert(leaf, index, key, value)) {
+      if (leaf_insert(/*locks, */leaf, index, key, value
+#ifdef LOL_FAT
+                      , fast
+#endif
+                      )) {
         return;
       }
-//      locks.unlock(leaf.info->id);
+      // locks.unlock(leaf.info->id);
       mutexes[leaf.info->id].unlock();
-      find_leaf_exclusive(leaf, path, key
+      find_leaf_exclusive(/*locks, */leaf, path, key
 #ifdef LOL_FAT
                           , leaf_max
 #endif
@@ -669,14 +702,22 @@ public:
     }
 #endif
     index = leaf.value_slot(key);
-    if (leaf_insert(leaf, index, key, value)) {
+    if (leaf_insert(/*locks, */leaf, index, key, value
+#ifdef LOL_FAT
+                    , fast
+#endif
+                    )) {
       for (const auto &parent_id : path) {
-//        locks.unlock(parent_id);
+        // locks.unlock(parent_id);
         mutexes[parent_id].unlock();
       }
       return;
     }
-    split_insert(leaf, index, path, key, value);
+    split_insert(/*locks, */leaf, index, path, key, value
+#ifdef LOL_FAT
+                      , fast
+#endif
+                 );
   }
 
   uint32_t select_k(size_t count, const key_type &min_key) const {
