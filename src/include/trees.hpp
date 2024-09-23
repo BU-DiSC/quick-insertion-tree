@@ -4,3 +4,4 @@
 #include <trees/ConcurrentSimpleBTree.hpp>
 #include <trees/TailBTree.hpp>
 #include <trees/ConcurrentTailBTree.hpp>
+#include <trees/LILBTree.hpp>
