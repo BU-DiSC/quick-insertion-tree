@@ -9,8 +9,8 @@
 #include "bptree/config.h"
 #include "index_bench.h"
 
-using key_type = double;
-using value_type = double;
+using key_type = int;
+using value_type = int;
 using namespace std;
 std::vector<key_type> read_file(const char *filename) {
     std::vector<key_type> data;
@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
     for (int i = 3; i < argc; i++) {
         std::cerr << "Reading " << argv[i] << std::endl;
         // data.emplace_back(read_bin(argv[i]));
-        data.emplace_back(read_file(argv[i]));
+        data.emplace_back(read_bin(argv[i]));
     }
     string results_file = argv[2];
     std::ofstream results(results_file, std::ofstream::app);

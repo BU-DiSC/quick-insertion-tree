@@ -10,6 +10,9 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 # Update submodules as needed
@@ -90,6 +93,9 @@ target_compile_definitions(sabtree PRIVATE SUBBFS)
 target_compile_definitions(sabtree PRIVATE SPDLOG_STATS)
 target_compile_definitions(sabtree PRIVATE SPDLOG_COUNTERS)
 target_compile_definitions(sabtree PRIVATE BENCHMARK)
+target_compile_options(sabtree PRIVATE -O3)
+target_compile_options(sabtree PRIVATE -Wall)
+target_compile_options(sabtree PRIVATE -Wextra)
 
 add_executable(sab_actual src/test_satree.cpp)
 target_compile_definitions(sab_actual PRIVATE FAST_PATH)
@@ -103,7 +109,8 @@ target_compile_definitions(sab_actual PRIVATE SPDLOG_STATS)
 target_compile_definitions(sab_actual PRIVATE SPDLOG_COUNTERS)
 
 target_compile_options(sabtree PUBLIC 
-$<$<BOOL:${DEBUG}>:-g>)
+$<$<BOOL:${DEBUG}>:-g>
+-O3)
 
 target_compile_options(quit PUBLIC 
 $<$<BOOL:${DEBUG}>:-g>)
