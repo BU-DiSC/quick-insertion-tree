@@ -9,3 +9,5 @@ config.toml
 trees
 workloads
 build/*
+
+**.log

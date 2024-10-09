@@ -48,3 +48,11 @@ target_compile_definitions(quit PRIVATE REDISTRIBUTE)
 target_compile_definitions(quit PRIVATE LOL_RESET)
 target_compile_definitions(quit PRIVATE INMEMORY)
 target_compile_definitions(quit PRIVATE BENCHMARK)
+
+
+add_subdirectory(external/utilities)
+add_executable(btree_permute_test src/btree_permute_test.cpp)
+target_compile_definitions(btree_permute_test PRIVATE INMEMORY)
+target_compile_definitions(btree_permute_test PRIVATE BENCHMARK)
+target_link_libraries(btree_permute_test PRIVATE 
+spdlog::spdlog)
