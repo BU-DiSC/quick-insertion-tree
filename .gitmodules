@@ -1,0 +1,9 @@
+[submodule "optiql"]
+	path = optiql
+	url = https://github.com/sfu-dis/optiql
+[submodule "quick-insertion-tree"]
+	path = quick-insertion-tree
+	url = https://github.com/BU-DiSC/quick-insertion-tree
+[submodule "BP-Tree"]
+	path = BP-Tree
+	url = https://github.com/wheatman/BP-Tree/
