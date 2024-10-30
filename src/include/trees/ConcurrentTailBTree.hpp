@@ -32,6 +32,7 @@ public:
   using path_t = std::vector<step>;
 
   static constexpr const char *name = "ConcurrentSimpleBTree";
+  static constexpr const bool concurrent = true;
   static constexpr uint16_t SPLIT_INTERNAL_POS = node_t::internal_capacity / 2;
   static constexpr uint16_t SPLIT_LEAF_POS = (node_t::leaf_capacity + 1) / 2;
   static constexpr node_id_t INVALID_NODE_ID = std::numeric_limits<node_id_t>::max();

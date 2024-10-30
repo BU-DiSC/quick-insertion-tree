@@ -6,3 +6,4 @@
 #include <trees/ConcurrentTailBTree.hpp>
 #include <trees/LILBTree.hpp>
 #include <trees/QuITBTree.hpp>
+#include <trees/ConcurrentQuITBTree.hpp>

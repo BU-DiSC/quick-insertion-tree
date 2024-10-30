@@ -3,6 +3,7 @@
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
+#include <algorithm>
 
 static std::string str_val(const std::string &val) {
   return val.substr(1, val.size() - 2);
