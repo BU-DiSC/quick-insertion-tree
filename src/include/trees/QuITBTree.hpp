@@ -59,8 +59,17 @@ template <typename key_type, typename value_type> class BTree
     static constexpr node_id_t INVALID_NODE_ID = std::numeric_limits<node_id_t>::max();
     using dist_f = std::size_t (*)(const key_type &, const key_type &);
 
+    // timers to measure specific operations
+    // TODO: move these to ifdefs to enable/disable
+    unsigned long long t_leafInsert = 0;
+    unsigned long long t_findLeafSlot = 0;
+    unsigned long long t_moveExistingInLeaf = 0;
+    unsigned long long t_insertEntryInLeaf = 0;
+    unsigned long long t_sortLeaf = 0;
+
     explicit BTree(BlockManager &m) : manager(m), root_id(m.allocate()), life(sqrt(node_t::leaf_capacity)), ctr_hard(0)
     {
+        std::cout << "creating tree" << std::endl;
         head_id = tail_id = root_id;
 
         fp_id = root_id;
@@ -69,6 +78,7 @@ template <typename key_type, typename value_type> class BTree
         fp_max = {};
         ctr_fp = 0;
 
+        std::cout << "linking comparator for tree" << std::endl;
         dist = cmp;
         lol_prev_id = INVALID_NODE_ID;
         lol_prev_min = {};
@@ -78,8 +88,10 @@ template <typename key_type, typename value_type> class BTree
         ctr_iqr = 0;
         ctr_soft = 0;
 
+        std::cout << "linking block manager" << std::endl;
         node_t root(manager.open_block(root_id), LEAF);
         manager.mark_dirty(root_id);
+        std::cout << "integrated block manager" << std::endl;
         root.info->id = root_id;
         root.info->next_id = root_id;
         root.info->size = 0;
@@ -449,11 +461,16 @@ template <typename key_type, typename value_type> class BTree
         manager.mark_dirty(leaf.info->id);
         uint16_t index;
 
+        // find the slot where the key should be inserted
+        auto start = std::chrono::high_resolution_clock::now();
 #ifdef LAZYINSERT
         index = leaf.info->size;
 #else
         index = leaf.value_slot(key);
 #endif
+        auto end = std::chrono::high_resolution_clock::now();
+        t_findLeafSlot += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
         // case for update
         // is not affected by lazy insert for now
         if (index < leaf.info->size && leaf.keys[index] == key)
@@ -467,13 +484,21 @@ template <typename key_type, typename value_type> class BTree
         ctr_size++;
         if (leaf.info->size < node_t::leaf_capacity)
         {
-// in case of lazy inserts, we don't need to move anything
+            // in case of lazy inserts, we don't need to move anything
+            start = std::chrono::high_resolution_clock::now();
 #ifndef LAZYINSERT
             std::memmove(leaf.keys + index + 1, leaf.keys + index, (leaf.info->size - index) * sizeof(key_type));
             std::memmove(leaf.values + index + 1, leaf.values + index, (leaf.info->size - index) * sizeof(value_type));
 #endif
+            end = std::chrono::high_resolution_clock::now();
+            t_moveExistingInLeaf += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+            start = std::chrono::high_resolution_clock::now();
             leaf.keys[index] = key;
             leaf.values[index] = value;
+            end = std::chrono::high_resolution_clock::now();
+            t_insertEntryInLeaf += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
             ++leaf.info->size;
 
             if (leaf.info->id == fp_id)
@@ -490,8 +515,9 @@ template <typename key_type, typename value_type> class BTree
             return true;
         }
 
-// we now have to split the leaf
-// if lazy inserts have been utilized, sort the node first
+        // we now have to split the leaf
+        // if lazy inserts have been utilized, sort the node first
+        start = std::chrono::high_resolution_clock::now();
 #ifdef LAZYINSERT
         std::sort(leaf.keys, leaf.keys + leaf.info->size, [&leaf](size_t i, size_t j) {
             if (leaf.keys[i] > leaf.keys[j])
@@ -501,6 +527,8 @@ template <typename key_type, typename value_type> class BTree
             }
         });
 #endif
+        end = std::chrono::high_resolution_clock::now();
+        t_sortLeaf += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
         uint16_t split_leaf_pos = SPLIT_LEAF_POS;
 
