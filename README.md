@@ -3,14 +3,14 @@ Source code for EDBT 2025 paper: "QuIT your B+-tree for the Quick Insertion Tree
 
 You can cite our paper using:
 ```
-@inproceedings{Raman2025Quit,
-  author       = {Aneesh Raman and Konstantinos Karatsenidis and Shaolin Xie and Matthaios Olma and Subhadeep Sarkar and Manos Athanassoulis},
-  title        = {QuIT your B+-tree for the Quick Insertion Tree},
-  booktitle    = {Proceedings of the International Conference on Extending Database Technology (EDBT)},
-  pages        = {451--463},
-  year         = {2025},
-  url          = {https://doi.org/10.48786/edbt.2025.36},
-  doi          = {10.48786/EDBT.2025.36},
+@inproceedings{Raman2025QuITYourBT,
+ author = {Aneesh Raman and Konstantinos Karatsenidis and Shaolin Xie and Matthaios Olma and Subhadeep Sarkar and Manos Athanassoulis},
+ booktitle = {Proceedings of the International Conference on Extending Database Technology (EDBT)},
+ doi = {10.48786/EDBT.2025.36},
+ pages = {451--463},
+ title = {QuIT your B+-tree for the Quick Insertion Tree},
+ url = {https://doi.org/10.48786/edbt.2025.36},
+ year = {2025}
 }
 ```
 
