@@ -550,12 +550,13 @@ class BTree {
                 return;
             }
             ++ctr_fast_fail;
-            // sort the leaf as it is deemed full
+// sort the leaf as it is deemed full
+#ifdef LEAF_APPENDS
             sort_leaf(leaf);
             ++ctr_sort;
             manager.mark_dirty(fp_id);
             fp_sorted = true;
-
+#endif
             mutexes[fp_id].unlock();
             find_leaf_exclusive(leaf, path, key, leaf_max);
         } else {
