@@ -38,7 +38,7 @@ public:
   using BlockManager = InMemoryBlockManager<node_id_t>;
   using node_t = BTreeNode<node_id_t, key_type, value_type, BlockManager::block_size>;
   using step = node_id_t;
-  using path_t = std::vector<step>;
+  using path_t = std::array<node_id_t, 10>;
 
   static constexpr const char *name = "QuITBTree";
   static constexpr const bool concurrent = false;
