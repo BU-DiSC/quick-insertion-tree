@@ -4,10 +4,14 @@
 
 #include <cstring>
 #include <limits>
+#include <mutex>
 #include <optional>
 #include <ranges>
+#include <shared_mutex>
 #include <vector>
 
+#include "../MemoryBlockManager.hpp"
+#include "BTreeNode.hpp"
 namespace ConcurrentQuITBTree {
 struct reset_stats {
     uint8_t fails;
@@ -61,12 +65,12 @@ class BTree {
     dist_f dist;
 
     BlockManager &manager;
-    mutable std::vector<shared_mutex> mutexes;
+    mutable std::vector<std::shared_mutex> mutexes;
     const node_id_t root_id;
     node_id_t head_id;
     node_id_t tail_id;
 
-    mutable shared_mutex fp_mutex;
+    mutable std::shared_mutex fp_mutex;
 
     node_id_t fp_id;
 

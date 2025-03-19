@@ -8,6 +8,9 @@
 #include <ranges>
 #include <vector>
 
+#include "../BTreeNode.hpp"
+#include "../MemoryBlockManager.hpp"
+
 namespace QuITBTree {
 
 struct reset_stats {

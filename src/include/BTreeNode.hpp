@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #include <algorithm>
 
 enum bp_node_type { LEAF, INTERNAL };
