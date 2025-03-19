@@ -73,6 +73,10 @@ class BTree {
         root.children[0] = head_id;
     }
 
+    friend std::ostream &operator<<(std::ostream &os, const BTree &tree) {
+        return os;
+    }
+
     bool update(const key_type &key, const value_type &value) {
         node_t leaf;
         find_leaf_exclusive(leaf, key);

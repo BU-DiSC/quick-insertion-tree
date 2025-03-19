@@ -2,6 +2,7 @@
 
 #include <outlier_detector.h>
 
+#include <chrono>
 #include <cstring>
 #include <limits>
 #include <mutex>
@@ -48,9 +49,11 @@ class BTree {
     static constexpr const char *name = "ConcurrentQuITBTree";
     static constexpr const bool concurrent = false;
     friend std::ostream &operator<<(std::ostream &os, const BTree &tree) {
-        os << tree.ctr_fast << ", " << tree.ctr_fast_fail << ", "
-           << tree.ctr_root_shared << ", " << tree.ctr_root_unique << ", "
-           << tree.ctr_root;
+        os << tree.ctr_size << ", " << tree.ctr_fast << ", "
+           << tree.ctr_fast_fail << ", " << tree.ctr_reset << ", "
+           << tree.ctr_sort;
+        os << ", " << tree.find_leaf_slot_time << ", " << tree.move_in_leaf_time
+           << ", " << tree.sort_time;
         return os;
     }
 
@@ -86,12 +89,21 @@ class BTree {
 
     reset_stats life;
 
+    bool fp_sorted;
+
     std::atomic<uint32_t> ctr_fast{};
     std::atomic<uint32_t> ctr_fast_fail{};
+    std::atomic<uint32_t> ctr_reset{};
+    std::atomic<uint32_t> ctr_sort{};
     mutable std::atomic<uint32_t> ctr_root_shared{};
     mutable uint32_t ctr_root_unique{};
     uint32_t ctr_root{};
     std::atomic<uint32_t> ctr_size;
+
+    // timers for profiling
+    long long find_leaf_slot_time = 0;
+    long long move_in_leaf_time = 0;
+    long long sort_time = 0;
 
     void create_new_root(const key_type &key, node_id_t right_node_id) {
         ++ctr_root;
@@ -293,10 +305,21 @@ class BTree {
 
         ctr_size++;
         manager.mark_dirty(leaf.info->id);
-        std::memmove(leaf.keys + index + 1, leaf.keys + index,
-                     (leaf.info->size - index) * sizeof(key_type));
-        std::memmove(leaf.values + index + 1, leaf.values + index,
-                     (leaf.info->size - index) * sizeof(value_type));
+
+        if (index < leaf.info->size) {
+            std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
+            std::memmove(leaf.keys + index + 1, leaf.keys + index,
+                         (leaf.info->size - index) * sizeof(key_type));
+            std::memmove(leaf.values + index + 1, leaf.values + index,
+                         (leaf.info->size - index) * sizeof(value_type));
+            std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+            move_in_leaf_time +=
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
+                    .count();
+        }
         leaf.keys[index] = key;
         leaf.values[index] = value;
         ++leaf.info->size;
@@ -313,6 +336,28 @@ class BTree {
 
         mutexes[leaf.info->id].unlock();
         return true;
+    }
+
+    void sort_leaf(node_t &leaf) {
+        std::chrono::high_resolution_clock::time_point start =
+            std::chrono::high_resolution_clock::now();
+        // do an in-place sort of entries in the leaf node without making a copy
+        std::sort(leaf.keys, leaf.keys + leaf.info->size,
+                  [&leaf](const key_type &a, const key_type &b) {
+                      // Sort keys and ensure corresponding values are
+                      // swapped
+                      size_t index_a = &a - leaf.keys;
+                      size_t index_b = &b - leaf.keys;
+                      if (a > b) {
+                          std::swap(leaf.values[index_a], leaf.values[index_b]);
+                      }
+                      return a < b;
+                  });
+        std::chrono::high_resolution_clock::time_point end =
+            std::chrono::high_resolution_clock::now();
+        sort_time +=
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+                .count();
     }
 
     void split_insert(node_t &leaf, uint16_t index, const path_t &path,
@@ -443,6 +488,10 @@ class BTree {
         root.info->next_id = root_id;
         root.info->size = 0;
         root.children[0] = head_id;
+        fp_sorted = true;
+#ifdef LEAF_APPENDS
+        std::cout << "leaf appends enabled" << std::endl;
+#endif
     }
 
     bool update(const key_type &key, const value_type &value) {
@@ -482,12 +531,31 @@ class BTree {
 
             life.success();
 
+            std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
+#ifdef LEAF_APPENDS
+            // index = leaf.info->size;
             index = leaf.value_slot(key);
+#else
+            index = leaf.value_slot(key);
+#endif
+            std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+            find_leaf_slot_time +=
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start)
+                    .count();
             if (leaf_insert(leaf, index, key, value, true)) {
                 ++ctr_fast;
                 return;
             }
             ++ctr_fast_fail;
+
+            // sort the leaf
+            sort_leaf(leaf);
+            ++ctr_sort;
+            manager.mark_dirty(fp_id);
+            fp_sorted = true;
 
             mutexes[fp_id].unlock();
             find_leaf_exclusive(leaf, path, key, leaf_max);
@@ -502,6 +570,23 @@ class BTree {
             find_leaf_exclusive(leaf, key, leaf_max);
 
             if (reset) {
+                ++ctr_reset;
+#ifdef LEAF_APPENDS
+                // we need to lock the fast path
+                mutexes[fp_id].lock();
+                // sort the fast-path leaf node using sort_leaf()
+                if (!fp_sorted) {
+                    node_t fp_leaf(manager.open_block(fp_id));
+                    sort_leaf(fp_leaf);
+                    fp_sorted = true;
+                    ++ctr_sort;
+                    // mark the fast-path leaf node as dirty
+                    manager.mark_dirty(fp_id);
+                }
+                // unlock the fast-path leaf node
+                mutexes[fp_id].unlock();
+#endif
+                // now update associated metadata
                 if (fp_id != tail_id && leaf.keys[0] == fp_max) {
                     fp_prev_id = fp_id;
                     fp_prev_size = fp_size;

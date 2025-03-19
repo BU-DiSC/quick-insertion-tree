@@ -75,6 +75,11 @@ class BTree {
         root.children[0] = head_id;
     }
 
+    friend std::ostream &operator<<(std::ostream &os, const BTree &tree) {
+        os << tree.ctr_fast;
+        return os;
+    }
+
     ~BTree() { std::cout << "fast: " << ctr_fast << "\n"; }
 
     bool update(const key_type &key, const value_type &value) {

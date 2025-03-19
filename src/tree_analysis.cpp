@@ -26,6 +26,8 @@ using namespace ConcurrentSimpleBTree;
 using namespace ConcurrentTailBTree;
 #elif defined(FOR_CONCURRENT_QUIT)
 using namespace ConcurrentQuITBTree;
+#elif defined(FOR_CONCURRENT_QUIT_APPENDS)
+using namespace ConcurrentQuITBTree;
 #else
 using namespace SimpleBTree;  // FOR_SIMPLEBTREE or fallback
 #endif
@@ -71,10 +73,12 @@ void insert_worker(tree_t &tree, const std::vector<key_type> &data,
     auto idx = line.get();
     const auto &size = line._size;
     while (idx < size) {
+        // std::cout << "Inserting " << data[idx] << std::endl;
         const key_type &key = data[idx] + offset;
         tree.insert(key, {});
         idx = line.get();
     }
+    std::cout << "done inserting" << std::endl;
 }
 
 void update_worker(tree_t &tree, const std::vector<key_type> &data,
@@ -285,7 +289,8 @@ class Workload {
         run_range(data, num_inserts, conf.mid_range, 100);
         run_range(data, num_inserts, conf.long_range, 10);
 
-        results << std::endl;
+        results << ", ";
+        results << tree << std::endl;
 
         if (conf.validate) {
             size_t count = 0;
