@@ -13,13 +13,22 @@
 using key_type = uint32_t;
 using value_type = uint32_t;
 
-// using namespace SimpleBTree;
-// using namespace ConcurrentSimpleBTree;
-// using namespace TailBTree;
-// using namespace ConcurrentTailBTree;
-// using namespace LILBTree;
+// Default to SimpleBTree if nothing else is defined
+#if defined(FOR_TAILBTREE)
+using namespace TailBTree;
+#elif defined(FOR_LILBTREE)
+using namespace LILBTree;
+#elif defined(FOR_QUIT)
 using namespace QuITBTree;
-// using namespace ConcurrentQuITBTree;
+#elif defined(FOR_CONCURRENT_SIMPLE)
+using namespace ConcurrentSimpleBTree;
+#elif defined(FOR_CONCURRENT_TAIL)
+using namespace ConcurrentTailBTree;
+#elif defined(FOR_CONCURRENT_QUIT)
+using namespace ConcurrentQuITBTree;
+#else
+using namespace SimpleBTree;  // FOR_SIMPLEBTREE or fallback
+#endif
 
 using tree_t = BTree<key_type, value_type>;
 
