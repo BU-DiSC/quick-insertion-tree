@@ -534,8 +534,8 @@ class BTree {
             std::chrono::high_resolution_clock::time_point start =
                 std::chrono::high_resolution_clock::now();
 #ifdef LEAF_APPENDS
-            // index = leaf.info->size;
-            index = leaf.value_slot(key);
+            index = leaf.info->size;
+            // index = leaf.value_slot(key);
 #else
             index = leaf.value_slot(key);
 #endif
@@ -550,8 +550,7 @@ class BTree {
                 return;
             }
             ++ctr_fast_fail;
-
-            // sort the leaf
+            // sort the leaf as it is deemed full
             sort_leaf(leaf);
             ++ctr_sort;
             manager.mark_dirty(fp_id);
@@ -610,7 +609,6 @@ class BTree {
             mutexes[leaf.info->id].unlock();
             find_leaf_exclusive(leaf, path, key, leaf_max);
         }
-
         index = leaf.value_slot(key);
         if (leaf_insert(leaf, index, key, value, fast)) {
             for (const auto &parent_id : path) {
@@ -677,8 +675,18 @@ class BTree {
         node_t leaf;
         find_leaf_shared(leaf, key);
         std::shared_lock lock(mutexes[leaf.info->id], std::adopt_lock);
-        uint16_t index = leaf.value_slot(key);
-        return index < leaf.info->size && (leaf.keys[index] == key);
+        if (leaf.info->id != fp_id) {
+            uint16_t index = leaf.value_slot(key);
+            return index < leaf.info->size && (leaf.keys[index] == key);
+        } else {
+            // do a linear scan of node
+            for (uint16_t i = 0; i < leaf.info->size; i++) {
+                if (leaf.keys[i] == key) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 };
 }  // namespace ConcurrentQuITBTree
