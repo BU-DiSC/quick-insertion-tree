@@ -575,14 +575,14 @@ class BTree {
                 // we need to lock the fast path
                 mutexes[fp_id].lock();
                 // sort the fast-path leaf node using sort_leaf()
-                if (!fp_sorted) {
-                    node_t fp_leaf(manager.open_block(fp_id));
-                    sort_leaf(fp_leaf);
-                    fp_sorted = true;
-                    ++ctr_sort;
-                    // mark the fast-path leaf node as dirty
-                    manager.mark_dirty(fp_id);
-                }
+                // if (!fp_sorted) {
+                node_t fp_leaf(manager.open_block(fp_id));
+                sort_leaf(fp_leaf);
+                fp_sorted = true;
+                ++ctr_sort;
+                // mark the fast-path leaf node as dirty
+                manager.mark_dirty(fp_id);
+                // }
                 // unlock the fast-path leaf node
                 mutexes[fp_id].unlock();
 #endif
