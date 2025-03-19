@@ -45,7 +45,7 @@ class BTree {
     using step = node_id_t;
     using path_t = std::vector<step>;
 
-    static constexpr const char *name = "QuITBTree";
+    static constexpr const char *name = "ConcurrentQuITBTree";
     static constexpr const bool concurrent = false;
     friend std::ostream &operator<<(std::ostream &os, const BTree &tree) {
         os << tree.ctr_fast << ", " << tree.ctr_fast_fail << ", "
