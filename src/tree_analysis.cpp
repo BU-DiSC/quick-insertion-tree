@@ -93,16 +93,6 @@ void insert_worker(tree_t &tree, const std::vector<key_type> &data,
         idx = line.get();
     }
     std::cout << "done inserting" << std::endl;
-    for (size_t i = 0; i < size; i++) {
-        const key_type &q = data[i] + offset;
-        if (!tree.contains(q)) {
-            std::cout << "not found" << std::endl;
-            std::cout << "last inserted = " << idx << ", " << data[idx]
-                      << std::endl;
-            return;
-        }
-    }
-    std::cout << "all okay here" << std::endl;
 }
 
 void update_worker(tree_t &tree, const std::vector<key_type> &data,
@@ -313,16 +303,11 @@ class Workload {
         run_range(data, num_inserts, conf.mid_range, 100);
         run_range(data, num_inserts, conf.long_range, 10);
 
-        results << ", ";
-        results << tree << std::endl;
-
         if (conf.validate) {
             size_t count = 0;
             for (const auto &item : data) {
                 if (!tree.contains(item)) {
                     count++;
-                    std::cerr << item << " not found" << std::endl;
-                    break;
 #ifdef DEBUG
                     std::cerr << item << " not found" << std::endl;
                     break;
@@ -335,6 +320,9 @@ class Workload {
                 std::cerr << "All good\n";
             }
         }
+
+        results << ", ";
+        results << tree << std::endl;
     }
 };
 

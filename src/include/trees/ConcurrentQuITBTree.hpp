@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <mutex>
 #include <optional>
@@ -89,12 +90,13 @@ class BTree {
 
     reset_stats life;
 
-    bool fp_sorted;
+    std::atomic<bool> fp_sorted{};
 
     std::atomic<uint32_t> ctr_fast{};
     std::atomic<uint32_t> ctr_fast_fail{};
     std::atomic<uint32_t> ctr_reset{};
     std::atomic<uint32_t> ctr_sort{};
+    std::atomic<uint32_t> fp_slot{};
     mutable std::atomic<uint32_t> ctr_root_shared{};
     mutable uint32_t ctr_root_unique{};
     uint32_t ctr_root{};
@@ -303,6 +305,12 @@ class BTree {
             return false;
         }
 
+        if (fast && fp_sorted) {
+            if (leaf.keys[index - 1] > key) {
+                fp_sorted = false;
+            }
+        }
+
         ctr_size++;
         manager.mark_dirty(leaf.info->id);
 
@@ -338,23 +346,79 @@ class BTree {
         return true;
     }
 
+    // void sort_leaf(node_t &leaf) {
+    //     std::chrono::high_resolution_clock::time_point start =
+    //         std::chrono::high_resolution_clock::now();
+    //     // do an in-place sort of entries in the leaf node without making a
+    //     copy std::sort(leaf.keys, leaf.keys + leaf.info->size,
+    //               [&leaf](const key_type &a, const key_type &b) {
+    //                   // Sort keys and ensure corresponding values are
+    //                   // swapped
+    //                   size_t index_a = &a - leaf.keys;
+    //                   size_t index_b = &b - leaf.keys;
+    //                   if (a > b) {
+    //                       std::swap(leaf.values[index_a],
+    //                       leaf.values[index_b]);
+    //                   }
+    //                   return a < b;
+    //               });
+    //     std::chrono::high_resolution_clock::time_point end =
+    //         std::chrono::high_resolution_clock::now();
+    //     sort_time +=
+    //         std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+    //             .count();
+    // }
+
     void sort_leaf(node_t &leaf) {
-        std::chrono::high_resolution_clock::time_point start =
-            std::chrono::high_resolution_clock::now();
-        // do an in-place sort of entries in the leaf node without making a copy
-        std::sort(leaf.keys, leaf.keys + leaf.info->size,
-                  [&leaf](const key_type &a, const key_type &b) {
-                      // Sort keys and ensure corresponding values are
-                      // swapped
-                      size_t index_a = &a - leaf.keys;
-                      size_t index_b = &b - leaf.keys;
-                      if (a > b) {
-                          std::swap(leaf.values[index_a], leaf.values[index_b]);
-                      }
-                      return a < b;
-                  });
-        std::chrono::high_resolution_clock::time_point end =
-            std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now();
+
+        uint16_t n = leaf.info->size;
+        if (n <= 1) {
+            auto end = std::chrono::high_resolution_clock::now();
+            sort_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             end - start)
+                             .count();
+            return;
+        }
+
+        // Build an index array [0, 1, 2, ..., n-1]
+        std::vector<size_t> indices(n);
+        for (size_t i = 0; i < n; ++i) {
+            indices[i] = i;
+        }
+
+        // Sort the indices based on the keys stored in the leaf.
+        std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
+            return leaf.keys[a] < leaf.keys[b];
+        });
+
+        // Apply the permutation in-place using cycle decomposition.
+        std::vector<bool> visited(n, false);
+        for (size_t i = 0; i < n; ++i) {
+            // If the element is already in the correct position or already
+            // visited, skip.
+            if (visited[i] || indices[i] == i) continue;
+
+            size_t cycle_start = i;
+            key_type temp_key = leaf.keys[i];
+            value_type temp_value = leaf.values[i];
+            size_t j = i;
+
+            while (!visited[j]) {
+                visited[j] = true;
+                size_t next = indices[j];
+                if (next == cycle_start) {
+                    leaf.keys[j] = temp_key;
+                    leaf.values[j] = temp_value;
+                    break;
+                }
+                leaf.keys[j] = leaf.keys[next];
+                leaf.values[j] = leaf.values[next];
+                j = next;
+            }
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
         sort_time +=
             std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
                 .count();
@@ -531,14 +595,16 @@ class BTree {
 
             life.success();
 
+#ifdef LEAF_APPENDS
+            if (leaf_insert(leaf, leaf.info->size, key, value, true)) {
+                ++ctr_fast;
+                return;
+            }
+#else
             std::chrono::high_resolution_clock::time_point start =
                 std::chrono::high_resolution_clock::now();
-#ifdef LEAF_APPENDS
-            index = leaf.info->size;
-            // index = leaf.value_slot(key);
-#else
             index = leaf.value_slot(key);
-#endif
+
             std::chrono::high_resolution_clock::time_point end =
                 std::chrono::high_resolution_clock::now();
             find_leaf_slot_time +=
@@ -549,19 +615,22 @@ class BTree {
                 ++ctr_fast;
                 return;
             }
-            ++ctr_fast_fail;
-// sort the leaf as it is deemed full
-#ifdef LEAF_APPENDS
-            sort_leaf(leaf);
-            ++ctr_sort;
-            manager.mark_dirty(fp_id);
-            fp_sorted = true;
 #endif
+            // we reached a case where leaf_insert returned false as it is full.
+#ifdef LEAF_APPENDS
+            // since we were appending and now will be splitting, sort the leaf
+            if (!fp_sorted) {
+                sort_leaf(leaf);
+                fp_sorted = true;
+                ++ctr_sort;
+            }
+#endif
+
+            ++ctr_fast_fail;
             mutexes[fp_id].unlock();
             find_leaf_exclusive(leaf, path, key, leaf_max);
         } else {
             fast = false;
-
             bool reset = life.failure();
             if (!reset) {
                 fp_lock.unlock();
@@ -572,19 +641,15 @@ class BTree {
             if (reset) {
                 ++ctr_reset;
 #ifdef LEAF_APPENDS
-                // we need to lock the fast path
-                mutexes[fp_id].lock();
-                // sort the fast-path leaf node using sort_leaf()
-                // if (!fp_sorted) {
-                node_t fp_leaf(manager.open_block(fp_id));
-                sort_leaf(fp_leaf);
-                fp_sorted = true;
-                ++ctr_sort;
-                // mark the fast-path leaf node as dirty
-                manager.mark_dirty(fp_id);
-                // }
-                // unlock the fast-path leaf node
-                mutexes[fp_id].unlock();
+                if (!fp_sorted) {
+                    mutexes[fp_id].lock();
+                    node_t fp_leaf(manager.open_block(fp_id), LEAF);
+                    sort_leaf(fp_leaf);
+                    fp_sorted = true;
+                    ++ctr_sort;
+                    manager.mark_dirty(fp_id);
+                    mutexes[fp_id].unlock();
+                }
 #endif
                 // now update associated metadata
                 if (fp_id != tail_id && leaf.keys[0] == fp_max) {
