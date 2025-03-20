@@ -72,24 +72,11 @@ void insert_worker(tree_t &tree, const std::vector<key_type> &data,
                    Ticket &line, const key_type &offset) {
     auto idx = line.get();
     const auto &size = line._size;
-    auto findmy = false;
     while (idx < size) {
         // std::cout << "Inserting " << data[idx] << std::endl;
         const key_type &key = data[idx] + offset;
-        if (key == 2629485 || idx == 2629763 || key == 2629764) {
-            std::cout << "Inserting " << data[idx] << std::endl;
-            findmy = true;
-        }
         tree.insert(key, {});
         // ensure all keys inserted so far are found
-        if (findmy) {
-            if (!tree.contains(2629485)) {
-                std::cout << "not found" << std::endl;
-                std::cout << "last inserted = " << idx << ", " << data[idx]
-                          << std::endl;
-                break;
-            }
-        }
         idx = line.get();
     }
     std::cout << "done inserting" << std::endl;

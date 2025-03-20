@@ -372,50 +372,15 @@ class BTree {
     void sort_leaf(node_t &leaf) {
         auto start = std::chrono::high_resolution_clock::now();
 
-        uint16_t n = leaf.info->size;
-        if (n <= 1) {
-            auto end = std::chrono::high_resolution_clock::now();
-            sort_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                             end - start)
-                             .count();
-            return;
+        std::array<std::pair<key_type, value_type>, node_t::leaf_capacity> kvs;
+        for (uint16_t i = 0; i < leaf.info->size; i++) {
+            kvs[i] = {leaf.keys[i], leaf.values[i]};
         }
-
-        // Build an index array [0, 1, 2, ..., n-1]
-        std::vector<size_t> indices(n);
-        for (size_t i = 0; i < n; ++i) {
-            indices[i] = i;
-        }
-
-        // Sort the indices based on the keys stored in the leaf.
-        std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
-            return leaf.keys[a] < leaf.keys[b];
-        });
-
-        // Apply the permutation in-place using cycle decomposition.
-        std::vector<bool> visited(n, false);
-        for (size_t i = 0; i < n; ++i) {
-            // If the element is already in the correct position or already
-            // visited, skip.
-            if (visited[i] || indices[i] == i) continue;
-
-            size_t cycle_start = i;
-            key_type temp_key = leaf.keys[i];
-            value_type temp_value = leaf.values[i];
-            size_t j = i;
-
-            while (!visited[j]) {
-                visited[j] = true;
-                size_t next = indices[j];
-                if (next == cycle_start) {
-                    leaf.keys[j] = temp_key;
-                    leaf.values[j] = temp_value;
-                    break;
-                }
-                leaf.keys[j] = leaf.keys[next];
-                leaf.values[j] = leaf.values[next];
-                j = next;
-            }
+        std::sort(kvs.begin(), kvs.begin() + leaf.info->size,
+                  [](const auto &a, const auto &b) { return a.first < b.first; });
+        for (uint16_t i = 0; i < leaf.info->size; i++) {
+            leaf.keys[i] = kvs[i].first;
+            leaf.values[i] = kvs[i].second;
         }
 
         auto end = std::chrono::high_resolution_clock::now();
